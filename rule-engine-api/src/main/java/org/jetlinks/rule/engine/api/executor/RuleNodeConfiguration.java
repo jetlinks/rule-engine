@@ -3,6 +3,7 @@ package org.jetlinks.rule.engine.api.executor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import org.jetlinks.rule.engine.api.model.NodeType;
 
 import java.io.Serializable;
 import java.util.Map;
@@ -19,7 +20,9 @@ public class RuleNodeConfiguration implements Serializable {
 
     private String name;
 
-    private String type;
+    private String executor;
+
+    private NodeType nodeType;
 
     private Map<String, Object> configuration;
 }

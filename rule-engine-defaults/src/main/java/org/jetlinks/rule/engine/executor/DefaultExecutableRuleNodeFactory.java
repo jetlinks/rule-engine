@@ -3,9 +3,11 @@ package org.jetlinks.rule.engine.executor;
 import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
 import org.jetlinks.rule.engine.api.executor.ExecutableRuleNodeFactory;
 import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
+import org.jetlinks.rule.engine.api.executor.StreamRuleNode;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -24,6 +26,12 @@ public class DefaultExecutableRuleNodeFactory implements ExecutableRuleNodeFacto
                 .tryReload(configuration);
     }
 
+    @Override
+    public StreamRuleNode createStream(RuleNodeConfiguration configuration) {
+
+        return null;
+    }
+
     private class Cache {
         private long configHash;
 
@@ -37,8 +45,9 @@ public class DefaultExecutableRuleNodeFactory implements ExecutableRuleNodeFacto
         }
 
         private void doReload(RuleNodeConfiguration configuration) {
-            executableRuleNode = strategySupports.get(configuration.getType())
-                    .create(configuration);
+            executableRuleNode = Optional.ofNullable(strategySupports.get(configuration.getExecutor()))
+                    .map(strategy -> strategy.create(configuration))
+                    .orElseThrow(() -> new UnsupportedOperationException("不支持的节点类型:" + configuration.getExecutor()));
             configHash = configuration.hashCode();
         }
     }

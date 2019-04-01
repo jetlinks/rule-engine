@@ -3,7 +3,7 @@ package org.jetlinks.rule.engine.api.executor;
 
 import org.jetlinks.rule.engine.api.stream.Input;
 import org.jetlinks.rule.engine.api.stream.Output;
-import org.jetlinks.rule.engine.api.stream.StreamData;
+import org.jetlinks.rule.engine.api.RuleData;
 
 /**
  * @author zhouhao
@@ -14,5 +14,5 @@ public interface StreamExecutionContext extends ExecutionContext {
 
     Output getOutput();
 
-    void onError(StreamData data, Throwable e);
+    void onError(RuleData data, Throwable e);
 }

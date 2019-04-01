@@ -1,5 +1,7 @@
 package org.jetlinks.rule.engine.api.stream;
 
+import org.jetlinks.rule.engine.api.RuleData;
+
 import java.util.function.Consumer;
 
 /**
@@ -7,7 +9,7 @@ import java.util.function.Consumer;
  * @since 1.0.0
  */
 public interface Input {
-    void accept(Consumer<StreamData> accept);
+    void accept(Consumer<RuleData> accept);
 
-    boolean acceptOnce(Consumer<StreamData> accept);
+    boolean acceptOnce(Consumer<RuleData> accept);
 }

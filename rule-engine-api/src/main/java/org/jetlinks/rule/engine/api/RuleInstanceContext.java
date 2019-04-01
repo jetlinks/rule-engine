@@ -1,15 +1,18 @@
 package org.jetlinks.rule.engine.api;
 
+import java.util.concurrent.CompletionStage;
+
 /**
  * @author zhouhao
  * @since 1.0.0
  */
-public interface RunningRuleContext {
+public interface RuleInstanceContext {
     String getId();
 
     long getStartTime();
 
-    void putData(Object data);
+    CompletionStage<RuleData> execute(RuleData data);
 
     void stop();
+
 }

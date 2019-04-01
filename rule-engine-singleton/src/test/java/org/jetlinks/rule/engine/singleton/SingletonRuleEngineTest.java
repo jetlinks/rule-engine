@@ -1,0 +1,119 @@
+package org.jetlinks.rule.engine.singleton;
+
+import lombok.SneakyThrows;
+import org.jetlinks.rule.engine.api.ConditionEvaluator;
+import org.jetlinks.rule.engine.api.Rule;
+import org.jetlinks.rule.engine.api.RuleData;
+import org.jetlinks.rule.engine.api.RuleInstanceContext;
+import org.jetlinks.rule.engine.api.events.RuleEvent;
+import org.jetlinks.rule.engine.api.model.NodeType;
+import org.jetlinks.rule.engine.api.model.RuleLink;
+import org.jetlinks.rule.engine.api.model.RuleModel;
+import org.jetlinks.rule.engine.api.model.RuleNodeModel;
+import org.jetlinks.rule.engine.executor.DefaultExecutableRuleNodeFactory;
+import org.jetlinks.rule.engine.executor.supports.JavaMethodInvokeStrategy;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * @author zhouhao
+ * @since 1.0.0
+ */
+public class SingletonRuleEngineTest {
+
+    private SingletonRuleEngine engine;
+
+    @Before
+    public void init() {
+        DefaultExecutableRuleNodeFactory nodeFactory = new DefaultExecutableRuleNodeFactory();
+        nodeFactory.registerStrategy(new JavaMethodInvokeStrategy());
+        ConditionEvaluator evaluator = (condition, context) -> true;
+
+
+        engine = new SingletonRuleEngine();
+        engine.setEvaluator(evaluator);
+        engine.setNodeFactory(nodeFactory);
+
+    }
+
+
+    @Test
+    @SneakyThrows
+    public void testRuleEngine() {
+        RuleModel model = new RuleModel();
+        model.setId("test");
+        model.setName("测试");
+
+        RuleNodeModel startNode = new RuleNodeModel();
+        startNode.setId("start");
+        startNode.setExecutor("java-method");
+        startNode.setName("执行java方法");
+        startNode.setNodeType(NodeType.MAP);
+        startNode.addConfiguration("className", "org.jetlinks.rule.engine.singleton.TestExecutor");
+        startNode.addConfiguration("methodName", "execute");
+
+        RuleNodeModel end = new RuleNodeModel();
+        end.setId("end");
+        end.setExecutor("java-method");
+        end.setName("执行java方法");
+        end.setNodeType(NodeType.PEEK);
+        end.addConfiguration("className", "org.jetlinks.rule.engine.singleton.TestExecutor");
+        end.addConfiguration("methodName", "execute2");
+
+        RuleNodeModel log = new RuleNodeModel();
+        log.setId("log");
+        log.setExecutor("java-method");
+        log.setName("执行java方法");
+        log.setNodeType(NodeType.PEEK);
+        log.addConfiguration("className", "org.jetlinks.rule.engine.singleton.TestExecutor");
+        log.addConfiguration("methodName", "execute3");
+
+        RuleNodeModel afterEvent = new RuleNodeModel();
+        afterEvent.setId("after-event");
+        afterEvent.setExecutor("java-method");
+        afterEvent.setName("执行java方法");
+        afterEvent.setNodeType(NodeType.PEEK);
+        afterEvent.addConfiguration("className", "org.jetlinks.rule.engine.singleton.TestExecutor");
+        afterEvent.addConfiguration("methodName", "event1");
+
+        RuleLink event1 = new RuleLink();
+        event1.getTarget().add(afterEvent);
+        event1.getSource().add(log);
+        event1.setType(RuleEvent.NODE_EXECUTE_FAIL);
+        event1.setId("after-event-link");
+
+        log.getEvents().add(event1);
+
+
+        RuleLink link = new RuleLink();
+        link.setCondition(null);
+        link.setId("lin-start-end");
+        link.setTarget(Arrays.asList(end, log));
+        link.setSource(Arrays.asList(startNode));
+        startNode.getOutputs().add(link);
+
+        model.getNodes().add(startNode);
+
+        Rule rule = new Rule();
+        rule.setId("test:1.0");
+        rule.setVersion(1);
+        rule.setModel(model);
+        rule.setModel(model);
+
+        RuleInstanceContext context = engine.startRule(rule);
+        Assert.assertNotNull(context);
+        Assert.assertNotNull(context.getId());
+        RuleData ruleData = context.execute(RuleData.create("abc1234"))
+                .toCompletableFuture()
+                .get(10, TimeUnit.SECONDS);
+
+        Assert.assertEquals(ruleData.getData(), "ABC1234");
+        System.out.println(ruleData.getData());
+
+    }
+
+}

@@ -3,6 +3,8 @@ package org.jetlinks.rule.engine.api.model;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -20,12 +22,14 @@ public class RuleLink {
 
     private String description;
 
-    private Map<String, Object> configuration;
+    private String type;
+
+    private Map<String, Object> configuration = new HashMap<>();
 
     private Condition condition;
 
-    private List<RuleNodeModel> source;
+    private List<RuleNodeModel> source = new ArrayList<>();
 
-    private List<RuleNodeModel> target;
+    private List<RuleNodeModel> target = new ArrayList<>();
 
 }

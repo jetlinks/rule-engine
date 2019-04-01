@@ -2,9 +2,13 @@ package org.jetlinks.rule.engine.api.model;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 规则节点
@@ -18,16 +22,50 @@ public class RuleNodeModel {
 
     private String id;
 
+    private String ruleId;
+
     private String name;
 
     private String description;
 
-    private String type;
+    private String executor;
 
-    private Map<String, Object> configuration;
+    private NodeType nodeType;
 
-    private List<RuleLink> inputs;
+    private Map<String, Object> configuration = new HashMap<>();
 
-    private List<RuleLink> outputs;
+    private List<RuleLink> events = new ArrayList<>();
 
+    private List<RuleLink> inputs = new ArrayList<>();
+
+    private List<RuleLink> outputs = new ArrayList<>();
+
+    public RuleNodeModel addConfiguration(String key, Object value) {
+        configuration.put(key, value);
+        return this;
+    }
+
+    public RuleNodeConfiguration createConfiguration() {
+        RuleNodeConfiguration configuration = new RuleNodeConfiguration();
+        configuration.setId(this.ruleId + ":" + this.id + ":" + this.executor);
+        configuration.setName(this.name);
+        configuration.setNodeType(this.nodeType);
+        configuration.setExecutor(this.executor);
+        configuration.setConfiguration(this.configuration);
+        return configuration;
+    }
+
+    public List<RuleLink> getEvents(String type) {
+        return events.stream()
+                .filter(link -> type.equals(link.getType()))
+                .collect(Collectors.toList());
+    }
+
+    public boolean isStartNode() {
+        return inputs == null || inputs.isEmpty();
+    }
+
+    public boolean isEndNode() {
+        return outputs == null || outputs.isEmpty();
+    }
 }

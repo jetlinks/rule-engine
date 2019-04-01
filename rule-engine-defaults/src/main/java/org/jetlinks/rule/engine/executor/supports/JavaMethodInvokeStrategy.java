@@ -3,6 +3,10 @@ package org.jetlinks.rule.engine.executor.supports;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import org.jetlinks.rule.engine.api.Logger;
+import org.jetlinks.rule.engine.api.TypeConverter;
+import org.jetlinks.rule.engine.api.model.NodeType;
 import org.jetlinks.rule.engine.executor.AbstractExecutableRuleNodeFactoryStrategy;
 
 import java.lang.reflect.Method;
@@ -11,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -19,7 +24,10 @@ import java.util.stream.Stream;
  * @since 1.0.0
  */
 @SuppressWarnings("all")
+@Slf4j
 public class JavaMethodInvokeStrategy extends AbstractExecutableRuleNodeFactoryStrategy<JavaMethodInvokeStrategy.JavaMethodInvokeStrategyConfiguration> {
+
+    private TypeConverter typeConverter;
 
     @Getter
     @Setter
@@ -43,7 +51,7 @@ public class JavaMethodInvokeStrategy extends AbstractExecutableRuleNodeFactoryS
     }
 
     @SneakyThrows
-    public Function<Object, CompletionStage<Object>> createExecutor(JavaMethodInvokeStrategyConfiguration config) {
+    public BiFunction<Logger, Object, CompletionStage<Object>> createExecutor(JavaMethodInvokeStrategyConfiguration config) {
         String className = config.getClassName();
         String methodName = config.getMethodName();
         Class clazz = getType(className);
@@ -67,13 +75,15 @@ public class JavaMethodInvokeStrategy extends AbstractExecutableRuleNodeFactoryS
         Method finaleMethod = method;
         int parameterCount = method.getParameterCount();
         Class[] methodTypes = method.getParameterTypes();
-        return (data) -> {
+        log.debug("create java method invoke executor:{}.{}", className, methodName);
+        return (logger, data) -> {
             CompletableFuture future = new CompletableFuture();
             try {
                 Object[] invokeParameter = parameterCount > 0 ? new Object[parameterCount] : emptyArgs;
                 for (int i = 0; i < parameterCount; i++) {
                     invokeParameter[i] = convertParameter(methodTypes[i], data, config, i);
                 }
+                logger.info("invoke {}.{}", className, methodName);
                 Object result = finaleMethod.invoke(instance, (Object[]) invokeParameter);
                 if (result instanceof CompletionStage) {
                     return ((CompletionStage) result);
@@ -102,10 +112,12 @@ public class JavaMethodInvokeStrategy extends AbstractExecutableRuleNodeFactoryS
 
     @Getter
     @Setter
-    public static class JavaMethodInvokeStrategyConfiguration {
+    public static class JavaMethodInvokeStrategyConfiguration implements RuleNodeConfig {
         private String className;
 
         private String methodName;
+
+        private NodeType nodeType;
 
         private List<Object> parameters;
 

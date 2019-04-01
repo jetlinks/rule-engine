@@ -12,4 +12,11 @@
     <artifactId>rule-engine-api</artifactId>
 
 
+    <dependencies>
+        <dependency>
+            <groupId>org.hswebframework.web</groupId>
+            <artifactId>hsweb-core</artifactId>
+            <version>${hsweb.framework.version}</version>
+        </dependency>
+    </dependencies>
 </project>
