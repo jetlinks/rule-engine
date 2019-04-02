@@ -10,4 +10,6 @@ public interface Queue<T> {
     boolean acceptOnce(Consumer<T> consumer);
 
     CompletionStage<Void> putAsync(T data);
+
+    void put(T data);
 }
