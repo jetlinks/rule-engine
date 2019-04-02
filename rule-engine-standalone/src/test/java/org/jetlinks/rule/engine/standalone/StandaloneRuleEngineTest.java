@@ -16,16 +16,15 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 /**
  * @author zhouhao
  * @since 1.0.0
  */
-public class SingletonRuleEngineTest {
+public class StandaloneRuleEngineTest {
 
-    private SingletonRuleEngine engine;
+    private StandaloneRuleEngine engine;
 
     @Before
     public void init() {
@@ -34,7 +33,7 @@ public class SingletonRuleEngineTest {
         ConditionEvaluator evaluator = (condition, context) -> true;
 
 
-        engine = new SingletonRuleEngine();
+        engine = new StandaloneRuleEngine();
         engine.setEvaluator(evaluator);
         engine.setNodeFactory(nodeFactory);
 
@@ -81,8 +80,8 @@ public class SingletonRuleEngineTest {
         afterEvent.addConfiguration("methodName", "event1");
 
         RuleLink event1 = new RuleLink();
-        event1.getTarget().add(afterEvent);
-        event1.getSource().add(log);
+        event1.setTarget(afterEvent);
+        event1.setSource(log);
         event1.setType(RuleEvent.NODE_EXECUTE_FAIL);
         event1.setId("after-event-link");
 
@@ -91,10 +90,19 @@ public class SingletonRuleEngineTest {
 
         RuleLink link = new RuleLink();
         link.setCondition(null);
-        link.setId("lin-start-end");
-        link.setTarget(Arrays.asList(end, log));
-        link.setSource(Arrays.asList(startNode));
+        link.setId("link-start-end");
+        link.setTarget(end);
+        link.setSource(startNode);
+
+        RuleLink logLink = new RuleLink();
+        logLink.setCondition(null);
+        logLink.setId("link-start-log");
+        logLink.setTarget(log);
+        logLink.setSource(startNode);
+
+
         startNode.getOutputs().add(link);
+        startNode.getOutputs().add(logLink);
 
         model.getNodes().add(startNode);
 

@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * 单点规则引擎实现
@@ -24,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @since 1.0.0
  */
 @Slf4j
-public class SingletonRuleEngine implements RuleEngine {
+public class StandaloneRuleEngine implements RuleEngine {
 
     @Getter
     @Setter
@@ -50,9 +51,7 @@ public class SingletonRuleEngine implements RuleEngine {
         }
         //event
         for (RuleLink output : nodeModel.getEvents()) {
-            for (RuleNodeModel ruleNodeModel : output.getTarget()) {
-                executor.addEventListener(output.getType(), createRuleExecutor(output.getCondition(), ruleNodeModel, null));
-            }
+            executor.addEventListener(output.getType(), createRuleExecutor(output.getCondition(), output.getTarget(), null));
         }
         executor.setNodeType(nodeModel.getNodeType());
         return executor;
@@ -66,9 +65,7 @@ public class SingletonRuleEngine implements RuleEngine {
 
         //output
         for (RuleLink output : nodeModel.getOutputs()) {
-            for (RuleNodeModel ruleNodeModel : output.getTarget()) {
-                createRuleExecutor(output.getCondition(), ruleNodeModel, executor);
-            }
+            createRuleExecutor(output.getCondition(), output.getTarget(), executor);
         }
 
         return parent != null ? parent : executor;
@@ -97,7 +94,7 @@ public class SingletonRuleEngine implements RuleEngine {
     @Setter
     public static class SingletonRuleInstanceContext implements RuleInstanceContext {
         private String id;
-        private long   startTime;
+        private long startTime;
 
         private RuleExecutor rootExecutor;
 
@@ -107,6 +104,11 @@ public class SingletonRuleEngine implements RuleEngine {
                 return CompletableFuture.completedFuture(null);
             }
             return rootExecutor.execute(data);
+        }
+
+        @Override
+        public void execute(Consumer<Consumer<RuleData>> dataSink) {
+            dataSink.accept(data-> rootExecutor.execute(data));
         }
 
         @Override
