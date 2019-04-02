@@ -1,4 +1,4 @@
-package org.jetlinks.rule.engine.singleton;
+package org.jetlinks.rule.engine.standalone;
 
 import java.io.PrintStream;
 import java.io.PrintWriter;

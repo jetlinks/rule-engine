@@ -1,4 +1,4 @@
-package org.jetlinks.rule.engine.singleton;
+package org.jetlinks.rule.engine.standalone;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;

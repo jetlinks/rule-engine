@@ -1,4 +1,4 @@
-package org.jetlinks.rule.engine.singleton;
+package org.jetlinks.rule.engine.standalone;
 
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.model.NodeType;

@@ -1,9 +1,8 @@
-package org.jetlinks.rule.engine.singleton;
+package org.jetlinks.rule.engine.standalone;
 
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections.CollectionUtils;
 import org.hswebframework.web.id.IDGenerator;
 import org.jetlinks.rule.engine.api.*;
 import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
@@ -13,7 +12,6 @@ import org.jetlinks.rule.engine.api.model.RuleLink;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;

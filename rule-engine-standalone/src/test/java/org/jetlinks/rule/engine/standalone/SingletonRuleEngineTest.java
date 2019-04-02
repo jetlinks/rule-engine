@@ -1,4 +1,4 @@
-package org.jetlinks.rule.engine.singleton;
+package org.jetlinks.rule.engine.standalone;
 
 import lombok.SneakyThrows;
 import org.jetlinks.rule.engine.api.ConditionEvaluator;
@@ -53,7 +53,7 @@ public class SingletonRuleEngineTest {
         startNode.setExecutor("java-method");
         startNode.setName("执行java方法");
         startNode.setNodeType(NodeType.MAP);
-        startNode.addConfiguration("className", "org.jetlinks.rule.engine.singleton.TestExecutor");
+        startNode.addConfiguration("className", "org.jetlinks.rule.engine.standalone.TestExecutor");
         startNode.addConfiguration("methodName", "execute");
 
         RuleNodeModel end = new RuleNodeModel();
@@ -61,7 +61,7 @@ public class SingletonRuleEngineTest {
         end.setExecutor("java-method");
         end.setName("执行java方法");
         end.setNodeType(NodeType.PEEK);
-        end.addConfiguration("className", "org.jetlinks.rule.engine.singleton.TestExecutor");
+        end.addConfiguration("className", "org.jetlinks.rule.engine.standalone.TestExecutor");
         end.addConfiguration("methodName", "execute2");
 
         RuleNodeModel log = new RuleNodeModel();
@@ -69,7 +69,7 @@ public class SingletonRuleEngineTest {
         log.setExecutor("java-method");
         log.setName("执行java方法");
         log.setNodeType(NodeType.PEEK);
-        log.addConfiguration("className", "org.jetlinks.rule.engine.singleton.TestExecutor");
+        log.addConfiguration("className", "org.jetlinks.rule.engine.standalone.TestExecutor");
         log.addConfiguration("methodName", "execute3");
 
         RuleNodeModel afterEvent = new RuleNodeModel();
@@ -77,7 +77,7 @@ public class SingletonRuleEngineTest {
         afterEvent.setExecutor("java-method");
         afterEvent.setName("执行java方法");
         afterEvent.setNodeType(NodeType.PEEK);
-        afterEvent.addConfiguration("className", "org.jetlinks.rule.engine.singleton.TestExecutor");
+        afterEvent.addConfiguration("className", "org.jetlinks.rule.engine.standalone.TestExecutor");
         afterEvent.addConfiguration("methodName", "event1");
 
         RuleLink event1 = new RuleLink();
