@@ -1,6 +1,7 @@
 package org.jetlinks.rule.engine.api;
 
 import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 
 /**
  * @author zhouhao
@@ -12,6 +13,8 @@ public interface RuleInstanceContext {
     long getStartTime();
 
     CompletionStage<RuleData> execute(RuleData data);
+
+    void execute(Consumer<Consumer<RuleData>> dataSink);
 
     void stop();
 

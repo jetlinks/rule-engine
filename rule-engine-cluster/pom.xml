@@ -12,4 +12,11 @@
     <artifactId>rule-engine-cluster</artifactId>
 
 
+    <dependencies>
+        <dependency>
+            <groupId>org.jetlinks</groupId>
+            <artifactId>rule-engine-defaults</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
 </project>

@@ -28,8 +28,8 @@ public class RuleLink {
 
     private Condition condition;
 
-    private List<RuleNodeModel> source = new ArrayList<>();
+    private RuleNodeModel source;
 
-    private List<RuleNodeModel> target = new ArrayList<>();
+    private RuleNodeModel target;
 
 }
