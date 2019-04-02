@@ -17,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * 单点规则引擎实现
@@ -107,9 +108,10 @@ public class StandaloneRuleEngine implements RuleEngine {
         }
 
         @Override
-        public void execute(Consumer<Consumer<RuleData>> dataSink) {
-            dataSink.accept(data-> rootExecutor.execute(data));
+        public void execute(Consumer<Function<RuleData, CompletionStage<RuleData>>> dataSource) {
+            dataSource.accept(data -> rootExecutor.execute(data));
         }
+
 
         @Override
         public void stop() {

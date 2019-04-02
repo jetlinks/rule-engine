@@ -16,8 +16,12 @@ public interface ClusterMap<K, V> {
 
     void remove(K key);
 
+    void putAll(Map<K,V> source);
+
     CompletionStage<V> removeAsync(K key);
 
     Map<K, V> toMap();
+
+    void clear();
 
 }

@@ -29,6 +29,11 @@ public class DefaultRuleData implements RuleData {
     }
 
     @Override
+    public void clear() {
+        attributes.clear();
+    }
+
+    @Override
     public Optional<Object> getAttribute(String key) {
         return Optional.ofNullable(attributes.get(key));
     }
@@ -48,6 +53,7 @@ public class DefaultRuleData implements RuleData {
         DefaultRuleData ruleData = new DefaultRuleData();
         ruleData.data = data;
         ruleData.id = id;
+        ruleData.attributes = attributes;
         return ruleData;
     }
 }
