@@ -9,7 +9,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>rrule-engine-standalone</artifactId>
+    <artifactId>rule-engine-standalone</artifactId>
 
     <dependencies>
         <dependency>
