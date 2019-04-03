@@ -23,4 +23,9 @@ public class QueueInput implements Input {
     public boolean acceptOnce(Consumer<RuleData> accept) {
         return queue.acceptOnce(accept);
     }
+
+    @Override
+    public void close() {
+        queue.stop();
+    }
 }

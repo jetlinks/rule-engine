@@ -1,6 +1,5 @@
 package org.jetlinks.rule.engine.cluster;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 
@@ -9,7 +8,9 @@ public interface Queue<T> {
 
     boolean acceptOnce(Consumer<T> consumer);
 
-    CompletionStage<Void> putAsync(T data);
+    CompletionStage<Boolean> putAsync(T data);
 
     void put(T data);
+
+    void stop();
 }

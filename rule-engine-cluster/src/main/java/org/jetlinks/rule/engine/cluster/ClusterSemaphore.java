@@ -9,6 +9,8 @@ public interface ClusterSemaphore {
 
     void release();
 
+    boolean delete();
+
     CompletionStage<Boolean> tryAcquireAsync(long timeout, TimeUnit timeUnit);
 
 }

@@ -10,7 +10,6 @@ import org.jetlinks.rule.engine.executor.supports.RuleNodeConfig;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 
 /**
  * @author zhouhao
@@ -55,7 +54,6 @@ public abstract class AbstractExecutableRuleNodeFactoryStrategy<C extends RuleNo
                                     if (error != null) {
                                         context.onError(data, error);
                                     } else {
-                                        //如果类型是MAP则返回新的值
                                         if (config.getNodeType().isReturnNewValue()) {
                                             context.getOutput()
                                                     .write(data.newData(result));

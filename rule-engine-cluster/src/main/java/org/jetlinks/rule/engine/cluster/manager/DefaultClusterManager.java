@@ -40,12 +40,12 @@ public class DefaultClusterManager implements ClusterManager {
     }
 
     @Override
-    public <T> Topic<T> getTopic(String name) {
+    public <T> Topic<T> getTopic(Class<T> type, String name) {
         return null;
     }
 
     @Override
-    public ClusterSemaphore getSemaphore(String name) {
+    public ClusterSemaphore getSemaphore(String name, int permits) {
         return null;
     }
 }

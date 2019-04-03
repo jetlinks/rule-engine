@@ -12,4 +12,6 @@ public interface Input {
     void accept(Consumer<RuleData> accept);
 
     boolean acceptOnce(Consumer<RuleData> accept);
+
+    void close();
 }
