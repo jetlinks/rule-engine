@@ -13,7 +13,7 @@ import java.util.Optional;
  * @author zhouhao
  * @since 1.0.0
  */
-public class SingletonExecutionContext implements ExecutionContext {
+public class StandaloneExecutionContext implements ExecutionContext {
     private Logger logger;
 
     private Object data;
@@ -22,7 +22,7 @@ public class SingletonExecutionContext implements ExecutionContext {
     @Setter
     private Map<String, Object> attributes = new HashMap<>();
 
-    public SingletonExecutionContext(Logger logger, Object data) {
+    public StandaloneExecutionContext(Logger logger, Object data) {
         this.logger = logger;
         this.data = data;
     }

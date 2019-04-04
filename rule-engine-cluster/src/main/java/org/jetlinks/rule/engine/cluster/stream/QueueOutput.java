@@ -2,18 +2,33 @@ package org.jetlinks.rule.engine.cluster.stream;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.Setter;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.stream.Output;
 import org.jetlinks.rule.engine.cluster.Queue;
+
+import java.util.List;
+import java.util.function.Predicate;
 
 @Getter
 @AllArgsConstructor
 public class QueueOutput implements Output {
 
-    private Queue<RuleData> queue;
+    private List<ConditionQueue> queues;
 
     @Override
     public void write(RuleData data) {
-        queue.put(data);
+        queues.stream()
+                .filter(cd -> cd.predicate.test(data))
+                .map(ConditionQueue::getQueue)
+                .forEach(queue -> queue.put(data));
+    }
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    public static class ConditionQueue {
+        private Queue<RuleData>     queue;
+        private Predicate<RuleData> predicate;
     }
 }

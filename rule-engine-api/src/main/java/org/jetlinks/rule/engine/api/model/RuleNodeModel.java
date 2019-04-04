@@ -32,6 +32,10 @@ public class RuleNodeModel {
 
     private NodeType nodeType;
 
+    private boolean end;
+
+    private boolean start;
+
     private Map<String, Object> configuration = new HashMap<>();
 
     private List<RuleLink> events = new ArrayList<>();
@@ -49,6 +53,7 @@ public class RuleNodeModel {
         RuleNodeConfiguration configuration = new RuleNodeConfiguration();
         configuration.setId(this.ruleId + ":" + this.id + ":" + this.executor);
         configuration.setName(this.name);
+        configuration.setNodeId(this.id);
         configuration.setNodeType(this.nodeType);
         configuration.setExecutor(this.executor);
         configuration.setConfiguration(this.configuration);
@@ -62,10 +67,10 @@ public class RuleNodeModel {
     }
 
     public boolean isStartNode() {
-        return inputs == null || inputs.isEmpty();
+        return start || inputs == null || inputs.isEmpty();
     }
 
     public boolean isEndNode() {
-        return outputs == null || outputs.isEmpty();
+        return end || outputs == null || outputs.isEmpty();
     }
 }

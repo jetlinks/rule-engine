@@ -1,6 +1,5 @@
-package org.jetlinks.rule.engine.standalone;
+package org.jetlinks.rule.engine.api;
 
-import org.jetlinks.rule.engine.api.Logger;
 import org.slf4j.LoggerFactory;
 
 /**

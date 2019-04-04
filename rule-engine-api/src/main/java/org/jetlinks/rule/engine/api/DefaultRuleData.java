@@ -1,5 +1,6 @@
 package org.jetlinks.rule.engine.api;
 
+import com.alibaba.fastjson.JSON;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -50,10 +51,18 @@ public class DefaultRuleData implements RuleData {
 
     @Override
     public RuleData newData(Object data) {
+        if (data instanceof RuleData) {
+            data = ((RuleData) data).getData();
+        }
         DefaultRuleData ruleData = new DefaultRuleData();
         ruleData.data = data;
         ruleData.id = id;
-        ruleData.attributes = attributes;
+        ruleData.attributes = new HashMap<>(attributes);
         return ruleData;
+    }
+
+    @Override
+    public String toString() {
+        return JSON.toJSONString(this);
     }
 }

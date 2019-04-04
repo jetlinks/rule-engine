@@ -27,12 +27,15 @@ public class RedissonQueue<T> implements Queue<T> {
 
     private Disposable disposable;
 
+    private volatile boolean accepted;
+
     public RedissonQueue(RBlockingQueueAsync<T> queue) {
         this.queueRx = new RedissonBlockingQueueRx<>(queue);
         this.queue = queue;
     }
 
     public void start() {
+        accepted = true;
         disposable = queueRx
                 .takeElements()
                 .subscribe(data -> {
@@ -49,11 +52,17 @@ public class RedissonQueue<T> implements Queue<T> {
         } else {
             this.consumer.set(this.consumer.get().andThen(consumer));
         }
+        if (!accepted) {
+            start();
+        }
     }
 
     @Override
     public boolean acceptOnce(Consumer<T> consumer) {
         this.consumer.set(consumer);
+        if (!accepted) {
+            start();
+        }
         return true;
     }
 
@@ -65,7 +74,9 @@ public class RedissonQueue<T> implements Queue<T> {
     @Override
     @SneakyThrows
     public void put(T data) {
-        queue.addAsync(data);
+        queue.addAsync(data)
+                .toCompletableFuture()
+                .get(10, TimeUnit.SECONDS);
     }
 
     @Override

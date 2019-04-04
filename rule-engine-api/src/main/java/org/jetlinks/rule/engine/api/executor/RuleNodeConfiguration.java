@@ -18,6 +18,8 @@ import java.util.Map;
 public class RuleNodeConfiguration implements Serializable {
     private String id;
 
+    private String nodeId;
+
     private String name;
 
     private String executor;

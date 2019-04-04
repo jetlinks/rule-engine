@@ -20,111 +20,35 @@ import java.util.concurrent.TimeoutException;
 
 @SuppressWarnings("all")
 @Slf4j
-public class RedissonClusterManager implements ClusterManager, HaManager {
+public class RedissonClusterManager implements ClusterManager {
 
-    @Getter
+
     @Setter
-    private NodeInfo currentNode;
+    @Getter
+    private HaManager haManager;
 
     @Getter
     @Setter
     private RedissonClient redissonClient;
-
-    @Getter
-    @Setter
-    private ScheduledExecutorService executorService;
 
     private String prefix = "rule:engine";
 
     private Map<String, Queue> queueMap = new ConcurrentHashMap<>();
     private Map<String, Topic> topicMap = new ConcurrentHashMap<>();
 
-    protected RPatternTopic clusterNodeTopic;
-
-    protected RTopic clusterNodeKeepTopic;
-    protected RTopic clusterNodeLeaveTopic;
-
-    @Setter
-    @Getter
-    private long timeToLeave = 10;
-
-    private RMap<String, NodeInfo> allNodeInfo;
-    private Map<String, NodeInfo>  localAllNode;
-
-    protected void nodeJoin(NodeInfo nodeInfo) {
-        if (nodeInfo.getId().equals(currentNode.getId())) {
-            return;
-        }
-        nodeInfo.setLastKeepAliveTime(System.currentTimeMillis());
-        localAllNode.put(nodeInfo.getId(), nodeInfo);
-        allNodeInfo.put(nodeInfo.getId(), nodeInfo);
-        log.info("node join:{}", nodeInfo);
+    @Override
+    public NodeInfo getCurrentNode() {
+        return haManager.getCurrentNode();
     }
 
-    protected void nodeLeave(NodeInfo nodeInfo) {
-        if (nodeInfo.getId().equals(currentNode.getId())) {
-            return;
-        }
-        localAllNode.remove(nodeInfo.getId());
-        allNodeInfo.fastRemove(nodeInfo.getId());
-        log.info("node leave:{}", nodeInfo);
+    @Override
+    public HaManager getHaManager() {
+        return haManager;
     }
-
-    public void start() {
-        Assert.notNull(redissonClient, "redissonClient");
-        Assert.notNull(currentNode, "currentNode");
-        Assert.notNull(currentNode.getId(), "currentNode.id");
-        Assert.notNull(executorService, "executorService");
-
-        allNodeInfo = redissonClient.getMap(getRedisKey("cluster:nodes"));
-        //注册自己
-        allNodeInfo.put(currentNode.getId(), currentNode);
-
-        localAllNode = new HashMap<>(allNodeInfo);
-
-        clusterNodeTopic = redissonClient.getPatternTopic(getRedisKey("cluster:node:*"));
-        clusterNodeKeepTopic = redissonClient.getTopic(getRedisKey("cluster:node:keep"));
-        clusterNodeLeaveTopic = redissonClient.getTopic(getRedisKey("cluster:node:leave"));
-
-        //订阅节点上下线
-        clusterNodeTopic.addListener(NodeInfo.class, (pattern, channel, msg) -> {
-            String operation = String.valueOf(channel);
-            if (getRedisKey("cluster:node:join").equals(operation)) {
-                nodeJoin(msg);
-            } else if (getRedisKey("cluster:node:leave").equals(operation)) {
-                nodeLeave(msg);
-            } else if (getRedisKey("cluster:node:keep").equals(operation)) {
-                NodeInfo nodeInfo = localAllNode.get(msg.getId());
-                if (nodeInfo == null) {
-                    nodeJoin(msg);
-                } else {
-                    nodeInfo.setLastKeepAliveTime(System.currentTimeMillis());
-                }
-            } else {
-                log.info("unkown channel:{} {}", operation, msg);
-            }
-        });
-
-        executorService.scheduleAtFixedRate(() -> {
-            //保活
-            currentNode.setLastKeepAliveTime(System.currentTimeMillis());
-            clusterNodeKeepTopic.publish(currentNode);
-            //注册自己
-            allNodeInfo.put(currentNode.getId(), currentNode);
-
-            //检查节点是否存活
-            localAllNode
-                    .values()
-                    .stream()
-                    .filter(info -> System.currentTimeMillis() - info.getLastKeepAliveTime() > timeToLeave)
-                    .forEach(clusterNodeLeaveTopic::publish);
-        }, 1, Math.min(2, timeToLeave), TimeUnit.SECONDS);
-    }
-
 
     @Override
     public List<NodeInfo> getAllAliveNode() {
-        return new ArrayList<>(localAllNode.values());
+        return haManager.getAllAliveNode();
     }
 
     protected String getRedisKey(String type, String key) {
@@ -166,7 +90,6 @@ public class RedissonClusterManager implements ClusterManager, HaManager {
     public <T> Queue<T> getQueue(String name) {
         return queueMap.computeIfAbsent(name, n -> {
             RedissonQueue<T> queue = new RedissonQueue<>(redissonClient.getBlockingQueue(getRedisKey("queue", n)));
-            queue.start();
             return queue;
         });
     }
@@ -194,6 +117,19 @@ public class RedissonClusterManager implements ClusterManager, HaManager {
 
     @Override
     public ClusterSemaphore getSemaphore(String name, int permits) {
-        return new RedissonSemaphore(getRSemaphore(getRedisKey("semaphore", name), permits));
+        String key = getRedisKey("semaphore", name);
+
+        return new RedissonSemaphore(getRSemaphore(key, permits)) {
+            @Override
+            public boolean delete() {
+                semaphoreMap.remove(key);
+                return super.delete();
+            }
+        };
+    }
+
+    @Override
+    public <T> ClusterObject<T> getObject(String name) {
+        return new RedissonClusterObject<>(redissonClient.getBucket(getRedisKey("object", name)));
     }
 }

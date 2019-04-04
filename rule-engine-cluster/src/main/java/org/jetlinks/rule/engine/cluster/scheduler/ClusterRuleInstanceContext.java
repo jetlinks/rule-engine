@@ -2,6 +2,7 @@ package org.jetlinks.rule.engine.cluster.scheduler;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.rule.engine.api.DefaultRuleData;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleDataHelper;
@@ -15,6 +16,7 @@ import java.util.function.Function;
 
 @Getter
 @Setter
+@Slf4j
 public class ClusterRuleInstanceContext implements RuleInstanceContext {
 
     private String id;
@@ -42,23 +44,23 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
         data = RuleDataHelper.markSyncReturn(wrapClusterRuleData(data), syncReturnNodeId);
 
         String dataId = data.getId();
-
+        log.info("execute rule:{} data:{}", id, data);
         //执行完成的信号，规则执行完成后会由对应的节点去触发。
-        ClusterSemaphore semaphore = clusterManager.getSemaphore(dataId, 1);
+        ClusterSemaphore semaphore = clusterManager.getSemaphore(dataId, 0);
 
-        //执行完成后会将结果放入此Map中
-        ClusterMap<String, RuleData> returnResult = clusterManager.getMap("sync:return:" + id);
 
         //发送数据到规则入口队列
         return inputQueue
                 .putAsync(data)
                 .thenCompose(nil -> semaphore.tryAcquireAsync(syncTimeout, TimeUnit.MILLISECONDS))
-                .thenCompose(isSuccess -> {
+                .thenComposeAsync(isSuccess -> {
                     if (isSuccess) {
                         //如果成功，删除此信号量，因为是一次性的。
                         semaphore.delete();
                     }
-                    return returnResult.getAsync(dataId);
+                    return clusterManager
+                            .<RuleData>getObject(dataId)
+                            .getAndDeleteAsync();
                 });
     }
 

@@ -26,23 +26,29 @@ public class RedissonClusterManagerTest {
 
     private RedissonClusterManager clusterManager;
     private RedissonClient         redissonClient = RedissonHelper.newRedissonClient();
+    private RedissonHaManager      haManager;
 
     @Before
     public void init() {
         NodeInfo nodeInfo = new NodeInfo();
         nodeInfo.setId("test");
+        nodeInfo.setUptime(System.currentTimeMillis());
+        haManager = new RedissonHaManager();
+        haManager.setCurrentNode(nodeInfo);
+        haManager.setExecutorService(Executors.newScheduledThreadPool(5));
+        haManager.setRedissonClient(redissonClient);
+        haManager.setTimeToLeave(5);
 
         clusterManager = new RedissonClusterManager();
-        clusterManager.setCurrentNode(nodeInfo);
         clusterManager.setRedissonClient(redissonClient);
-        clusterManager.setExecutorService(Executors.newScheduledThreadPool(5));
-        clusterManager.setTimeToLeave(5);
-        clusterManager.start();
+        clusterManager.setHaManager(haManager);
+        haManager.start();
     }
 
     @After
     public void after() {
         clusterManager.shutdown();
+        haManager.shutdown();
     }
 
     @Test
@@ -50,12 +56,24 @@ public class RedissonClusterManagerTest {
     public void testHa() {
         NodeInfo nodeInfo = new NodeInfo();
         nodeInfo.setId("test2");
-
-        clusterManager.clusterNodeKeepTopic.publish(nodeInfo);
+        nodeInfo.setLastKeepAliveTime(System.currentTimeMillis());
+        AtomicLong counter = new AtomicLong();
+        clusterManager.getHaManager()
+                .onNodeJoin(node -> {
+                    counter.incrementAndGet();
+                    System.out.println("join:" + node);
+                })
+                .onNodeLeave(node -> {
+                    counter.decrementAndGet();
+                    System.out.println("leave:" + node);
+                });
+        haManager.clusterNodeKeepTopic.publish(nodeInfo);
         Thread.sleep(1000);
+        Assert.assertEquals(counter.get(), 1);
         Assert.assertEquals(clusterManager.getAllAliveNode().size(), 2);
-        //等待8秒，让test2失效
+        //等待，让test2失效
         Thread.sleep(8000);
+        Assert.assertEquals(counter.get(), 0);
         Assert.assertEquals(clusterManager.getAllAliveNode().size(), 1);
 
     }
@@ -151,9 +169,8 @@ public class RedissonClusterManagerTest {
     @SneakyThrows
     public void testSemaphore() {
         for (int i = 0; i < 10; i++) {
-            ClusterSemaphore semaphore = clusterManager.getSemaphore("test", 1);
+            ClusterSemaphore semaphore = clusterManager.getSemaphore("test", 0);
             StringBuilder builder = new StringBuilder();
-            semaphore.tryAcquire(10, TimeUnit.SECONDS);
             new Thread(() -> {
                 try {
                     Thread.sleep(500);
@@ -164,6 +181,7 @@ public class RedissonClusterManagerTest {
                 semaphore.release();
             }).start();
             builder.append("1");
+            semaphore.tryAcquire(10, TimeUnit.SECONDS);
             clusterManager
                     .getSemaphore("test", 1)
                     .tryAcquireAsync(1, TimeUnit.SECONDS)

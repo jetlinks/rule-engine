@@ -8,13 +8,10 @@ import java.io.Serializable;
 
 @Getter
 @Setter
-public class EventConfig implements Serializable {
+public class EventConfig extends OutputConfig {
 
     private static final long serialVersionUID = -6849794470754667710L;
 
     private String event;
 
-    private String queue;
-
-    private Condition condition;
 }

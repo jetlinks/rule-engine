@@ -6,26 +6,28 @@ import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.stream.Input;
 import org.jetlinks.rule.engine.cluster.Queue;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 @Getter
 @AllArgsConstructor
 public class QueueInput implements Input {
 
-    private Queue<RuleData> queue;
+    private List<Queue<RuleData>> queues;
 
     @Override
     public void accept(Consumer<RuleData> accept) {
-        queue.accept(accept);
+        queues.forEach(queue -> queue.accept(accept));
     }
 
     @Override
     public boolean acceptOnce(Consumer<RuleData> accept) {
-        return queue.acceptOnce(accept);
+        queues.forEach(queue -> queue.acceptOnce(accept));
+        return true;
     }
 
     @Override
     public void close() {
-        queue.stop();
+        queues.forEach(Queue::stop);
     }
 }

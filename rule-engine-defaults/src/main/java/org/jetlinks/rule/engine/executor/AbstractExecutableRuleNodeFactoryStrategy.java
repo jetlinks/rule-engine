@@ -2,6 +2,8 @@ package org.jetlinks.rule.engine.executor;
 
 import org.hswebframework.web.bean.FastBeanCopier;
 import org.jetlinks.rule.engine.api.Logger;
+import org.jetlinks.rule.engine.api.RuleData;
+import org.jetlinks.rule.engine.api.events.RuleEvent;
 import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
 import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
 import org.jetlinks.rule.engine.api.executor.StreamRuleNode;
@@ -48,21 +50,24 @@ public abstract class AbstractExecutableRuleNodeFactoryStrategy<C extends RuleNo
     public StreamRuleNode createStream(C config) {
         BiFunction<Logger, Object, CompletionStage<Object>> executor = createExecutor(config);
         return context -> context.getInput()
-                .acceptOnce(data ->
-                        executor.apply(context.logger(), data.getData())
-                                .whenComplete((result, error) -> {
-                                    if (error != null) {
-                                        context.onError(data, error);
+                .acceptOnce(data -> {
+                    context.fireEvent(RuleEvent.NODE_EXECUTE_BEFORE, data);
+                    executor.apply(context.logger(), data.getData())
+                            .whenCompleteAsync((result, error) -> {
+                                if (error != null) {
+                                    context.onError(data, error);
+                                } else {
+                                    RuleData newData;
+                                    if (config.getNodeType().isReturnNewValue()) {
+                                        newData = data.newData(result);
                                     } else {
-                                        if (config.getNodeType().isReturnNewValue()) {
-                                            context.getOutput()
-                                                    .write(data.newData(result));
-                                        } else {
-                                            context.getOutput()
-                                                    .write(data);
-                                        }
+                                        newData = data;
                                     }
-                                }));
+                                    context.fireEvent(RuleEvent.NODE_EXECUTE_DONE, newData);
+                                    context.getOutput().write(newData);
+                                }
+                            });
+                });
     }
 
     @Override

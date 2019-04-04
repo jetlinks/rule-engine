@@ -12,5 +12,7 @@ public interface Queue<T> {
 
     void put(T data);
 
+    void start();
+
     void stop();
 }

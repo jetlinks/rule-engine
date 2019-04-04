@@ -20,6 +20,8 @@ public class DefaultExecutableRuleNodeFactory implements ExecutableRuleNodeFacto
 
     private Map<String, Cache> cache = new ConcurrentHashMap<>();
 
+    private Map<String, StreamCache> streamCache = new ConcurrentHashMap<>();
+
     @Override
     public ExecutableRuleNode create(RuleNodeConfiguration configuration) {
         return cache.computeIfAbsent(configuration.getId(), id -> new Cache())
@@ -28,8 +30,8 @@ public class DefaultExecutableRuleNodeFactory implements ExecutableRuleNodeFacto
 
     @Override
     public StreamRuleNode createStream(RuleNodeConfiguration configuration) {
-
-        return null;
+        return streamCache.computeIfAbsent(configuration.getId(), id -> new StreamCache())
+                .tryReload(configuration);
     }
 
     private class Cache {
@@ -51,6 +53,27 @@ public class DefaultExecutableRuleNodeFactory implements ExecutableRuleNodeFacto
             configHash = configuration.hashCode();
         }
     }
+
+    private class StreamCache {
+        private long configHash;
+
+        private volatile StreamRuleNode streamRuleNode;
+
+        private StreamRuleNode tryReload(RuleNodeConfiguration configuration) {
+            if (configuration.hashCode() != configHash) {
+                doReload(configuration);
+            }
+            return streamRuleNode;
+        }
+
+        private void doReload(RuleNodeConfiguration configuration) {
+            streamRuleNode = Optional.ofNullable(strategySupports.get(configuration.getExecutor()))
+                    .map(strategy -> strategy.createStream(configuration))
+                    .orElseThrow(() -> new UnsupportedOperationException("不支持的节点类型:" + configuration.getExecutor()));
+            configHash = configuration.hashCode();
+        }
+    }
+
 
     public void registerStrategy(ExecutableRuleNodeFactoryStrategy strategy) {
         strategySupports.put(strategy.getSupportType(), strategy);

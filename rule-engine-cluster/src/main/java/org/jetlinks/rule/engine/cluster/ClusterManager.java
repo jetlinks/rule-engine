@@ -1,11 +1,15 @@
 package org.jetlinks.rule.engine.cluster;
 
+import org.jetlinks.rule.engine.cluster.ha.HaManager;
+
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public interface ClusterManager {
 
     NodeInfo getCurrentNode();
+
+    HaManager getHaManager();
 
     List<NodeInfo> getAllAliveNode();
 
@@ -17,6 +21,7 @@ public interface ClusterManager {
 
     <T> Topic<T> getTopic(Class<T> type, String name);
 
-    ClusterSemaphore getSemaphore(String name,int permits);
+    ClusterSemaphore getSemaphore(String name, int permits);
 
+    <T> ClusterObject<T> getObject(String name);
 }

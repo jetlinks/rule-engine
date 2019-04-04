@@ -31,7 +31,7 @@ public class RedissonClusterMap<K, V> implements ClusterMap<K, V> {
 
     @Override
     public void put(K key, V value) {
-        map.fastPut(key, value);
+        map.fastPutAsync(key, value);
     }
 
     @Override

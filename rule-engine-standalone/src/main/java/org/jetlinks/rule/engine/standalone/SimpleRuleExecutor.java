@@ -69,7 +69,7 @@ public class SimpleRuleExecutor implements RuleExecutor {
             return future;
         }
         return executableRuleNode
-                .execute(new SingletonExecutionContext(logger, ruleData.getData()))
+                .execute(new StandaloneExecutionContext(logger, ruleData.getData()))
                 .handle((result, error) -> {
                     if (error != null) {
                         fireEvent(RuleEvent.NODE_EXECUTE_FAIL, ruleData, error);

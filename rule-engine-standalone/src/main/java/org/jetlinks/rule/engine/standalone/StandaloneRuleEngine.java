@@ -11,7 +11,6 @@ import org.jetlinks.rule.engine.api.model.Condition;
 import org.jetlinks.rule.engine.api.model.RuleLink;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -43,12 +42,7 @@ public class StandaloneRuleEngine implements RuleEngine {
         Logger logger = new Slf4jLogger("rule.engine.node." + nodeModel.getId());
         SimpleRuleExecutor executor = new SimpleRuleExecutor(ruleNode, logger);
         if (null != condition) {
-            executor.setCondition(ruleData -> {
-                Map<String, Object> context = new HashMap<>();
-                context.put("ruleData", ruleData);
-                context.put("data", ruleData.getData());
-                return Boolean.TRUE.equals(evaluator.evaluate(condition, context));
-            });
+            executor.setCondition(ruleData -> Boolean.TRUE.equals(evaluator.evaluate(condition, ruleData)));
         }
         //event
         for (RuleLink output : nodeModel.getEvents()) {
@@ -78,7 +72,7 @@ public class StandaloneRuleEngine implements RuleEngine {
         String id = IDGenerator.MD5.generate();
         RuleNodeModel nodeModel = rule.getModel().getStartNode()
                 .orElseThrow(() -> new UnsupportedOperationException("无法获取启动节点"));
-        SingletonRuleInstanceContext context = new SingletonRuleInstanceContext();
+        StandaloneRuleInstanceContext context = new StandaloneRuleInstanceContext();
         context.id = id;
         context.startTime = System.currentTimeMillis();
         context.rootExecutor = createRuleExecutor(null, nodeModel, null);
@@ -93,9 +87,9 @@ public class StandaloneRuleEngine implements RuleEngine {
 
     @Getter
     @Setter
-    public static class SingletonRuleInstanceContext implements RuleInstanceContext {
+    public static class StandaloneRuleInstanceContext implements RuleInstanceContext {
         private String id;
-        private long startTime;
+        private long   startTime;
 
         private RuleExecutor rootExecutor;
 

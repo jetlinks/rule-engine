@@ -34,6 +34,10 @@ public class DefaultStreamContext implements StreamExecutionContext {
     @Setter
     private BiConsumer<RuleData, Throwable> errorHandler;
 
+    @Override
+    public void fireEvent(String event, RuleData data) {
+
+    }
 
     @Override
     public void onError(RuleData data, Throwable e) {
