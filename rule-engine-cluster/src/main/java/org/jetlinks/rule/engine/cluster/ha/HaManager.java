@@ -18,4 +18,5 @@ public interface HaManager {
 
     HaManager onNodeLeave(Consumer<NodeInfo> consumer);
 
+
 }

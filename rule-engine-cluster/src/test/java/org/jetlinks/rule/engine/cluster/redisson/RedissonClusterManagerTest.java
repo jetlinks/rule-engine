@@ -67,14 +67,15 @@ public class RedissonClusterManagerTest {
                     counter.decrementAndGet();
                     System.out.println("leave:" + node);
                 });
+        int oldSize = clusterManager.getAllAliveNode().size();
         haManager.clusterNodeKeepTopic.publish(nodeInfo);
         Thread.sleep(1000);
         Assert.assertEquals(counter.get(), 1);
-        Assert.assertEquals(clusterManager.getAllAliveNode().size(), 2);
+        Assert.assertEquals(clusterManager.getAllAliveNode().size(), oldSize + 1);
         //等待，让test2失效
         Thread.sleep(8000);
         Assert.assertEquals(counter.get(), 0);
-        Assert.assertEquals(clusterManager.getAllAliveNode().size(), 1);
+        Assert.assertEquals(clusterManager.getAllAliveNode().size(), oldSize);
 
     }
 

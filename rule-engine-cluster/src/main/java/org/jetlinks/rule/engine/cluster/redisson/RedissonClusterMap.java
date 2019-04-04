@@ -21,7 +21,7 @@ public class RedissonClusterMap<K, V> implements ClusterMap<K, V> {
 
     @Override
     public Optional<V> get(K key) {
-        return Optional.of(map.get(key));
+        return Optional.ofNullable(map.get(key));
     }
 
     @Override
