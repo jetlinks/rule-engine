@@ -13,8 +13,8 @@ public class RedissonHelper {
     public static RedissonClient newRedissonClient() {
         Config config = new Config();
         config.useSingleServer()
-                .setConnectionPoolSize(102400)
-                .setSubscriptionConnectionPoolSize(102400)
+                .setConnectionPoolSize(1024)
+                .setSubscriptionConnectionPoolSize(1024)
                 .setAddress(System.getProperty("redis.host", "redis://127.0.0.1:6379"))
                 .setDatabase(0);
 

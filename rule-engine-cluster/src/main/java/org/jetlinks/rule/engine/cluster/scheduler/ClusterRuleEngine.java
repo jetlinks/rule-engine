@@ -90,8 +90,8 @@ public class ClusterRuleEngine implements RuleEngine {
             //推送到执行的服务节点
             for (NodeInfo node : nodeInfo) {
                 clusterManager
-                        .getQueue("accept:node:" + node.getId())
-                        .put(request);
+                        .getHaManager()
+                        .sendNotify(node.getId(), "accept:node", request);
             }
         }
 

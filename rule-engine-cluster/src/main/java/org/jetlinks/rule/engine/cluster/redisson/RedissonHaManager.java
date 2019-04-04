@@ -3,18 +3,17 @@ package org.jetlinks.rule.engine.cluster.redisson;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.hswebframework.web.NotFoundException;
 import org.jetlinks.rule.engine.cluster.NodeInfo;
 import org.jetlinks.rule.engine.cluster.ha.HaManager;
 import org.redisson.api.RMap;
 import org.redisson.api.RPatternTopic;
 import org.redisson.api.RTopic;
 import org.redisson.api.RedissonClient;
+import org.redisson.rx.RedissonBlockingQueueRx;
 import org.springframework.util.Assert;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -143,5 +142,22 @@ public class RedissonHaManager implements HaManager {
     public synchronized HaManager onNodeLeave(Consumer<NodeInfo> consumer) {
         leaveConsumer = leaveConsumer.andThen(consumer);
         return this;
+    }
+
+    protected String getNotifyAddress(String address, NodeInfo nodeInfo) {
+        return "rule:engine:ha:notify:" + nodeInfo.getId() + ":" + address;
+    }
+
+    @Override
+    public <T> void onNotify(String address, Consumer<T> consumer) {
+        RedissonBlockingQueueRx<T> rx = new RedissonBlockingQueueRx<>(redissonClient.getBlockingQueue(getNotifyAddress(address, getCurrentNode())));
+        rx.takeElements().subscribe(consumer::accept);
+    }
+
+    @Override
+    public void sendNotify(String nodeId, String address, Object message) {
+        redissonClient
+                .getBlockingQueue(getNotifyAddress(address, Optional.ofNullable(localAllNode.get(nodeId)).orElseThrow(() -> new NotFoundException("节点[" + nodeId + "]不存在"))))
+                .add(message);
     }
 }

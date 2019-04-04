@@ -45,9 +45,8 @@ public class RuleEngineWorker {
 
     public void start() {
         clusterManager
-                .<StartRuleNodeRequest>getQueue("accept:node:" + clusterManager.getCurrentNode().getId())
-                .acceptOnce(this::startStreamRule);
-
+                .getHaManager()
+                .onNotify("accept:node",this::startStreamRule);
     }
 
     protected QueueOutput.ConditionQueue createConditionQueue(OutputConfig config) {
