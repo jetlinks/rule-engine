@@ -31,7 +31,7 @@ public class RedissonClusterMap<K, V> implements ClusterMap<K, V> {
 
     @Override
     public void put(K key, V value) {
-        map.fastPutAsync(key, value);
+        map.fastPut(key, value);
     }
 
     @Override
@@ -40,8 +40,8 @@ public class RedissonClusterMap<K, V> implements ClusterMap<K, V> {
     }
 
     @Override
-    public void remove(K key) {
-        map.fastRemove(key);
+    public V remove(K key) {
+        return map.remove(key);
     }
 
     @Override

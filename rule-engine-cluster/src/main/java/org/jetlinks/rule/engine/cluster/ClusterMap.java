@@ -14,9 +14,9 @@ public interface ClusterMap<K, V> {
 
     CompletionStage<V> putAsync(K key, V value);
 
-    void remove(K key);
+    V remove(K key);
 
-    void putAll(Map<K,V> source);
+    void putAll(Map<K, V> source);
 
     CompletionStage<V> removeAsync(K key);
 
