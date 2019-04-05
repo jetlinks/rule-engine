@@ -83,6 +83,9 @@ public class RedissonClusterManager implements ClusterManager {
                 value.release();
             }
         }
+        for (RedissonQueue redissonQueue : queueMap.values()) {
+            redissonQueue.stop();
+        }
     }
 
     @Override
