@@ -1,12 +1,8 @@
 package org.jetlinks.rule.engine.cluster.redisson;
 
-import io.reactivex.disposables.Disposable;
 import lombok.SneakyThrows;
 import org.jetlinks.rule.engine.cluster.Queue;
-import org.redisson.api.RBlockingQueueAsync;
-import org.redisson.api.RBlockingQueueReactive;
 import org.redisson.api.RQueue;
-import org.redisson.rx.RedissonBlockingQueueRx;
 
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
@@ -19,30 +15,28 @@ import java.util.function.Consumer;
  */
 public class RedissonQueue<T> implements Queue<T> {
 
-    private RBlockingQueueAsync<T> queue;
-
-    private RedissonBlockingQueueRx<T> queueRx;
+    private RQueue<T> queue;
 
     private volatile AtomicReference<Consumer<T>> consumer = new AtomicReference<>();
 
-    private Disposable disposable;
-
     private volatile boolean accepted;
 
-    public RedissonQueue(RBlockingQueueAsync<T> queue) {
-        this.queueRx = new RedissonBlockingQueueRx<>(queue);
+    public RedissonQueue(RQueue<T> queue) {
         this.queue = queue;
     }
 
     public void start() {
-        accepted = true;
-        disposable = queueRx
-                .takeElements()
-                .subscribe(data -> {
-                    if (this.consumer.get() != null) {
-                        this.consumer.get().accept(data);
-                    }
-                });
+        accepted=true;
+        flush();
+    }
+
+    public void flush() {
+        if (this.consumer.get() != null && accepted) {
+            for (T data = queue.poll(); data != null; data = queue.poll()) {
+                this.consumer.get().accept(data);
+            }
+        }
+
     }
 
     @Override
@@ -81,7 +75,6 @@ public class RedissonQueue<T> implements Queue<T> {
 
     @Override
     public void stop() {
-        disposable.dispose();
         consumer.set(null);
     }
 }

@@ -22,7 +22,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.redisson.api.RedissonClient;
 
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -40,14 +42,18 @@ public class ClusterRuleEngineTest {
         NodeInfo nodeInfo = new NodeInfo();
         nodeInfo.setId("test-node");
         nodeInfo.setUptime(System.currentTimeMillis());
+        ScheduledExecutorService executorService=Executors.newScheduledThreadPool(5);
+
         haManager = new RedissonHaManager();
         haManager.setCurrentNode(nodeInfo);
-        haManager.setExecutorService(Executors.newScheduledThreadPool(5));
+        haManager.setExecutorService(executorService);
         haManager.setRedissonClient(redissonClient);
 
         clusterManager = new RedissonClusterManager();
         clusterManager.setRedissonClient(redissonClient);
         clusterManager.setHaManager(haManager);
+        clusterManager.setExecutorService(executorService);
+        clusterManager.start();
         haManager.start();
 
         ruleEngine = new ClusterRuleEngine();
@@ -154,7 +160,7 @@ public class ClusterRuleEngineTest {
         model.getNodes().add(log);
         model.getNodes().add(errorEvent);
 
-        RuleInstanceContext context = ruleEngine.startRule(rule);
+        RuleInstanceContext context=ruleEngine.startRule(rule);
         for (int i = 0; i < 100; i++) {
             Object data = context
                     .execute(RuleData.create("abc123"))

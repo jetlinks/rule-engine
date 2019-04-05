@@ -41,7 +41,9 @@ public class RedissonClusterManagerTest {
 
         clusterManager = new RedissonClusterManager();
         clusterManager.setRedissonClient(redissonClient);
+        clusterManager.setExecutorService(Executors.newScheduledThreadPool(5));
         clusterManager.setHaManager(haManager);
+        clusterManager.start();
         haManager.start();
     }
 
