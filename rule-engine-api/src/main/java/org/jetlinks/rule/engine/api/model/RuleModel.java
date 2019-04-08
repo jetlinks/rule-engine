@@ -34,6 +34,12 @@ public class RuleModel {
                 .collect(Collectors.toList());
     }
 
+    public Optional<RuleNodeModel> getNode(String nodeId){
+        return nodes.stream()
+                .filter(model->model.getId().equals(nodeId))
+                .findFirst();
+    }
+
     public RuleModel addConfiguration(String key, Object value) {
         configuration.put(key, value);
         return this;

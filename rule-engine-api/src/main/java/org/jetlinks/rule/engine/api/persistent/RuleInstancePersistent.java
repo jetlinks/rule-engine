@@ -21,5 +21,6 @@ public class RuleInstancePersistent implements Serializable {
 
     private Boolean running;
 
+    private String instanceDetailJson;
 
 }

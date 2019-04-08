@@ -2,6 +2,7 @@ package org.jetlinks.rule.engine.cluster.scheduler;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.hswebframework.web.NotFoundException;
 import org.hswebframework.web.id.IDGenerator;
 import org.jetlinks.rule.engine.api.Rule;
 import org.jetlinks.rule.engine.api.RuleEngine;
@@ -34,28 +35,76 @@ public class ClusterRuleEngine implements RuleEngine {
     private class RunningRule {
         private final ClusterRuleInstanceContext context;
 
-        public RunningRule() {
+        private List<StartRuleNodeRequest> requests;
+
+        private Rule rule;
+
+        public RunningRule(Rule rule) {
             context = new ClusterRuleInstanceContext();
+            requests = new ArrayList<>();
+
             context.setId(IDGenerator.MD5.generate());
             context.setClusterManager(clusterManager);
+            this.rule = rule;
         }
 
-        private void start(Rule rule) {
+        private void prepare(){
+            requests.clear();
             for (RuleNodeModel node : rule.getModel().getNodes()) {
-                if (node.isEnd()) {
-                    if (context.getSyncReturnNodeId() == null) {
-                        context.setSyncReturnNodeId(node.getId());
-                    }
+                if(node.isEndNode()){
+                    context.setSyncReturnNodeId(node.getId());
                 }
-                startNode(rule, node);
+                prepare(node);
             }
         }
 
-        private void startNode(Rule rule, RuleNodeModel model) {
-            List<NodeInfo> nodeInfo = nodeSelector.select(model, clusterManager.getAllAliveNode());
+        private void doStop(List<NodeInfo> nodeInfos) {
+            for (NodeInfo node : nodeInfos) {
+                clusterManager
+                        .getHaManager()
+                        .sendNotify(node.getId(), "rule:stop", context.getId());
+            }
+        }
+
+        private void doStart(List<NodeInfo> nodeInfos) {
+            for (NodeInfo node : nodeInfos) {
+                clusterManager
+                        .getHaManager()
+                        .sendNotify(node.getId(), "rule:start", context.getId());
+            }
+        }
+
+        private void start() {
+            prepare();
+            List<NodeInfo> allRunningNode = new ArrayList<>();
+            try {
+                for (StartRuleNodeRequest request : requests) {
+                    RuleNodeModel nodeModel = rule.getModel()
+                            .getNode(request.getNodeId())
+                            .orElseThrow(() -> new NotFoundException("规则节点" + request.getNodeId() + "不存在"));
+
+                    List<NodeInfo> nodeInfo = nodeSelector.select(nodeModel, clusterManager.getAllAliveNode());
+                    allRunningNode.addAll(nodeInfo);
+                    //推送到执行的服务节点
+                    for (NodeInfo node : nodeInfo) {
+                        clusterManager
+                                .getHaManager()
+                                .sendNotify(node.getId(), "accept:node", request);
+                    }
+                }
+            } catch (Throwable e) {
+                doStop(allRunningNode);
+                throw e;
+            }
+            doStart(allRunningNode);
+        }
+
+        private void prepare(RuleNodeModel model) {
             StartRuleNodeRequest request = new StartRuleNodeRequest();
             String id = context.getId();
             request.setInstanceId(context.getId());
+            request.setNodeId(model.getId());
+            request.setRuleId(rule.getId());
             request.setNodeConfig(model.createConfiguration());
             request.getLogContext().put("ruleId", rule.getId());
             request.getLogContext().put("instanceId", context.getId());
@@ -87,20 +136,16 @@ public class ClusterRuleEngine implements RuleEngine {
                 outputConfig.setCondition(outputLink.getCondition());
                 request.getOutputQueue().add(outputConfig);
             }
-            //推送到执行的服务节点
-            for (NodeInfo node : nodeInfo) {
-                clusterManager
-                        .getHaManager()
-                        .sendNotify(node.getId(), "accept:node", request);
-            }
+            requests.add(request);
         }
+
 
     }
 
     @Override
     public RuleInstanceContext startRule(Rule rule) {
-        RunningRule runningRule = new RunningRule();
-        runningRule.start(rule);
+        RunningRule runningRule = new RunningRule(rule);
+        runningRule.start();
         return runningRule.context;
     }
 

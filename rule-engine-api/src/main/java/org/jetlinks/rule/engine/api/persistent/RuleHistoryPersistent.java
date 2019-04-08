@@ -25,5 +25,9 @@ public class RuleHistoryPersistent implements Serializable {
 
     private String dataJson;
 
+    private String errorType;
+
+    private String errorInfo;
+
     private Boolean success;
 }

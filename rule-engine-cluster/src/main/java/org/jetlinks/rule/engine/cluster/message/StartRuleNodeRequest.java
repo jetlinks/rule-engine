@@ -16,6 +16,10 @@ public class StartRuleNodeRequest implements Serializable {
 
     private String instanceId;
 
+    private String nodeId;
+
+    private String ruleId;
+
     private RuleNodeConfiguration nodeConfig;
 
     private List<InputConfig> inputQueue = new ArrayList<>();

@@ -9,6 +9,8 @@ public interface ClusterManager {
 
     NodeInfo getCurrentNode();
 
+    String getName();
+
     HaManager getHaManager();
 
     List<NodeInfo> getAllAliveNode();

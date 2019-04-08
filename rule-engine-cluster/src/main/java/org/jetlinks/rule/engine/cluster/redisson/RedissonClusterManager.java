@@ -8,7 +8,6 @@ import org.jetlinks.rule.engine.cluster.*;
 import org.jetlinks.rule.engine.cluster.Queue;
 import org.jetlinks.rule.engine.cluster.ha.HaManager;
 import org.redisson.api.*;
-import org.springframework.util.Assert;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -32,7 +31,7 @@ public class RedissonClusterManager implements ClusterManager {
 
     @Getter
     @Setter
-    private String prefix = "rule:engine";
+    private String name = "rule:engine";
 
     private Map<String, RedissonQueue> queueMap = new ConcurrentHashMap<>();
     private Map<String, Topic> topicMap = new ConcurrentHashMap<>();
@@ -55,11 +54,11 @@ public class RedissonClusterManager implements ClusterManager {
     }
 
     protected String getRedisKey(String type, String key) {
-        return prefix + ":" + type + ":" + key;
+        return name + ":" + type + ":" + key;
     }
 
     protected String getRedisKey(String key) {
-        return prefix + ":" + key;
+        return name + ":" + key;
     }
 
     public Map<String, RSemaphore> semaphoreMap = new ConcurrentHashMap<>();
