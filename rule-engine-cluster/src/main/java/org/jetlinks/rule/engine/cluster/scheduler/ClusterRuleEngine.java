@@ -122,7 +122,7 @@ public class ClusterRuleEngine implements RuleEngine {
             requests.clear();
             allRunningNode.clear();
             for (RuleNodeModel node : rule.getModel().getNodes()) {
-                if (node.isEndNode()) {
+                if (node.isEnd()) {
                     context.setSyncReturnNodeId(node.getId());
                 }
                 prepare(node);
@@ -142,10 +142,10 @@ public class ClusterRuleEngine implements RuleEngine {
             for (StartStreamRuleNodeRequest request : requests) {
                 for (NodeInfo nodeInfo : nodeRunnerInfo.get(request.getNodeId())) {
                     if (nodeInfo.getId().equals(nodeId)) {
-                        log.debug("resume stream node {}.{}", context.getId(), request.getNodeId());
+                        log.debug("resume executor node {}.{}", context.getId(), request.getNodeId());
                         clusterManager
                                 .getHaManager()
-                                .sendNotify(nodeInfo.getId(), "rule:stream:init", request)
+                                .sendNotify(nodeInfo.getId(), "rule:executor:init", request)
                                 .toCompletableFuture()
                                 .get(10, TimeUnit.SECONDS);
                         nodeInfoList.add(nodeInfo);
@@ -182,7 +182,7 @@ public class ClusterRuleEngine implements RuleEngine {
                 for (NodeInfo nodeInfo : nodeRunnerInfo.get(request.getNodeId())) {
                     clusterManager
                             .getHaManager()
-                            .sendNotify(nodeInfo.getId(), "rule:stream:init", request)
+                            .sendNotify(nodeInfo.getId(), "rule:executor:init", request)
                             .toCompletableFuture()
                             .get(20, TimeUnit.SECONDS);
                 }
@@ -210,7 +210,7 @@ public class ClusterRuleEngine implements RuleEngine {
                 inputConfig.setQueue(getDataQueueName(id, event));
                 request.getEventQueue().add(inputConfig);
             }
-            if (model.isStartNode()) {
+            if (model.isStart()) {
                 context.setInputQueue(clusterManager.getQueue("data:" + id + ":input"));
                 request.getInputQueue().add(new InputConfig("data:" + id + ":input"));
             }
@@ -253,8 +253,11 @@ public class ClusterRuleEngine implements RuleEngine {
             context.setInputQueue(clusterManager.getQueue(inputQueue));
 
             context.setSyncReturnNodeId(rule.getModel()
-                    .getNodes().stream().filter(RuleNodeModel::isEndNode)
-                    .map(RuleNodeModel::getId).findFirst().orElse(null));
+                    .getNodes().stream()
+                    .filter(RuleNodeModel::isEnd)
+                    .map(RuleNodeModel::getId)
+                    .findFirst()
+                    .orElse(null));
 
             context.setOnStop(() -> {
                 stop();

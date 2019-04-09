@@ -6,29 +6,31 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.hswebframework.web.NotFoundException;
 import org.jetlinks.rule.engine.api.*;
-import org.jetlinks.rule.engine.api.events.EventSupportRuleInstanceContext;
 import org.jetlinks.rule.engine.api.events.RuleEvent;
 import org.jetlinks.rule.engine.api.executor.ExecutableRuleNodeFactory;
 import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
-import org.jetlinks.rule.engine.api.executor.StreamRuleNode;
+import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
 import org.jetlinks.rule.engine.api.model.RuleEngineModelParser;
 import org.jetlinks.rule.engine.api.persistent.RulePersistent;
 import org.jetlinks.rule.engine.api.persistent.repository.RuleRepository;
-import org.jetlinks.rule.engine.api.stream.Output;
+import org.jetlinks.rule.engine.api.executor.Output;
 import org.jetlinks.rule.engine.cluster.ClusterManager;
 import org.jetlinks.rule.engine.cluster.Queue;
 import org.jetlinks.rule.engine.cluster.logger.ClusterLogger;
 import org.jetlinks.rule.engine.cluster.logger.LogInfo;
 import org.jetlinks.rule.engine.cluster.message.*;
-import org.jetlinks.rule.engine.cluster.stream.DefaultStreamContext;
-import org.jetlinks.rule.engine.cluster.stream.QueueInput;
-import org.jetlinks.rule.engine.cluster.stream.QueueOutput;
+import org.jetlinks.rule.engine.cluster.executor.DefaultContext;
+import org.jetlinks.rule.engine.cluster.executor.QueueInput;
+import org.jetlinks.rule.engine.cluster.executor.QueueOutput;
 import org.jetlinks.rule.engine.standalone.StandaloneRuleEngine;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -82,7 +84,7 @@ public class RuleEngineWorker {
         //初始化
         clusterManager
                 .getHaManager()
-                .onNotify("rule:stream:init", this::createStreamRule);
+                .onNotify("rule:executor:init", this::createStreamRule);
 
         clusterManager
                 .getHaManager()
@@ -125,9 +127,9 @@ public class RuleEngineWorker {
     }
 
     private class StreamRule implements RunningRuleNode {
-        StreamRuleNode executor;
+        ExecutableRuleNode executor;
 
-        DefaultStreamContext context;
+        DefaultContext context;
         private String ruleId;
 
         private String nodeId;
@@ -152,43 +154,32 @@ public class RuleEngineWorker {
 
     @AllArgsConstructor
     private class ClusterRule implements RunningRuleNode {
-        private QueueInput          input;
+        private QueueInput input;
         private RuleInstanceContext context;
-        private Logger              logger;
-        private StartRuleRequest    request;
+        private Logger logger;
+        private StartRuleRequest request;
 
         @Override
         public void start() {
-            if (context instanceof EventSupportRuleInstanceContext) {
-                ((EventSupportRuleInstanceContext) context)
-                        .addEventListener(executeEvent -> {
-                            if (RuleEvent.NODE_EXECUTE_DONE.equals(executeEvent.getEvent())
-                                    || RuleEvent.NODE_EXECUTE_FAIL.equals(executeEvent.getEvent())) {
-                                //同步返回结果
-                                RuleData data = executeEvent.getRuleData();
-                                if (executeEvent.getNodeId().equals(RuleDataHelper.getSyncReturnNodeId(data))) {
-                                    logger.info("同步返回结果:{}", data);
-                                    clusterManager
-                                            .getObject(data.getId())
-                                            .setData(data);
-                                    clusterManager
-                                            .getSemaphore(data.getId(), 0)
-                                            .release();
-                                }
-                            }
-                        });
-            } else {
-                logger.warn("context[{}] not instanceof EventSupportRuleInstanceContext!", context);
-            }
-
-            context.execute(consumer ->
-                    input.acceptOnce(ruleData ->
-                            consumer.apply(ruleData)
-                                    .whenComplete((result, error) -> {
-                                        if (error != null) {
-                                            logger.error(error.getMessage(), error);
-                                        }
-                                    })));
+            AtomicReference<Function<RuleData, CompletionStage<RuleData>>> reference = new AtomicReference<>();
+            context.execute(reference::set);
+            input.acceptOnce(data -> {
+                if (RuleDataHelper.isSync(data)) {
+                    context.execute(data)
+                            .whenComplete((ruleData, throwable) -> {
+                                logger.info("sync return:{}", ruleData);
+                                clusterManager
+                                        .getObject(ruleData.getId())
+                                        .setData(ruleData);
+                                clusterManager
+                                        .getSemaphore(ruleData.getId(), 0)
+                                        .release();
+                            });
+                } else {
+                    reference.get()
+                            .apply(data);
+                }
+            });
             log.debug("start rule {}", request.getRuleId());
         }
 
@@ -235,8 +226,8 @@ public class RuleEngineWorker {
             return true;
         }
         RuleNodeConfiguration configuration = request.getNodeConfig();
-        log.info("create stream rule worker :{}.{}", request.getInstanceId(), configuration.getNodeId());
-        StreamRuleNode ruleNode = nodeFactory.createStream(configuration);
+        log.info("create executor rule worker :{}.{}", request.getInstanceId(), configuration.getNodeId());
+        ExecutableRuleNode ruleNode = nodeFactory.create(configuration);
         //事件队列
         Map<String, Output> events = request.getEventQueue()
                 .stream()
@@ -267,7 +258,7 @@ public class RuleEngineWorker {
 
         logger.setLogInfoConsumer(this::acceptLog);
 
-        DefaultStreamContext context = new DefaultStreamContext() {
+        DefaultContext context = new DefaultContext() {
             @Override
             public void fireEvent(String event, RuleData data) {
                 data = data.newData(data);
@@ -279,7 +270,7 @@ public class RuleEngineWorker {
                 } else if (RuleEvent.NODE_EXECUTE_DONE.equals(event) || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) {
                     //同步返回结果
                     if (configuration.getNodeId().equals(RuleDataHelper.getSyncReturnNodeId(data))) {
-                        logger.info("同步返回结果:{}", data);
+                        logger.info("sync return:{}", data);
                         clusterManager
                                 .getObject(data.getId())
                                 .setData(data);

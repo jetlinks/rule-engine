@@ -53,13 +53,13 @@ public class RuleModel {
 
     public Optional<RuleNodeModel> getStartNode() {
         return nodes.stream()
-                .filter(RuleNodeModel::isStartNode)
+                .filter(RuleNodeModel::isStart)
                 .findFirst();
     }
 
     public List<RuleNodeModel> getEndNodes() {
         return nodes.stream()
-                .filter(RuleNodeModel::isEndNode)
+                .filter(RuleNodeModel::isEnd)
                 .collect(Collectors.toList());
     }
 }

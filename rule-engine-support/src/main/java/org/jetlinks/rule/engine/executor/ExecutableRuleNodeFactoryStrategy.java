@@ -1,8 +1,7 @@
 package org.jetlinks.rule.engine.executor;
 
-import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
 import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
-import org.jetlinks.rule.engine.api.executor.StreamRuleNode;
+import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
 
 /**
  * @author zhouhao
@@ -11,7 +10,7 @@ import org.jetlinks.rule.engine.api.executor.StreamRuleNode;
 public interface ExecutableRuleNodeFactoryStrategy {
     String getSupportType();
 
-    ExecutableRuleNode create(RuleNodeConfiguration configuration);
+//    ExecutableRuleNode create(RuleNodeConfiguration configuration);
 
-    StreamRuleNode createStream(RuleNodeConfiguration configuration);
+    ExecutableRuleNode create(RuleNodeConfiguration configuration);
 }

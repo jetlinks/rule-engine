@@ -26,14 +26,19 @@ public class RedissonQueue<T> implements Queue<T> {
     }
 
     public void start() {
-        accepted=true;
+        accepted = true;
         flush();
     }
 
     public void flush() {
-        if (this.consumer.get() != null && accepted) {
+        if (accepted) {
             for (T data = queue.poll(); data != null; data = queue.poll()) {
-                this.consumer.get().accept(data);
+                Consumer<T> consumer;
+                if ((consumer = this.consumer.get()) != null) {
+                    consumer.accept(data);
+                } else {
+                    break;
+                }
             }
         }
 

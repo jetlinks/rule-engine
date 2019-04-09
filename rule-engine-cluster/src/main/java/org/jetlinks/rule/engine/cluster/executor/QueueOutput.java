@@ -1,10 +1,10 @@
-package org.jetlinks.rule.engine.cluster.stream;
+package org.jetlinks.rule.engine.cluster.executor;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import org.jetlinks.rule.engine.api.RuleData;
-import org.jetlinks.rule.engine.api.stream.Output;
+import org.jetlinks.rule.engine.api.executor.Output;
 import org.jetlinks.rule.engine.cluster.Queue;
 
 import java.util.List;

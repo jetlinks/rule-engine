@@ -7,17 +7,16 @@ import org.hswebframework.web.id.IDGenerator;
 import org.jetlinks.rule.engine.api.*;
 import org.jetlinks.rule.engine.api.events.EventSupportRuleInstanceContext;
 import org.jetlinks.rule.engine.api.events.GlobalNodeEventListener;
-import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
+import org.jetlinks.rule.engine.api.events.RuleEvent;
 import org.jetlinks.rule.engine.api.executor.ExecutableRuleNodeFactory;
-import org.jetlinks.rule.engine.api.executor.StreamRuleNode;
+import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
 import org.jetlinks.rule.engine.api.model.Condition;
 import org.jetlinks.rule.engine.api.model.RuleLink;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Optional;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -38,10 +37,14 @@ public class StandaloneRuleEngine implements RuleEngine {
     @Setter
     private ConditionEvaluator evaluator;
 
+    @Getter
+    @Setter
+    private Executor executor = ForkJoinPool.commonPool();
+
     public Map<String, RuleInstanceContext> contextMap = new ConcurrentHashMap<>();
 
     public RuleExecutor createSingleRuleExecutor(String contextId, Condition condition, RuleNodeModel nodeModel) {
-        StreamRuleNode ruleNode = nodeFactory.createStream(nodeModel.createConfiguration());
+        ExecutableRuleNode ruleNode = nodeFactory.create(nodeModel.createConfiguration());
 
         Logger logger = new Slf4jLogger("rule.engine.node." + nodeModel.getId());
         StreamRuleExecutor executor = new StreamRuleExecutor();
@@ -58,7 +61,6 @@ public class StandaloneRuleEngine implements RuleEngine {
         executor.setInstanceId(contextId);
         executor.setNodeId(nodeModel.getId());
         executor.setNodeType(nodeModel.getNodeType());
-        executor.start();
         return executor;
     }
 
@@ -82,11 +84,18 @@ public class StandaloneRuleEngine implements RuleEngine {
         String id = IDGenerator.MD5.generate();
         RuleNodeModel nodeModel = rule.getModel().getStartNode()
                 .orElseThrow(() -> new UnsupportedOperationException("无法获取启动节点"));
+
         StandaloneRuleInstanceContext context = new StandaloneRuleInstanceContext();
         context.id = id;
         context.startTime = System.currentTimeMillis();
         context.rootExecutor = createRuleExecutor(id, null, nodeModel, null);
+        rule.getModel()
+                .getEndNodes()
+                .stream()
+                .findFirst()
+                .ifPresent(endNode -> context.setEndNodeId(endNode.getId()));
         contextMap.put(id, context);
+        context.start();
         return context;
     }
 
@@ -97,18 +106,35 @@ public class StandaloneRuleEngine implements RuleEngine {
 
     @Getter
     @Setter
-    public static class StandaloneRuleInstanceContext implements RuleInstanceContext, EventSupportRuleInstanceContext {
+    public class StandaloneRuleInstanceContext implements RuleInstanceContext, EventSupportRuleInstanceContext {
         private String id;
-        private long   startTime;
+        private long startTime;
+
+        private String endNodeId;
 
         private RuleExecutor rootExecutor;
 
+        private Map<String, Sync> syncMap = new ConcurrentHashMap<>();
+
+
         @Override
         public CompletionStage<RuleData> execute(RuleData data) {
-            if (!rootExecutor.should(data)) {
-                return CompletableFuture.completedFuture(null);
+            if (!RuleDataHelper.isSync(data)) {
+                RuleDataHelper.markSyncReturn(data, endNodeId);
             }
-            return rootExecutor.execute(data);
+            Sync sync = new Sync();
+            syncMap.put(data.getId(), sync);
+
+            return CompletableFuture.supplyAsync(() -> {
+                rootExecutor.execute(data);
+                try {
+                    sync.countDownLatch.await(30, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                log.info("rule[{}] execute complete:{}", id, sync.ruleData);
+                return sync.ruleData;
+            }, executor);
         }
 
         @Override
@@ -123,12 +149,29 @@ public class StandaloneRuleEngine implements RuleEngine {
 
         @Override
         public void start() {
+            rootExecutor.addEventListener(executeEvent -> {
+                RuleData data = executeEvent.getRuleData();
+                if (!RuleEvent.NODE_EXECUTE_BEFORE.equals(executeEvent.getEvent()) &&
+                        executeEvent.getNodeId().equals(RuleDataHelper.getSyncReturnNodeId(data))) {
+                    Optional.ofNullable(syncMap.remove(data.getId()))
+                            .ifPresent(sync -> {
+                                sync.ruleData = data;
+                                sync.countDownLatch.countDown();
+                            });
+                }
+            });
 
+            rootExecutor.start();
         }
 
         @Override
         public void stop() {
-
+            rootExecutor.stop();
         }
+    }
+
+    static class Sync {
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        RuleData ruleData;
     }
 }

@@ -1,9 +1,8 @@
 package org.jetlinks.rule.engine.api.executor;
 
-import org.jetlinks.rule.engine.api.Logger;
 
-import java.util.Map;
-import java.util.Optional;
+import org.jetlinks.rule.engine.api.Logger;
+import org.jetlinks.rule.engine.api.RuleData;
 
 /**
  * @author zhouhao
@@ -12,12 +11,13 @@ import java.util.Optional;
 public interface ExecutionContext {
     Logger logger();
 
-    Object getData();
+    Input getInput();
 
-    Map<String, Object> getAttributes();
+    Output getOutput();
 
-    Optional<Object> getAttribute(String key);
+    void fireEvent(String event, RuleData data);
 
-    void setAttribute(String key, Object value);
+    void onError(RuleData data, Throwable e);
 
+    void stop();
 }

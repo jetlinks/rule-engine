@@ -6,6 +6,4 @@ package org.jetlinks.rule.engine.api.executor;
  */
 public interface ExecutableRuleNodeFactory {
     ExecutableRuleNode create(RuleNodeConfiguration configuration);
-
-    StreamRuleNode createStream(RuleNodeConfiguration configuration);
 }

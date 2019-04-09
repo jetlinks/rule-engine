@@ -2,6 +2,7 @@ package org.jetlinks.rule.engine.standalone;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.SneakyThrows;
 import org.apache.commons.collections.CollectionUtils;
 import org.jetlinks.rule.engine.api.Logger;
 import org.jetlinks.rule.engine.api.RuleData;
@@ -9,15 +10,15 @@ import org.jetlinks.rule.engine.api.RuleDataHelper;
 import org.jetlinks.rule.engine.api.events.GlobalNodeEventListener;
 import org.jetlinks.rule.engine.api.events.NodeExecuteEvent;
 import org.jetlinks.rule.engine.api.events.RuleEvent;
-import org.jetlinks.rule.engine.api.executor.StreamExecutionContext;
-import org.jetlinks.rule.engine.api.executor.StreamRuleNode;
+import org.jetlinks.rule.engine.api.executor.ExecutionContext;
+import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
 import org.jetlinks.rule.engine.api.model.NodeType;
-import org.jetlinks.rule.engine.api.stream.Input;
-import org.jetlinks.rule.engine.api.stream.Output;
+import org.jetlinks.rule.engine.api.executor.Input;
+import org.jetlinks.rule.engine.api.executor.Output;
 
+import java.io.Closeable;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -33,7 +34,7 @@ public class StreamRuleExecutor implements RuleExecutor {
 
     @Getter
     @Setter
-    private StreamRuleNode ruleNode;
+    private ExecutableRuleNode ruleNode;
 
     @Getter
     @Setter
@@ -52,6 +53,8 @@ public class StreamRuleExecutor implements RuleExecutor {
     private String nodeId;
 
     private Map<String, Object> globalAttr = new HashMap<>();
+
+    private Closeable closeable;
 
     @Getter
     @Setter
@@ -72,7 +75,7 @@ public class StreamRuleExecutor implements RuleExecutor {
         }
     }
 
-    private class SimpleStreamContext implements StreamExecutionContext {
+    private class SimpleContext implements ExecutionContext {
 
         @Override
         public Input getInput() {
@@ -102,6 +105,8 @@ public class StreamRuleExecutor implements RuleExecutor {
 
         @Override
         public void fireEvent(String event, RuleData data) {
+            logger.info("fire event {}.{}:{}", nodeId, event, data);
+            data.setAttribute("event", event);
             StreamRuleExecutor.this.fireEvent(event, data);
         }
 
@@ -121,30 +126,24 @@ public class StreamRuleExecutor implements RuleExecutor {
             return logger;
         }
 
-        @Override
-        public Object getData() {
-            return null;
-        }
-
-        @Override
-        public Map<String, Object> getAttributes() {
-            return globalAttr;
-        }
-
-        @Override
-        public Optional<Object> getAttribute(String key) {
-            return Optional.ofNullable(globalAttr.get(key));
-        }
-
-        @Override
-        public void setAttribute(String key, Object value) {
-            globalAttr.put(key, value);
-        }
     }
 
     public void start() {
-        SimpleStreamContext context = new SimpleStreamContext();
-        ruleNode.start(context);
+
+        next.forEach(RuleExecutor::start);
+
+        SimpleContext context = new SimpleContext();
+        closeable = ruleNode.start(context);
+
+    }
+
+    @Override
+    @SneakyThrows
+    public void stop() {
+        if (closeable != null) {
+            closeable.close();
+        }
+        next.forEach(RuleExecutor::stop);
     }
 
     protected void fireEvent(String event, RuleData ruleData) {
@@ -166,7 +165,9 @@ public class StreamRuleExecutor implements RuleExecutor {
     }
 
     @Override
+    @SneakyThrows
     public CompletionStage<RuleData> execute(RuleData ruleData) {
+
         consumer.accept(ruleData);
 
         return CompletableFuture.completedFuture(ruleData);
@@ -195,4 +196,5 @@ public class StreamRuleExecutor implements RuleExecutor {
             ruleExecutor.addEventListener(listener);
         }
     }
+
 }

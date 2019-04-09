@@ -23,4 +23,8 @@ public interface RuleExecutor {
     void addEventListener(String event, RuleExecutor executor);
 
     void addEventListener(GlobalNodeEventListener listener);
+
+    void start();
+
+    void stop();
 }

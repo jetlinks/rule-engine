@@ -52,6 +52,7 @@ public class StandaloneRuleEngineTest {
         startNode.setExecutor("java-method");
         startNode.setName("执行java方法");
         startNode.setNodeType(NodeType.MAP);
+        startNode.setStart(true);
         startNode.addConfiguration("className", "org.jetlinks.rule.engine.standalone.TestExecutor");
         startNode.addConfiguration("methodName", "execute");
 
@@ -59,6 +60,7 @@ public class StandaloneRuleEngineTest {
         end.setId("end");
         end.setExecutor("java-method");
         end.setName("执行java方法");
+        end.setEnd(true);
         end.setNodeType(NodeType.PEEK);
         end.addConfiguration("className", "org.jetlinks.rule.engine.standalone.TestExecutor");
         end.addConfiguration("methodName", "execute2");
@@ -105,22 +107,27 @@ public class StandaloneRuleEngineTest {
         startNode.getOutputs().add(logLink);
 
         model.getNodes().add(startNode);
+        model.getNodes().add(end);
+        model.getNodes().add(afterEvent);
+        model.getNodes().add(log);
 
         Rule rule = new Rule();
         rule.setId("test:1.0");
         rule.setVersion(1);
         rule.setModel(model);
-        rule.setModel(model);
 
         RuleInstanceContext context = engine.startRule(rule);
         Assert.assertNotNull(context);
         Assert.assertNotNull(context.getId());
-        RuleData ruleData = context.execute(RuleData.create("abc1234"))
-                .toCompletableFuture()
-                .get(10, TimeUnit.SECONDS);
+        for (int i = 0; i < 100; i++) {
+            RuleData ruleData = context.execute(RuleData.create("abc1234"))
+                    .toCompletableFuture()
+                    .get(10, TimeUnit.SECONDS);
 
-        Assert.assertEquals(ruleData.getData(), "ABC1234");
-        System.out.println(ruleData.getData());
+            Assert.assertEquals(ruleData.getData(), "ABC1234");
+            System.out.println(ruleData.getData());
+        }
+
 
     }
 
