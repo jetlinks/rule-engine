@@ -47,7 +47,7 @@ public class StandaloneRuleEngine implements RuleEngine {
         ExecutableRuleNode ruleNode = nodeFactory.create(nodeModel.createConfiguration());
 
         Logger logger = new Slf4jLogger("rule.engine.node." + nodeModel.getId());
-        StreamRuleExecutor executor = new StreamRuleExecutor();
+        DefaultRuleExecutor executor = new DefaultRuleExecutor();
         executor.setLogger(logger);
         executor.setRuleNode(ruleNode);
         if (null != condition) {

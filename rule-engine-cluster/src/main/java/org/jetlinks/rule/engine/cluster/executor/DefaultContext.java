@@ -8,6 +8,8 @@ import org.jetlinks.rule.engine.api.executor.ExecutionContext;
 import org.jetlinks.rule.engine.api.executor.Input;
 import org.jetlinks.rule.engine.api.executor.Output;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BiConsumer;
 
 public class DefaultContext implements ExecutionContext {
@@ -28,6 +30,8 @@ public class DefaultContext implements ExecutionContext {
     @Setter
     private BiConsumer<RuleData, Throwable> errorHandler;
 
+    private List<Runnable> stopListener = new ArrayList<>();
+
     @Override
     public void fireEvent(String event, RuleData data) {
 
@@ -45,6 +49,7 @@ public class DefaultContext implements ExecutionContext {
     @Override
     public void stop() {
         input.close();
+        stopListener.forEach(Runnable::run);
     }
 
     @Override
@@ -52,4 +57,8 @@ public class DefaultContext implements ExecutionContext {
         return logger;
     }
 
+    @Override
+    public void onStop(Runnable runnable) {
+        stopListener.add(runnable);
+    }
 }

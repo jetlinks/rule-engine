@@ -20,4 +20,6 @@ public interface ExecutionContext {
     void onError(RuleData data, Throwable e);
 
     void stop();
+
+    void onStop(Runnable runnable);
 }

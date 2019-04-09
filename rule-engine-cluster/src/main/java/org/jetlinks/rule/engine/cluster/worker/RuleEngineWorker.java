@@ -127,9 +127,10 @@ public class RuleEngineWorker {
     }
 
     private class StreamRule implements RunningRuleNode {
-        ExecutableRuleNode executor;
+        private ExecutableRuleNode executor;
 
-        DefaultContext context;
+        private DefaultContext context;
+
         private String ruleId;
 
         private String nodeId;

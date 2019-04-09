@@ -16,7 +16,6 @@ import org.jetlinks.rule.engine.api.model.NodeType;
 import org.jetlinks.rule.engine.api.executor.Input;
 import org.jetlinks.rule.engine.api.executor.Output;
 
-import java.io.Closeable;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -26,7 +25,7 @@ import java.util.function.Predicate;
  * @author zhouhao
  * @since 1.0.0
  */
-public class StreamRuleExecutor implements RuleExecutor {
+public class DefaultRuleExecutor implements RuleExecutor {
 
     @Getter
     @Setter
@@ -52,9 +51,7 @@ public class StreamRuleExecutor implements RuleExecutor {
     @Setter
     private String nodeId;
 
-    private Map<String, Object> globalAttr = new HashMap<>();
-
-    private Closeable closeable;
+    private ExecutionContext context;
 
     @Getter
     @Setter
@@ -75,73 +72,18 @@ public class StreamRuleExecutor implements RuleExecutor {
         }
     }
 
-    private class SimpleContext implements ExecutionContext {
-
-        @Override
-        public Input getInput() {
-            return new Input() {
-                @Override
-                public void accept(Consumer<RuleData> accept) {
-                    consumer.andThen(accept);
-                }
-
-                @Override
-                public boolean acceptOnce(Consumer<RuleData> accept) {
-                    consumer = accept;
-                    return false;
-                }
-
-                @Override
-                public void close() {
-
-                }
-            };
-        }
-
-        @Override
-        public Output getOutput() {
-            return StreamRuleExecutor.this::doNext;
-        }
-
-        @Override
-        public void fireEvent(String event, RuleData data) {
-            logger.info("fire event {}.{}:{}", nodeId, event, data);
-            data.setAttribute("event", event);
-            StreamRuleExecutor.this.fireEvent(event, data);
-        }
-
-        @Override
-        public void onError(RuleData data, Throwable e) {
-            RuleDataHelper.putError(data, e);
-            fireEvent(RuleEvent.NODE_EXECUTE_FAIL, data);
-        }
-
-        @Override
-        public void stop() {
-
-        }
-
-        @Override
-        public Logger logger() {
-            return logger;
-        }
-
-    }
-
     public void start() {
 
         next.forEach(RuleExecutor::start);
-
-        SimpleContext context = new SimpleContext();
-        closeable = ruleNode.start(context);
-
+        context = new SimpleContext();
+        ruleNode.start(context);
     }
 
     @Override
     @SneakyThrows
     public void stop() {
-        if (closeable != null) {
-            closeable.close();
+        if (context != null) {
+            context.stop();
         }
         next.forEach(RuleExecutor::stop);
     }
@@ -196,5 +138,66 @@ public class StreamRuleExecutor implements RuleExecutor {
             ruleExecutor.addEventListener(listener);
         }
     }
+
+
+    private class SimpleContext implements ExecutionContext {
+        private List<Runnable> stopListener = new ArrayList<>();
+
+        @Override
+        public Input getInput() {
+            return new Input() {
+                @Override
+                public void accept(Consumer<RuleData> accept) {
+                    consumer.andThen(accept);
+                }
+
+                @Override
+                public boolean acceptOnce(Consumer<RuleData> accept) {
+                    consumer = accept;
+                    return false;
+                }
+
+                @Override
+                public void close() {
+
+                }
+            };
+        }
+
+        @Override
+        public Output getOutput() {
+            return DefaultRuleExecutor.this::doNext;
+        }
+
+        @Override
+        public void fireEvent(String event, RuleData data) {
+            logger.info("fire event {}.{}:{}", nodeId, event, data);
+            data.setAttribute("event", event);
+            DefaultRuleExecutor.this.fireEvent(event, data);
+        }
+
+        @Override
+        public void onError(RuleData data, Throwable e) {
+            RuleDataHelper.putError(data, e);
+            fireEvent(RuleEvent.NODE_EXECUTE_FAIL, data);
+        }
+
+        @Override
+        public void stop() {
+            stopListener.forEach(Runnable::run);
+        }
+
+        @Override
+        public void onStop(Runnable runnable) {
+            stopListener.add(runnable);
+        }
+
+        @Override
+        public Logger logger() {
+            return logger;
+        }
+
+    }
+
 
 }

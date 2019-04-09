@@ -26,30 +26,25 @@ public abstract class AbstractExecutableRuleNodeFactoryStrategy<C extends RuleNo
 
     public ExecutableRuleNode doCreate(C config) {
         BiFunction<Logger, Object, CompletionStage<Object>> executor = createExecutor(config);
-        return context -> {
-            context.getInput()
-                    .acceptOnce(data -> {
-                        context.fireEvent(RuleEvent.NODE_EXECUTE_BEFORE, data.newData(data));
-                        executor.apply(context.logger(), data.getData())
-                                .whenComplete((result, error) -> {
-                                    if (error != null) {
-                                        context.onError(data, error);
+        return context -> context.getInput()
+                .acceptOnce(data -> {
+                    context.fireEvent(RuleEvent.NODE_EXECUTE_BEFORE, data.newData(data));
+                    executor.apply(context.logger(), data.getData())
+                            .whenComplete((result, error) -> {
+                                if (error != null) {
+                                    context.onError(data, error);
+                                } else {
+                                    RuleData newData;
+                                    if (config.getNodeType().isReturnNewValue()) {
+                                        newData = data.newData(result);
                                     } else {
-                                        RuleData newData;
-                                        if (config.getNodeType().isReturnNewValue()) {
-                                            newData = data.newData(result);
-                                        } else {
-                                            newData = data.newData(data);
-                                        }
-                                        context.fireEvent(RuleEvent.NODE_EXECUTE_DONE, newData);
-                                        context.getOutput().write(newData);
+                                        newData = data.newData(data);
                                     }
-                                });
-                    });
-            return () -> {
-
-            };
-        };
+                                    context.fireEvent(RuleEvent.NODE_EXECUTE_DONE, newData);
+                                    context.getOutput().write(newData);
+                                }
+                            });
+                });
     }
 
     @Override
