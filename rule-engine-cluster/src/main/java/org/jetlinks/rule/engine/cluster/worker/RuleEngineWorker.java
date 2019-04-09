@@ -66,7 +66,7 @@ public class RuleEngineWorker {
     @Setter
     private RuleEngine standaloneRuleEngine;
 
-    private Map<String, Map<String, RunningRuleNode>> allRule = new ConcurrentHashMap<>();
+    private Map<String, Map<String, RunningRule>> allRule = new ConcurrentHashMap<>();
 
     private boolean running = false;
 
@@ -84,7 +84,7 @@ public class RuleEngineWorker {
         //初始化
         clusterManager
                 .getHaManager()
-                .onNotify("rule:executor:init", this::createStreamRule);
+                .onNotify("rule:node:init", this::createRuleNode);
 
         clusterManager
                 .getHaManager()
@@ -94,7 +94,7 @@ public class RuleEngineWorker {
         clusterManager
                 .getHaManager()
                 .<String, Boolean>onNotify("rule:stop", instanceId -> {
-                    for (RunningRuleNode value : getRunningRuleNode(instanceId).values()) {
+                    for (RunningRule value : getRunningRuleNode(instanceId).values()) {
                         value.stop();
                     }
                     allRule.remove(instanceId);
@@ -104,7 +104,7 @@ public class RuleEngineWorker {
         clusterManager
                 .getHaManager()
                 .<String, Boolean>onNotify("rule:start", instanceId -> {
-                    for (RunningRuleNode value : getRunningRuleNode(instanceId).values()) {
+                    for (RunningRule value : getRunningRuleNode(instanceId).values()) {
                         value.start();
                     }
                     return true;
@@ -120,13 +120,13 @@ public class RuleEngineWorker {
         return new QueueOutput.ConditionQueue(ruleData, ruleDataPredicate);
     }
 
-    private interface RunningRuleNode {
+    private interface RunningRule {
         void start();
 
         void stop();
     }
 
-    private class StreamRule implements RunningRuleNode {
+    private class RunningRuleNode implements RunningRule {
         private ExecutableRuleNode executor;
 
         private DefaultContext context;
@@ -154,7 +154,7 @@ public class RuleEngineWorker {
 
 
     @AllArgsConstructor
-    private class ClusterRule implements RunningRuleNode {
+    private class StandaloneRunningRule implements RunningRule {
         private QueueInput input;
         private RuleInstanceContext context;
         private Logger logger;
@@ -214,13 +214,13 @@ public class RuleEngineWorker {
 
         getRunningRuleNode(request.getInstanceId())
                 .put(request.getRuleId(),
-                        new ClusterRule(input, standaloneRuleEngine.startRule(rule), logger, request));
+                        new StandaloneRunningRule(input, standaloneRuleEngine.startRule(rule), logger, request));
 
         return true;
     }
 
     //分布式流式规则
-    protected synchronized boolean createStreamRule(StartStreamRuleNodeRequest request) {
+    protected synchronized boolean createRuleNode(StartRuleNodeRequest request) {
         //已经存在了
         if (getRunningRuleNode(request.getInstanceId()).containsKey(request.getNodeId())) {
             log.info("rule node worker {}.{} already exists", request.getRuleId(), request.getNodeId());
@@ -294,7 +294,7 @@ public class RuleEngineWorker {
         });
         context.setLogger(logger);
 
-        StreamRule rule = new StreamRule();
+        RunningRuleNode rule = new RunningRuleNode();
         rule.context = context;
         rule.executor = ruleNode;
         rule.ruleId = request.getRuleId();
@@ -304,7 +304,7 @@ public class RuleEngineWorker {
         return true;
     }
 
-    private Map<String, RunningRuleNode> getRunningRuleNode(String instanceId) {
+    private Map<String, RunningRule> getRunningRuleNode(String instanceId) {
         return allRule.computeIfAbsent(instanceId, x -> new HashMap<>());
     }
 }

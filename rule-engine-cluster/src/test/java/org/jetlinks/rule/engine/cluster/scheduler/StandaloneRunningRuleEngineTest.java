@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
  * @author zhouhao
  * @since 1.0.0
  */
-public class ClusterRuleEngineTest {
+public class StandaloneRunningRuleEngineTest {
     private RedissonClusterManager clusterManager;
     private RedissonClient         redissonClient = RedissonHelper.newRedissonClient();
     private RedissonHaManager      haManager;

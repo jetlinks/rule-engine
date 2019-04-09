@@ -13,7 +13,6 @@ import org.jetlinks.rule.engine.api.RuleEngine;
 import org.jetlinks.rule.engine.api.RuleInstanceContext;
 import org.jetlinks.rule.engine.api.cluster.RunMode;
 import org.jetlinks.rule.engine.api.events.GlobalNodeEventListener;
-import org.jetlinks.rule.engine.api.events.NodeExecuteEvent;
 import org.jetlinks.rule.engine.api.model.RuleEngineModelParser;
 import org.jetlinks.rule.engine.api.model.RuleLink;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;
@@ -75,11 +74,11 @@ public class ClusterRuleEngine implements RuleEngine {
     }
 
     //分布式流式规则
-    private class RunningStreamRule implements RunningRule {
+    private class RunningDistributedRule implements RunningRule {
         @Getter
         private final ClusterRuleInstanceContext context;
 
-        private List<StartStreamRuleNodeRequest> requests;
+        private List<StartRuleNodeRequest> requests;
 
         private List<NodeInfo> allRunningNode = new ArrayList<>();
 
@@ -98,7 +97,7 @@ public class ClusterRuleEngine implements RuleEngine {
             return persistent;
         }
 
-        public RunningStreamRule(Rule rule, String id) {
+        public RunningDistributedRule(Rule rule, String id) {
             context = new ClusterRuleInstanceContext();
             requests = new ArrayList<>();
             context.setClusterManager(clusterManager);
@@ -139,13 +138,13 @@ public class ClusterRuleEngine implements RuleEngine {
         @SneakyThrows
         public void tryResume(String nodeId) {
             List<NodeInfo> nodeInfoList = new ArrayList<>();
-            for (StartStreamRuleNodeRequest request : requests) {
+            for (StartRuleNodeRequest request : requests) {
                 for (NodeInfo nodeInfo : nodeRunnerInfo.get(request.getNodeId())) {
                     if (nodeInfo.getId().equals(nodeId)) {
                         log.debug("resume executor node {}.{}", context.getId(), request.getNodeId());
                         clusterManager
                                 .getHaManager()
-                                .sendNotify(nodeInfo.getId(), "rule:executor:init", request)
+                                .sendNotify(nodeInfo.getId(), "rule:node:init", request)
                                 .toCompletableFuture()
                                 .get(10, TimeUnit.SECONDS);
                         nodeInfoList.add(nodeInfo);
@@ -178,11 +177,11 @@ public class ClusterRuleEngine implements RuleEngine {
         @SneakyThrows
         public void start() {
             log.info("start rule {}", rule.getId());
-            for (StartStreamRuleNodeRequest request : requests) {
+            for (StartRuleNodeRequest request : requests) {
                 for (NodeInfo nodeInfo : nodeRunnerInfo.get(request.getNodeId())) {
                     clusterManager
                             .getHaManager()
-                            .sendNotify(nodeInfo.getId(), "rule:executor:init", request)
+                            .sendNotify(nodeInfo.getId(), "rule:node:init", request)
                             .toCompletableFuture()
                             .get(20, TimeUnit.SECONDS);
                 }
@@ -191,7 +190,7 @@ public class ClusterRuleEngine implements RuleEngine {
         }
 
         private void prepare(RuleNodeModel model) {
-            StartStreamRuleNodeRequest request = new StartStreamRuleNodeRequest();
+            StartRuleNodeRequest request = new StartRuleNodeRequest();
             String id = context.getId();
             request.setSchedulerNodeId(clusterManager.getCurrentNode().getId());
             request.setInstanceId(context.getId());
@@ -349,15 +348,15 @@ public class ClusterRuleEngine implements RuleEngine {
 
     @Override
     public RuleInstanceContext startRule(Rule rule) {
-        RunningRule runningStreamRule = createRunningRule(rule, IDGenerator.MD5.generate());
-        runningStreamRule.init();
+        RunningRule runningRule = createRunningRule(rule, IDGenerator.MD5.generate());
+        runningRule.init();
 
-        instanceRepository.saveInstance(runningStreamRule.toPersistent());
+        instanceRepository.saveInstance(runningRule.toPersistent());
 
-        RuleInstanceContext context = runningStreamRule.getContext();
+        RuleInstanceContext context = runningRule.getContext();
         context.start();
 
-        contextCache.put(context.getId(), runningStreamRule);
+        contextCache.put(context.getId(), runningRule);
         return context;
     }
 
@@ -371,16 +370,16 @@ public class ClusterRuleEngine implements RuleEngine {
                     .map(rulePersistent -> rulePersistent.toRule(modelParser))
                     .orElseThrow(() -> new NotFoundException("规则[" + persistent.getRuleId() + "]不存在"));
 
-            RunningRule runningStreamRule = createRunningRule(rule, instanceId);
-            runningStreamRule.init();
+            RunningRule runningRule = createRunningRule(rule, instanceId);
+            runningRule.init();
             //runningRule.start();
-            return runningStreamRule;
+            return runningRule;
         }).getContext();
     }
 
     private RunningRule createRunningRule(Rule rule, String instanceId) {
         if (rule.getModel().getRunMode() == RunMode.DISTRIBUTED) {
-            return new RunningStreamRule(rule, instanceId);
+            return new RunningDistributedRule(rule, instanceId);
         } else {
             return new RunningClusterRule(rule, instanceId);
         }
