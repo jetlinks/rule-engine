@@ -15,7 +15,13 @@
     <dependencies>
         <dependency>
             <groupId>org.jetlinks</groupId>
-            <artifactId>rule-engine-defaults</artifactId>
+            <artifactId>rule-engine-support</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jetlinks</groupId>
+            <artifactId>rule-engine-standalone</artifactId>
             <version>${project.version}</version>
         </dependency>
 

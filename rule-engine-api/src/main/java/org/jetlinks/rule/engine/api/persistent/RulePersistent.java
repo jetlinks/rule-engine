@@ -3,6 +3,7 @@ package org.jetlinks.rule.engine.api.persistent;
 import lombok.Getter;
 import lombok.Setter;
 import org.jetlinks.rule.engine.api.Rule;
+import org.jetlinks.rule.engine.api.model.RuleEngineModelParser;
 
 import java.io.Serializable;
 
@@ -27,4 +28,11 @@ public class RulePersistent implements Serializable {
     private String model;
 
 
+    public Rule toRule(RuleEngineModelParser parser) {
+        Rule rule = new Rule();
+        rule.setId(ruleId);
+        rule.setVersion(version == null ? 1 : version);
+        rule.setModel(parser.parse(modelFormat, model));
+        return rule;
+    }
 }

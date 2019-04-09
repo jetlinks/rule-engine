@@ -2,6 +2,7 @@ package org.jetlinks.rule.engine.api.model;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
 import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
 
 import java.util.ArrayList;
@@ -31,6 +32,8 @@ public class RuleNodeModel {
     private String executor;
 
     private NodeType nodeType;
+
+    private SchedulingRule schedulingRule;
 
     private boolean end;
 

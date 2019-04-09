@@ -12,7 +12,9 @@ import java.util.Map;
 
 @Getter
 @Setter
-public class StartRuleNodeRequest implements Serializable {
+public class StartStreamRuleNodeRequest implements Serializable {
+
+    private String schedulerNodeId;
 
     private String instanceId;
 

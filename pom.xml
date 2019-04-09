@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <modules>
         <module>rule-engine-api</module>
-        <module>rule-engine-defaults</module>
+        <module>rule-engine-support</module>
         <module>rule-engine-standalone</module>
         <module>rule-engine-cluster</module>
     </modules>

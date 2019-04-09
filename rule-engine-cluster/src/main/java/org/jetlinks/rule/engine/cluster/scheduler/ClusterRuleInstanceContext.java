@@ -7,6 +7,7 @@ import org.jetlinks.rule.engine.api.DefaultRuleData;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleDataHelper;
 import org.jetlinks.rule.engine.api.RuleInstanceContext;
+import org.jetlinks.rule.engine.api.events.GlobalNodeEventListener;
 import org.jetlinks.rule.engine.cluster.*;
 
 import java.util.concurrent.CompletionStage;
@@ -30,8 +31,13 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
     private ClusterManager clusterManager;
 
     private Runnable onStop;
+    private Runnable onStart;
 
     private long syncTimeout = 30_000;
+
+    private Function<String, Queue<RuleData>> nodeInputGetter;
+
+    private Consumer<GlobalNodeEventListener> onListener;
 
     public RuleData wrapClusterRuleData(RuleData ruleData) {
         return ruleData;
@@ -47,7 +53,6 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
         log.info("execute rule:{} data:{}", id, data);
         //执行完成的信号，规则执行完成后会由对应的节点去触发。
         ClusterSemaphore semaphore = clusterManager.getSemaphore(dataId, 0);
-
 
         //发送数据到规则入口队列
         return inputQueue
@@ -79,6 +84,12 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
         });
     }
 
+    @Override
+    public void start() {
+        if (null != onStart) {
+            onStart.run();
+        }
+    }
 
     @Override
     public void stop() {

@@ -56,16 +56,12 @@ public class RedissonClusterManagerTest {
     @Test
     @SneakyThrows
     public void testHaMessage() {
-        CountDownLatch count = new CountDownLatch(1);
-        AtomicReference<String> reference = new AtomicReference<>();
-        haManager.<String>onNotify("test", msg -> {
-            reference.set(msg);
-            count.countDown();
-        });
+        haManager.<String, String>onNotify("test", msg -> "test-message-reply");
 
-        haManager.sendNotify(haManager.getCurrentNode().getId(), "test", "test-message");
-        count.await(10, TimeUnit.SECONDS);
-        Assert.assertEquals(reference.get(), "test-message");
+        String result = haManager.<String>sendNotify(haManager.getCurrentNode().getId(), "test", "test-message")
+                .toCompletableFuture()
+                .get(10, TimeUnit.SECONDS);
+        Assert.assertEquals(result, "test-message-reply");
     }
 
     @Test

@@ -6,9 +6,15 @@ import lombok.SneakyThrows;
 import org.apache.commons.collections.CollectionUtils;
 import org.jetlinks.rule.engine.api.Logger;
 import org.jetlinks.rule.engine.api.RuleData;
+import org.jetlinks.rule.engine.api.RuleDataHelper;
+import org.jetlinks.rule.engine.api.events.GlobalNodeEventListener;
+import org.jetlinks.rule.engine.api.events.NodeExecuteEvent;
 import org.jetlinks.rule.engine.api.events.RuleEvent;
 import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
+import org.jetlinks.rule.engine.api.executor.StreamExecutionContext;
 import org.jetlinks.rule.engine.api.model.NodeType;
+import org.jetlinks.rule.engine.api.stream.Input;
+import org.jetlinks.rule.engine.api.stream.Output;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -30,6 +36,14 @@ public class SimpleRuleExecutor implements RuleExecutor {
     @Setter
     private NodeType nodeType = NodeType.MAP;
 
+    @Getter
+    @Setter
+    private String nodeId;
+
+    @Getter
+    @Setter
+    private String instanceId;
+
     private ExecutableRuleNode executableRuleNode;
 
     private Logger logger;
@@ -40,10 +54,22 @@ public class SimpleRuleExecutor implements RuleExecutor {
 
     private Map<String, List<RuleExecutor>> eventHandler = new HashMap<>();
 
+    @Getter
+    @Setter
+    private List<GlobalNodeEventListener> listeners = new ArrayList<>();
+
     @Override
     public void addEventListener(String event, RuleExecutor executor) {
         eventHandler.computeIfAbsent(event, e -> new ArrayList<>())
                 .add(executor);
+    }
+
+    @Override
+    public void addEventListener(GlobalNodeEventListener listener) {
+        listeners.add(listener);
+        for (RuleExecutor ruleExecutor : next) {
+            ruleExecutor.addEventListener(listener);
+        }
     }
 
     public SimpleRuleExecutor(ExecutableRuleNode executableRuleNode, Logger logger) {
@@ -62,6 +88,7 @@ public class SimpleRuleExecutor implements RuleExecutor {
     @Override
     public CompletionStage<RuleData> execute(RuleData ruleData) {
         try {
+            ruleData.setAttribute("currentNodeId", nodeId);
             fireEvent(RuleEvent.NODE_EXECUTE_BEFORE, ruleData, null);
         } catch (Throwable e) {
             CompletableFuture future = new CompletableFuture();
@@ -90,7 +117,15 @@ public class SimpleRuleExecutor implements RuleExecutor {
 
     protected void fireEvent(String event, RuleData ruleData, Throwable err) {
         if (err != null) {
-            ruleData.setAttribute("error", err);
+            RuleDataHelper.putError(ruleData, err);
+        }
+        for (GlobalNodeEventListener listener : listeners) {
+            listener.onEvent(NodeExecuteEvent.builder()
+                    .event(event)
+                    .ruleData(ruleData)
+                    .instanceId(instanceId)
+                    .nodeId(nodeId)
+                    .build());
         }
         Optional.ofNullable(eventHandler.get(event))
                 .filter(CollectionUtils::isNotEmpty)
@@ -99,6 +134,7 @@ public class SimpleRuleExecutor implements RuleExecutor {
                         ruleExecutor.execute(ruleData);
                     }
                 });
+
     }
 
     @SneakyThrows
@@ -143,4 +179,5 @@ public class SimpleRuleExecutor implements RuleExecutor {
     public boolean should(RuleData data) {
         return condition == null || condition.test(data);
     }
+
 }

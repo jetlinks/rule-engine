@@ -2,6 +2,8 @@ package org.jetlinks.rule.engine.api.model;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.jetlinks.rule.engine.api.cluster.RunMode;
+import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -22,6 +24,10 @@ public class RuleModel {
 
     private String description;
 
+    private RunMode runMode;
+
+    private SchedulingRule schedulingRule;
+
     private Map<String, Object> configuration = new HashMap<>();
 
     private List<RuleLink> events = new ArrayList<>();
@@ -34,9 +40,9 @@ public class RuleModel {
                 .collect(Collectors.toList());
     }
 
-    public Optional<RuleNodeModel> getNode(String nodeId){
+    public Optional<RuleNodeModel> getNode(String nodeId) {
         return nodes.stream()
-                .filter(model->model.getId().equals(nodeId))
+                .filter(model -> model.getId().equals(nodeId))
                 .findFirst();
     }
 

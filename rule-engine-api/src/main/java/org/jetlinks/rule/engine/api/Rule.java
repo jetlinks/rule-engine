@@ -2,6 +2,8 @@ package org.jetlinks.rule.engine.api;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.jetlinks.rule.engine.api.cluster.RunMode;
+import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
 import org.jetlinks.rule.engine.api.model.RuleModel;
 
 /**

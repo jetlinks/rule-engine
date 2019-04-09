@@ -17,4 +17,6 @@ public interface StreamExecutionContext extends ExecutionContext {
     void fireEvent(String event, RuleData data);
 
     void onError(RuleData data, Throwable e);
+
+    void stop();
 }

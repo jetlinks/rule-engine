@@ -44,11 +44,6 @@ public class RedissonClusterManager implements ClusterManager {
     }
 
     @Override
-    public HaManager getHaManager() {
-        return haManager;
-    }
-
-    @Override
     public List<NodeInfo> getAllAliveNode() {
         return haManager.getAllAliveNode();
     }

@@ -1,107 +1,199 @@
 package org.jetlinks.rule.engine.cluster.scheduler;
 
+import com.alibaba.fastjson.JSON;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.CollectionUtils;
 import org.hswebframework.web.NotFoundException;
 import org.hswebframework.web.id.IDGenerator;
 import org.jetlinks.rule.engine.api.Rule;
 import org.jetlinks.rule.engine.api.RuleEngine;
 import org.jetlinks.rule.engine.api.RuleInstanceContext;
+import org.jetlinks.rule.engine.api.cluster.RunMode;
+import org.jetlinks.rule.engine.api.events.GlobalNodeEventListener;
+import org.jetlinks.rule.engine.api.events.NodeExecuteEvent;
+import org.jetlinks.rule.engine.api.model.RuleEngineModelParser;
 import org.jetlinks.rule.engine.api.model.RuleLink;
-import org.jetlinks.rule.engine.api.model.RuleModel;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;
+import org.jetlinks.rule.engine.api.persistent.RuleInstancePersistent;
+import org.jetlinks.rule.engine.api.persistent.repository.RuleInstanceRepository;
+import org.jetlinks.rule.engine.api.persistent.repository.RuleRepository;
 import org.jetlinks.rule.engine.cluster.ClusterManager;
 import org.jetlinks.rule.engine.cluster.NodeInfo;
-import org.jetlinks.rule.engine.cluster.message.EventConfig;
-import org.jetlinks.rule.engine.cluster.message.InputConfig;
-import org.jetlinks.rule.engine.cluster.message.OutputConfig;
-import org.jetlinks.rule.engine.cluster.message.StartRuleNodeRequest;
+import org.jetlinks.rule.engine.cluster.message.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
-@Getter
-@Setter
+@Slf4j
 public class ClusterRuleEngine implements RuleEngine {
 
+    @Getter
+    @Setter
     private ClusterManager clusterManager;
 
+    @Getter
+    @Setter
     private WorkerNodeSelector nodeSelector;
+
+    @Getter
+    @Setter
+    private RuleInstanceRepository instanceRepository;
+
+    @Getter
+    @Setter
+    private RuleRepository ruleRepository;
+
+    @Getter
+    @Setter
+    private RuleEngineModelParser modelParser;
+
+    protected Map<String, RunningRule> contextCache = new ConcurrentHashMap<>();
+
+    protected Map<String, List<GlobalNodeEventListener>> allEventListener = new ConcurrentHashMap<>();
+
 
     protected String getDataQueueName(String id, RuleNodeModel model) {
         return "data:" + id + ":node:" + model.getId();
     }
 
-    private class RunningRule {
+    interface RunningRule {
+        ClusterRuleInstanceContext getContext();
+
+        void start();
+
+        void stop();
+
+        void init();
+
+        void tryResume(String nodeId);
+
+        RuleInstancePersistent toPersistent();
+    }
+
+    //分布式流式规则
+    private class RunningStreamRule implements RunningRule {
+        @Getter
         private final ClusterRuleInstanceContext context;
 
-        private List<StartRuleNodeRequest> requests;
+        private List<StartStreamRuleNodeRequest> requests;
+
+        private List<NodeInfo> allRunningNode = new ArrayList<>();
 
         private Rule rule;
 
-        public RunningRule(Rule rule) {
+        private Map<String, List<NodeInfo>> nodeRunnerInfo = new HashMap<>();
+
+        public RuleInstancePersistent toPersistent() {
+            RuleInstancePersistent persistent = new RuleInstancePersistent();
+            persistent.setId(context.getId());
+            persistent.setCreateTime(new Date());
+            persistent.setSchedulerNodeId(clusterManager.getCurrentNode().getId());
+            persistent.setInstanceDetailJson(JSON.toJSONString(requests));
+            persistent.setRuleId(rule.getId());
+            persistent.setRunning(false);
+            return persistent;
+        }
+
+        public RunningStreamRule(Rule rule, String id) {
             context = new ClusterRuleInstanceContext();
             requests = new ArrayList<>();
-
-            context.setId(IDGenerator.MD5.generate());
             context.setClusterManager(clusterManager);
+            context.setId(id);
+            context.setOnStop(() -> {
+                doStop(allRunningNode);
+                instanceRepository.stopInstance(id);
+            });
+            context.setOnStart(() -> {
+                start();
+                instanceRepository.startInstance(id);
+            });
+            context.setOnListener(eventListener ->
+                    allEventListener
+                            .computeIfAbsent(id, i -> new ArrayList<>())
+                            .add(eventListener));
             this.rule = rule;
         }
 
-        private void prepare(){
+        public void init() {
             requests.clear();
+            allRunningNode.clear();
             for (RuleNodeModel node : rule.getModel().getNodes()) {
-                if(node.isEndNode()){
+                if (node.isEndNode()) {
                     context.setSyncReturnNodeId(node.getId());
                 }
                 prepare(node);
+                //选择执行节点
+                List<NodeInfo> nodeInfo = nodeSelector.select(node.getSchedulingRule(), clusterManager.getAllAliveNode());
+                if (CollectionUtils.isEmpty(nodeInfo)) {
+                    throw new NotFoundException("没有可以执行任务[" + node.getName() + "]的节点");
+                }
+                allRunningNode.addAll(nodeInfo);
+                nodeRunnerInfo.put(node.getId(), nodeInfo);
             }
         }
 
-        private void doStop(List<NodeInfo> nodeInfos) {
-            for (NodeInfo node : nodeInfos) {
+        @SneakyThrows
+        public void tryResume(String nodeId) {
+            List<NodeInfo> nodeInfoList = new ArrayList<>();
+            for (StartStreamRuleNodeRequest request : requests) {
+                for (NodeInfo nodeInfo : nodeRunnerInfo.get(request.getNodeId())) {
+                    if (nodeInfo.getId().equals(nodeId)) {
+                        log.debug("resume stream node {}.{}", context.getId(), request.getNodeId());
+                        clusterManager
+                                .getHaManager()
+                                .sendNotify(nodeInfo.getId(), "rule:stream:init", request)
+                                .toCompletableFuture()
+                                .get(10, TimeUnit.SECONDS);
+                        nodeInfoList.add(nodeInfo);
+                    }
+                }
+            }
+            doStart(nodeInfoList);
+        }
+
+        private void doStop(List<NodeInfo> nodeList) {
+            for (NodeInfo node : nodeList) {
                 clusterManager
                         .getHaManager()
                         .sendNotify(node.getId(), "rule:stop", context.getId());
             }
         }
 
-        private void doStart(List<NodeInfo> nodeInfos) {
-            for (NodeInfo node : nodeInfos) {
+        private void doStart(List<NodeInfo> nodeList) {
+            for (NodeInfo node : nodeList) {
                 clusterManager
                         .getHaManager()
                         .sendNotify(node.getId(), "rule:start", context.getId());
             }
         }
 
-        private void start() {
-            prepare();
-            List<NodeInfo> allRunningNode = new ArrayList<>();
-            try {
-                for (StartRuleNodeRequest request : requests) {
-                    RuleNodeModel nodeModel = rule.getModel()
-                            .getNode(request.getNodeId())
-                            .orElseThrow(() -> new NotFoundException("规则节点" + request.getNodeId() + "不存在"));
+        public void stop() {
+            context.stop();
+        }
 
-                    List<NodeInfo> nodeInfo = nodeSelector.select(nodeModel, clusterManager.getAllAliveNode());
-                    allRunningNode.addAll(nodeInfo);
-                    //推送到执行的服务节点
-                    for (NodeInfo node : nodeInfo) {
-                        clusterManager
-                                .getHaManager()
-                                .sendNotify(node.getId(), "accept:node", request);
-                    }
+        @SneakyThrows
+        public void start() {
+            log.info("start rule {}", rule.getId());
+            for (StartStreamRuleNodeRequest request : requests) {
+                for (NodeInfo nodeInfo : nodeRunnerInfo.get(request.getNodeId())) {
+                    clusterManager
+                            .getHaManager()
+                            .sendNotify(nodeInfo.getId(), "rule:stream:init", request)
+                            .toCompletableFuture()
+                            .get(20, TimeUnit.SECONDS);
                 }
-            } catch (Throwable e) {
-                doStop(allRunningNode);
-                throw e;
             }
             doStart(allRunningNode);
         }
 
         private void prepare(RuleNodeModel model) {
-            StartRuleNodeRequest request = new StartRuleNodeRequest();
+            StartStreamRuleNodeRequest request = new StartStreamRuleNodeRequest();
             String id = context.getId();
+            request.setSchedulerNodeId(clusterManager.getCurrentNode().getId());
             request.setInstanceId(context.getId());
             request.setNodeId(model.getId());
             request.setRuleId(rule.getId());
@@ -139,19 +231,155 @@ public class ClusterRuleEngine implements RuleEngine {
             requests.add(request);
         }
 
+    }
 
+    //集群模式规则
+    private class RunningClusterRule implements RunningRule {
+        @Getter
+        private final ClusterRuleInstanceContext context;
+
+        private StartRuleRequest request;
+
+        private Rule rule;
+
+        private List<NodeInfo> workerNodeInfo = new ArrayList<>();
+
+        private RunningClusterRule(Rule rule, String id) {
+            context = new ClusterRuleInstanceContext();
+            context.setId(id);
+            context.setClusterManager(clusterManager);
+            String inputQueue = "rule:cluster:" + id + ":input";
+
+            context.setInputQueue(clusterManager.getQueue(inputQueue));
+
+            context.setSyncReturnNodeId(rule.getModel()
+                    .getNodes().stream().filter(RuleNodeModel::isEndNode)
+                    .map(RuleNodeModel::getId).findFirst().orElse(null));
+
+            context.setOnStop(() -> {
+                stop();
+                instanceRepository.stopInstance(id);
+            });
+            context.setOnStart(() -> {
+                start();
+                instanceRepository.startInstance(id);
+            });
+            context.setOnListener(eventListener ->
+                    allEventListener
+                            .computeIfAbsent(id, i -> new ArrayList<>())
+                            .add(eventListener));
+
+            request = new StartRuleRequest();
+            request.setInstanceId(id);
+            request.setInputQueue(Arrays.asList(inputQueue));
+            request.setRuleId(rule.getId());
+            this.rule = rule;
+        }
+
+        @Override
+        public RuleInstancePersistent toPersistent() {
+            RuleInstancePersistent persistent = new RuleInstancePersistent();
+            persistent.setId(context.getId());
+            persistent.setCreateTime(new Date());
+            persistent.setSchedulerNodeId(clusterManager.getCurrentNode().getId());
+            persistent.setRuleId(rule.getId());
+            persistent.setRunning(false);
+            return persistent;
+        }
+
+        @Override
+        public void start() {
+            for (NodeInfo nodeInfo : workerNodeInfo) {
+                clusterManager.getHaManager()
+                        .sendNotify(nodeInfo.getId(), "rule:start", request.getInstanceId());
+            }
+        }
+
+        @Override
+        public void stop() {
+            for (NodeInfo nodeInfo : workerNodeInfo) {
+                clusterManager.getHaManager()
+                        .sendNotify(nodeInfo.getId(), "rule:stop", request.getInstanceId());
+            }
+        }
+
+        @Override
+        @SneakyThrows
+        public void init() {
+            workerNodeInfo = nodeSelector.select(rule.getModel().getSchedulingRule(), clusterManager.getAllAliveNode());
+            for (NodeInfo nodeInfo : workerNodeInfo) {
+                clusterManager.getHaManager()
+                        .sendNotify(nodeInfo.getId(), "rule:cluster:init", request)
+                        .toCompletableFuture()
+                        .get(20, TimeUnit.SECONDS);
+            }
+        }
+
+
+        @Override
+        public void tryResume(String nodeId) {
+            workerNodeInfo.stream()
+                    .filter(node -> nodeId.equals(node.getId()))
+                    .findFirst()
+                    .ifPresent(nodeInfo ->
+                            clusterManager.getHaManager()
+                                    .sendNotify(nodeInfo.getId(), "rule:cluster:init", request)
+                                    .whenComplete((success, error) -> {
+                                        if (Boolean.TRUE.equals(success)) {
+                                            clusterManager.getHaManager()
+                                                    .sendNotify(nodeInfo.getId(), "rule:start", request.getInstanceId());
+                                        }
+                                    }));
+        }
+    }
+
+    public void start() {
+        //监听节点上线
+        clusterManager.getHaManager()
+                .onNodeJoin(node -> {
+                    log.info("resume rule node");
+                    for (RunningRule value : contextCache.values()) {
+                        value.tryResume(node.getId());
+                    }
+                });
     }
 
     @Override
     public RuleInstanceContext startRule(Rule rule) {
-        RunningRule runningRule = new RunningRule(rule);
-        runningRule.start();
-        return runningRule.context;
+        RunningRule runningStreamRule = createRunningRule(rule, IDGenerator.MD5.generate());
+        runningStreamRule.init();
+
+        instanceRepository.saveInstance(runningStreamRule.toPersistent());
+
+        RuleInstanceContext context = runningStreamRule.getContext();
+        context.start();
+
+        contextCache.put(context.getId(), runningStreamRule);
+        return context;
     }
 
     @Override
     public RuleInstanceContext getInstance(String id) {
+        return contextCache.computeIfAbsent(id, instanceId -> {
+            RuleInstancePersistent persistent = instanceRepository
+                    .findInstanceById(instanceId)
+                    .orElseThrow(() -> new NotFoundException("规则实例[" + id + "]不存在"));
+            Rule rule = ruleRepository.findRuleById(persistent.getRuleId())
+                    .map(rulePersistent -> rulePersistent.toRule(modelParser))
+                    .orElseThrow(() -> new NotFoundException("规则[" + persistent.getRuleId() + "]不存在"));
 
-        return null;
+            RunningRule runningStreamRule = createRunningRule(rule, instanceId);
+            runningStreamRule.init();
+            //runningRule.start();
+            return runningStreamRule;
+        }).getContext();
+    }
+
+    private RunningRule createRunningRule(Rule rule, String instanceId) {
+        if (rule.getModel().getRunMode() == RunMode.DISTRIBUTED) {
+            return new RunningStreamRule(rule, instanceId);
+        } else {
+            return new RunningClusterRule(rule, instanceId);
+        }
     }
 }

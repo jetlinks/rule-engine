@@ -1,6 +1,7 @@
 package org.jetlinks.rule.engine.standalone;
 
 import org.jetlinks.rule.engine.api.RuleData;
+import org.jetlinks.rule.engine.api.events.GlobalNodeEventListener;
 import org.jetlinks.rule.engine.api.model.NodeType;
 
 import java.util.concurrent.CompletionStage;
@@ -20,4 +21,6 @@ public interface RuleExecutor {
     boolean should(RuleData data);
 
     void addEventListener(String event, RuleExecutor executor);
+
+    void addEventListener(GlobalNodeEventListener listener);
 }

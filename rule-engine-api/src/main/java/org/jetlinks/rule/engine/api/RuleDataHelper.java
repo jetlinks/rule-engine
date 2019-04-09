@@ -1,6 +1,8 @@
 package org.jetlinks.rule.engine.api;
 
 
+import org.hswebframework.utils.StringUtils;
+
 public abstract class RuleDataHelper {
 
 
@@ -10,6 +12,7 @@ public abstract class RuleDataHelper {
 
     private static String ERROR_TYPE    = "error_type";
     private static String ERROR_MESSAGE = "error_message";
+    private static String ERROR_STACK   = "error_stack";
 
 
     private RuleDataHelper() {
@@ -41,7 +44,10 @@ public abstract class RuleDataHelper {
         while (error.getCause() != null) {
             error = error.getCause();
         }
-        return putError(data, error.getClass().getName(), error.getMessage());
+        putError(data, error.getClass().getName(), error.getMessage());
+        String stack = StringUtils.throwable2String(error);
+        data.setAttribute(ERROR_STACK, stack);
+        return data;
     }
 
     public static RuleData putError(RuleData data, String type, String message) {

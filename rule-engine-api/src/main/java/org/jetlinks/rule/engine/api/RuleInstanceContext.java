@@ -1,5 +1,6 @@
 package org.jetlinks.rule.engine.api;
 
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
@@ -54,6 +55,11 @@ public interface RuleInstanceContext {
      * @see RuleDataHelper#markSyncReturn(RuleData)
      */
     void execute(Consumer<Function<RuleData, CompletionStage<RuleData>>> dataSource);
+
+    /**
+     * 启动规则
+     */
+    void start();
 
     /**
      * 停止规则

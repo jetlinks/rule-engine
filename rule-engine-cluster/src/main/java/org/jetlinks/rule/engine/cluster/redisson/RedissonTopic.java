@@ -15,7 +15,7 @@ public class RedissonTopic<T> implements Topic<T> {
 
     private Class<T> type;
 
-    private Consumer<T> consumer = (d) -> {
+    private volatile Consumer<T> consumer = (d) -> {
     };
 
     public RedissonTopic(RTopic topic, Class<T> type) {

@@ -3,7 +3,9 @@ package org.jetlinks.rule.engine.cluster.ha;
 import org.jetlinks.rule.engine.cluster.NodeInfo;
 
 import java.util.List;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * @author zhouhao
@@ -44,7 +46,7 @@ public interface HaManager {
      * @param consumer 消息消费者
      * @param <T>      消息类型
      */
-    <T> void onNotify(String address, Consumer<T> consumer);
+    <T,R> void onNotify(String address, Function<T,R> consumer);
 
     /**
      * 向其他服务节点发送通知
@@ -53,6 +55,6 @@ public interface HaManager {
      * @param address 通知地址
      * @param message 消息
      */
-    void sendNotify(String nodeId, String address, Object message);
+    <V> CompletionStage<V> sendNotify(String nodeId, String address, Object message);
 
 }

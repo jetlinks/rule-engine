@@ -1,4 +1,4 @@
-package org.jetlinks.rule.engine.cluster.redisson;
+package org.jetlinks.rule.engine.cluster.ha;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -11,8 +11,9 @@ import java.io.Serializable;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-
 public class ClusterNotify implements Serializable {
+
+    private String replyId;
 
     private String address;
 

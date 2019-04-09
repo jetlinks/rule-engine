@@ -3,21 +3,18 @@ package org.jetlinks.rule.engine.cluster.redisson;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.hswebframework.web.NotFoundException;
+import org.hswebframework.web.id.IDGenerator;
 import org.jetlinks.rule.engine.cluster.NodeInfo;
+import org.jetlinks.rule.engine.cluster.ha.ClusterNotify;
+import org.jetlinks.rule.engine.cluster.ha.ClusterNotifyReply;
 import org.jetlinks.rule.engine.cluster.ha.HaManager;
-import org.redisson.api.RMap;
-import org.redisson.api.RPatternTopic;
-import org.redisson.api.RTopic;
-import org.redisson.api.RedissonClient;
-import org.redisson.rx.RedissonBlockingQueueRx;
+import org.redisson.api.*;
 import org.springframework.util.Assert;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * @author zhouhao
@@ -47,14 +44,14 @@ public class RedissonHaManager implements HaManager {
     protected RTopic clusterNodeKeepTopic;
     protected RTopic clusterNodeLeaveTopic;
 
-    protected Map<String, Consumer> notifyListener = new ConcurrentHashMap<>();
+    protected Map<String, Function> notifyListener = new ConcurrentHashMap<>();
 
     @Setter
     @Getter
     private long timeToLeave = 10;
 
     private RMap<String, NodeInfo> allNodeInfo;
-    private Map<String, NodeInfo> localAllNode;
+    private Map<String, NodeInfo>  localAllNode;
 
     protected void doNodeJoin(NodeInfo nodeInfo) {
         if (nodeInfo.getId().equals(currentNode.getId())) {
@@ -101,7 +98,25 @@ public class RedissonHaManager implements HaManager {
         redissonClient.getTopic(getRedisKey("cluster:notify:" + currentNode.getId()))
                 .addListener(ClusterNotify.class, (channel, msg) ->
                         Optional.ofNullable(notifyListener.get(msg.getAddress()))
-                                .ifPresent(consumer -> consumer.accept(msg.getMessage())));
+                                .ifPresent(consumer -> {
+                                    String replyId = msg.getReplyId();
+                                    ClusterNotifyReply reply = new ClusterNotifyReply();
+                                    reply.setReplyId(replyId);
+                                    try {
+                                        Object result = consumer.apply(msg.getMessage());
+                                        reply.setSuccess(true);
+                                        reply.setReply(result);
+                                    } catch (Throwable error) {
+                                        log.error("execute notify error : "+error.getMessage(), error);
+                                        reply.setErrorType(error.getClass().getName());
+                                        reply.setErrorMessage(error.getMessage());
+                                    }
+                                    redissonClient.getBucket("notify:result:" + replyId)
+                                            .set(reply, 10, TimeUnit.MINUTES);
+                                    RSemaphore rSemaphore = redissonClient.getSemaphore("notify:" + replyId);
+                                    rSemaphore.expire(10, TimeUnit.MINUTES);
+                                    rSemaphore.release();
+                                }));
 
         //订阅节点上下线
         clusterNodeTopic.addListener(NodeInfo.class, (pattern, channel, msg) -> {
@@ -165,13 +180,49 @@ public class RedissonHaManager implements HaManager {
 
     @Override
     @SuppressWarnings("all")
-    public <T> void onNotify(String address, Consumer<T> consumer) {
-        notifyListener.compute(address, (key, old) -> old == null ? consumer : old.andThen(consumer));
+    public <T, R> void onNotify(String address, Function<T, R> consumer) {
+        notifyListener.compute(address, (key, old) -> {
+            if (old == null) {
+                return consumer;
+            }
+            return t -> {
+                old.apply(t);
+                return consumer.apply((T) t);
+            };
+        });
     }
 
     @Override
-    public void sendNotify(String nodeId, String address, Object message) {
-        redissonClient.getTopic(getRedisKey("cluster:notify:" + nodeId))
-                .publish(new ClusterNotify(address, message));
+    public <V> CompletionStage<V> sendNotify(String nodeId, String address, Object message) {
+        String replyId = IDGenerator.MD5.generate();
+        return redissonClient.getTopic(getRedisKey("cluster:notify:" + nodeId))
+                .publishAsync(new ClusterNotify(replyId, address, message))
+                .thenCompose(len -> {
+                    if (len <= 0) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    RSemaphore rSemaphore = redissonClient.getSemaphore("notify:" + replyId);
+                    return rSemaphore
+                            .tryAcquireAsync(10, TimeUnit.MINUTES)
+                            .thenCompose(success -> {
+                                if (success) {
+                                    rSemaphore.delete();
+                                }
+                                CompletableFuture<V> future = new CompletableFuture<>();
+                                redissonClient.<ClusterNotifyReply>getBucket("notify:result:" + replyId)
+                                        .getAndDeleteAsync()
+                                        .whenComplete((clusterNotifyReply, throwable) -> {
+                                            if (null != throwable) {
+                                                future.completeExceptionally(throwable);
+                                            } else if (clusterNotifyReply.isSuccess()) {
+                                                future.complete((V) clusterNotifyReply.getReply());
+                                            } else {
+                                                future.completeExceptionally(new RuntimeException(clusterNotifyReply.getErrorType() + ":" + clusterNotifyReply.getErrorMessage()));
+                                            }
+                                        });
+                                return future;
+                            });
+                });
+
     }
 }

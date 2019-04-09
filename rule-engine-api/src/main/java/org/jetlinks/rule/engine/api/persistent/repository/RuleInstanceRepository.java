@@ -10,4 +10,8 @@ public interface RuleInstanceRepository {
 
     void saveInstance(RuleInstancePersistent instancePersistent);
 
+    void stopInstance(String instanceId);
+
+    void startInstance(String instanceId);
+
 }

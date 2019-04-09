@@ -17,6 +17,8 @@ public class RuleInstancePersistent implements Serializable {
 
     private String ruleId;
 
+    private String schedulerNodeId;
+
     private Date createTime;
 
     private Boolean running;

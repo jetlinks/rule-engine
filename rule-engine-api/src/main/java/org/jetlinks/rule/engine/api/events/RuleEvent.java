@@ -1,10 +1,12 @@
 package org.jetlinks.rule.engine.api.events;
 
+import java.io.Serializable;
+
 /**
  * @author zhouhao
  * @since 1.0.0
  */
-public interface RuleEvent {
+public interface RuleEvent extends Serializable {
 
     String NODE_EXECUTE_BEFORE = "NODE_EXECUTE_BEFORE";
 
@@ -12,5 +14,6 @@ public interface RuleEvent {
 
     String NODE_EXECUTE_DONE = "NODE_EXECUTE_DONE";
 
+    String getEvent();
 
 }

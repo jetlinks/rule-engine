@@ -8,7 +8,4 @@ public interface RuleRepository {
 
     Optional<RulePersistent> findRuleById(String ruleId);
 
-
-
-
 }

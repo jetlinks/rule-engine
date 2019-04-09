@@ -49,6 +49,11 @@ public class DefaultStreamContext implements StreamExecutionContext {
     }
 
     @Override
+    public void stop() {
+        input.close();
+    }
+
+    @Override
     public Logger logger() {
         return logger;
     }
