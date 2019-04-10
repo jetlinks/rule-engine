@@ -9,6 +9,7 @@ import org.apache.commons.collections.CollectionUtils;
 import org.hswebframework.web.NotFoundException;
 import org.hswebframework.web.id.IDGenerator;
 import org.jetlinks.rule.engine.api.Rule;
+import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleEngine;
 import org.jetlinks.rule.engine.api.RuleInstanceContext;
 import org.jetlinks.rule.engine.api.cluster.RunMode;
@@ -19,8 +20,8 @@ import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 import org.jetlinks.rule.engine.api.persistent.RuleInstancePersistent;
 import org.jetlinks.rule.engine.api.persistent.repository.RuleInstanceRepository;
 import org.jetlinks.rule.engine.api.persistent.repository.RuleRepository;
-import org.jetlinks.rule.engine.cluster.ClusterManager;
-import org.jetlinks.rule.engine.cluster.NodeInfo;
+import org.jetlinks.rule.engine.api.cluster.ClusterManager;
+import org.jetlinks.rule.engine.api.cluster.NodeInfo;
 import org.jetlinks.rule.engine.cluster.message.*;
 
 import java.util.*;
@@ -114,6 +115,13 @@ public class ClusterRuleEngine implements RuleEngine {
                     allEventListener
                             .computeIfAbsent(id, i -> new ArrayList<>())
                             .add(eventListener));
+
+            context.setQueueGetter(nodeId ->
+                    rule.getModel()
+                            .getNode(nodeId)
+                            .map(model -> getDataQueueName(id, model))
+                            .map(queueId -> clusterManager.<RuleData>getQueue(queueId))
+                            .orElseThrow(() -> new NotFoundException("节点[" + nodeId + "]不存在")));
             this.rule = rule;
         }
 

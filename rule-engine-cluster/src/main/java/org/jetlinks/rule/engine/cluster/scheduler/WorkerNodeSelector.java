@@ -1,8 +1,7 @@
 package org.jetlinks.rule.engine.cluster.scheduler;
 
 import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
-import org.jetlinks.rule.engine.api.model.RuleNodeModel;
-import org.jetlinks.rule.engine.cluster.NodeInfo;
+import org.jetlinks.rule.engine.api.cluster.NodeInfo;
 
 import java.util.List;
 

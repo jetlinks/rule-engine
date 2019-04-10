@@ -23,13 +23,14 @@ public interface RuleData extends Serializable {
 
     void setAttribute(String key, Object value);
 
+    void removeAttribute(String key);
+
     void clear();
 
     static RuleData create(Object data) {
         DefaultRuleData ruleData = new DefaultRuleData();
         ruleData.setId(IDGenerator.MD5.generate());
         ruleData.setData(data);
-
         return ruleData;
     }
 }

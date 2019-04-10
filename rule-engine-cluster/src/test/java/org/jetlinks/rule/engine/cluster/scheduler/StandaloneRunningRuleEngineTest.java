@@ -4,12 +4,13 @@ import lombok.SneakyThrows;
 import org.hswebframework.web.id.IDGenerator;
 import org.jetlinks.rule.engine.api.Rule;
 import org.jetlinks.rule.engine.api.RuleData;
+import org.jetlinks.rule.engine.api.RuleDataHelper;
 import org.jetlinks.rule.engine.api.RuleInstanceContext;
 import org.jetlinks.rule.engine.api.cluster.RunMode;
 import org.jetlinks.rule.engine.api.events.RuleEvent;
 import org.jetlinks.rule.engine.api.model.*;
 import org.jetlinks.rule.engine.api.persistent.RulePersistent;
-import org.jetlinks.rule.engine.cluster.NodeInfo;
+import org.jetlinks.rule.engine.api.cluster.NodeInfo;
 import org.jetlinks.rule.engine.cluster.redisson.RedissonClusterManager;
 import org.jetlinks.rule.engine.cluster.redisson.RedissonHaManager;
 import org.jetlinks.rule.engine.cluster.redisson.RedissonHelper;
@@ -27,6 +28,8 @@ import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import static org.jetlinks.rule.engine.api.RuleDataHelper.newHelper;
 
 /**
  * @author zhouhao
@@ -74,7 +77,7 @@ public class StandaloneRunningRuleEngineTest {
         errorEvent.setId("error-event");
         errorEvent.setExecutor("java-method");
         errorEvent.setName("执行java方法");
-        errorEvent.setNodeType(NodeType.PEEK);
+        errorEvent.setNodeType(NodeType.MAP);
         errorEvent.addConfiguration("className", "org.jetlinks.rule.engine.cluster.TestExecutor");
         errorEvent.addConfiguration("methodName", "event1");
 
@@ -198,10 +201,27 @@ public class StandaloneRunningRuleEngineTest {
             Object data = context
                     .execute(RuleData.create("abc123"))
                     .toCompletableFuture()
-                    .get(20, TimeUnit.SECONDS)
+                    .get(10, TimeUnit.SECONDS)
                     .getData();
             Assert.assertEquals(data, "ABC123");
         }
+        //指定结束节点
+        RuleData ruleData = context.execute(RuleDataHelper.markSyncReturn(RuleData.create("abc1234"),"error-event"))
+                .toCompletableFuture()
+                .get(10, TimeUnit.SECONDS);
+        Assert.assertNotNull(ruleData);
+        Assert.assertEquals(ruleData.getData(),"abc1234_event");
+
+        //指定开始和结束节点
+        RuleData ruleData2 = context.execute(newHelper(RuleData.create("ABC1234"))
+                .markStartWith("log")
+                .markEndWith("error-event")
+                .done())
+                .toCompletableFuture()
+                .get(10, TimeUnit.SECONDS);
+        Assert.assertNotNull(ruleData2);
+        Assert.assertEquals(ruleData2.getData(), "abc1234_event");
+
         context.stop();
         Thread.sleep(1000);
     }
@@ -225,10 +245,25 @@ public class StandaloneRunningRuleEngineTest {
             Object data = context
                     .execute(RuleData.create("abc123"))
                     .toCompletableFuture()
-                    .get(20, TimeUnit.SECONDS)
+                    .get(10, TimeUnit.SECONDS)
                     .getData();
             Assert.assertEquals(data, "ABC123");
         }
+        RuleData ruleData = context.execute(RuleDataHelper.markSyncReturn(RuleData.create("abc1234"),"error-event"))
+                .toCompletableFuture()
+                .get(10, TimeUnit.SECONDS);
+        Assert.assertNotNull(ruleData);
+        Assert.assertEquals(ruleData.getData(),"abc1234_event");
+
+        RuleData ruleData2 = context.execute(newHelper(RuleData.create("ABC1234"))
+                .markStartWith("log")
+                .markEndWith("error-event")
+                .done())
+                .toCompletableFuture()
+                .get(10, TimeUnit.SECONDS);
+        Assert.assertNotNull(ruleData2);
+        Assert.assertEquals(ruleData2.getData(), "abc1234_event");
+
         context.stop();
         Thread.sleep(1000);
     }

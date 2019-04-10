@@ -1,6 +1,6 @@
 package org.jetlinks.rule.engine.cluster.redisson;
 
-import org.jetlinks.rule.engine.cluster.Topic;
+import org.jetlinks.rule.engine.api.cluster.Topic;
 import org.redisson.api.RTopic;
 
 import java.util.function.Consumer;

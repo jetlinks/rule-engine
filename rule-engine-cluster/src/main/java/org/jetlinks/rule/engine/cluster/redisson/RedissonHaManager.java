@@ -4,10 +4,10 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.hswebframework.web.id.IDGenerator;
-import org.jetlinks.rule.engine.cluster.NodeInfo;
-import org.jetlinks.rule.engine.cluster.ha.ClusterNotify;
-import org.jetlinks.rule.engine.cluster.ha.ClusterNotifyReply;
-import org.jetlinks.rule.engine.cluster.ha.HaManager;
+import org.jetlinks.rule.engine.api.cluster.NodeInfo;
+import org.jetlinks.rule.engine.api.cluster.ha.ClusterNotify;
+import org.jetlinks.rule.engine.api.cluster.ha.ClusterNotifyReply;
+import org.jetlinks.rule.engine.api.cluster.ha.HaManager;
 import org.redisson.api.*;
 import org.springframework.util.Assert;
 

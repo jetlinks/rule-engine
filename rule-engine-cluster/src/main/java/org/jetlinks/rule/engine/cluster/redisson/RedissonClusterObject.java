@@ -1,7 +1,7 @@
 package org.jetlinks.rule.engine.cluster.redisson;
 
 import lombok.AllArgsConstructor;
-import org.jetlinks.rule.engine.cluster.ClusterObject;
+import org.jetlinks.rule.engine.api.cluster.ClusterObject;
 import org.redisson.api.RBucket;
 
 import java.util.concurrent.CompletionStage;

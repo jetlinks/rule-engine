@@ -24,8 +24,9 @@ public class TestExecutor {
     }
 
 
-    public void event1(Object data) {
+    public String event1(Object data) {
 //        throw new UnsupportedOperationException();
         System.out.println(String.valueOf(data).toLowerCase() + "_event");
+        return String.valueOf(data).toLowerCase() + "_";
     }
 }

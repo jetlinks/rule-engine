@@ -5,7 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.executor.Output;
-import org.jetlinks.rule.engine.cluster.Queue;
+import org.jetlinks.rule.engine.api.cluster.Queue;
 
 import java.util.List;
 import java.util.function.Predicate;

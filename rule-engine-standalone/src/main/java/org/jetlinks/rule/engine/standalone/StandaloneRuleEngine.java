@@ -94,6 +94,7 @@ public class StandaloneRuleEngine implements RuleEngine {
         context.id = id;
         context.startTime = System.currentTimeMillis();
         context.rootExecutor = builder.createRuleExecutor(id, null, nodeModel, null);
+        context.allExecutor = new HashMap<>(builder.allExecutor);
         rule.getModel()
                 .getEndNodes()
                 .stream()
@@ -119,8 +120,17 @@ public class StandaloneRuleEngine implements RuleEngine {
 
         private RuleExecutor rootExecutor;
 
+        private Map<String, RuleExecutor> allExecutor;
+
         private Map<String, Sync> syncMap = new ConcurrentHashMap<>();
 
+
+        private RuleExecutor getExecutor(RuleData data) {
+            return RuleDataHelper
+                    .getStartWithNodeId(data)
+                    .map(allExecutor::get)
+                    .orElse(rootExecutor);
+        }
 
         @Override
         public CompletionStage<RuleData> execute(RuleData data) {
@@ -129,9 +139,10 @@ public class StandaloneRuleEngine implements RuleEngine {
             }
             Sync sync = new Sync();
             syncMap.put(data.getId(), sync);
+            RuleExecutor ruleExecutor = getExecutor(data);
 
             return CompletableFuture.supplyAsync(() -> {
-                rootExecutor.execute(data);
+                ruleExecutor.execute(data);
                 try {
                     sync.countDownLatch.await(30, TimeUnit.SECONDS);
                 } catch (InterruptedException e) {
@@ -144,7 +155,7 @@ public class StandaloneRuleEngine implements RuleEngine {
 
         @Override
         public void execute(Consumer<Function<RuleData, CompletionStage<RuleData>>> dataSource) {
-            dataSource.accept(data -> rootExecutor.execute(data));
+            dataSource.accept(data -> getExecutor(data).execute(data));
         }
 
         @Override
@@ -154,24 +165,35 @@ public class StandaloneRuleEngine implements RuleEngine {
 
         @Override
         public void start() {
-            rootExecutor.addEventListener(executeEvent -> {
+            GlobalNodeEventListener listener = executeEvent -> {
+                String event = executeEvent.getEvent();
+
                 RuleData data = executeEvent.getRuleData();
-                if (!RuleEvent.NODE_EXECUTE_BEFORE.equals(executeEvent.getEvent()) &&
-                        executeEvent.getNodeId().equals(RuleDataHelper.getSyncReturnNodeId(data))) {
+                data.setAttribute("event", event);
+                if (RuleEvent.NODE_EXECUTE_DONE.equals(executeEvent.getEvent())) {
+                    RuleDataHelper.clearError(data);
+                }
+                if ((RuleEvent.NODE_EXECUTE_DONE.equals(event) || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) &&
+                        executeEvent.getNodeId().equals(RuleDataHelper.getEndWithNodeId(data).orElse(null))) {
                     Optional.ofNullable(syncMap.remove(data.getId()))
                             .ifPresent(sync -> {
                                 sync.ruleData = data;
                                 sync.countDownLatch.countDown();
                             });
                 }
-            });
+            };
 
-            rootExecutor.start();
+            for (RuleExecutor ruleExecutor : allExecutor.values()) {
+                ruleExecutor.addEventListener(listener);
+                ruleExecutor.start();
+            }
         }
 
         @Override
         public void stop() {
-            rootExecutor.stop();
+            for (RuleExecutor ruleExecutor : allExecutor.values()) {
+                ruleExecutor.stop();
+            }
         }
     }
 

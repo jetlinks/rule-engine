@@ -3,13 +3,15 @@ package org.jetlinks.rule.engine.cluster.scheduler;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.jetlinks.rule.engine.api.DefaultRuleData;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleDataHelper;
 import org.jetlinks.rule.engine.api.RuleInstanceContext;
+import org.jetlinks.rule.engine.api.cluster.ClusterManager;
+import org.jetlinks.rule.engine.api.cluster.ClusterSemaphore;
+import org.jetlinks.rule.engine.api.cluster.Queue;
 import org.jetlinks.rule.engine.api.events.GlobalNodeEventListener;
-import org.jetlinks.rule.engine.cluster.*;
 
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -26,6 +28,8 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
 
     private Queue<RuleData> inputQueue;
 
+    private Function<String, Queue<RuleData>> queueGetter;
+
     private String syncReturnNodeId;
 
     private ClusterManager clusterManager;
@@ -35,19 +39,29 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
 
     private long syncTimeout = 30_000;
 
-    private Function<String, Queue<RuleData>> nodeInputGetter;
-
     private Consumer<GlobalNodeEventListener> onListener;
 
     public RuleData wrapClusterRuleData(RuleData ruleData) {
         return ruleData;
     }
 
+    private Queue<RuleData> getQueue(RuleData ruleData) {
+        return Optional.ofNullable(queueGetter)
+                .flatMap(getter -> RuleDataHelper
+                        .getStartWithNodeId(ruleData)
+                        .map(getter))
+                .orElse(inputQueue);
+
+    }
+
     @Override
     public CompletionStage<RuleData> execute(RuleData data) {
 
-        //标记本条数据需要同步返回结果
-        data = RuleDataHelper.markSyncReturn(wrapClusterRuleData(data), syncReturnNodeId);
+        if (!RuleDataHelper.isSync(data)) {
+            //标记本条数据需要同步返回结果
+            RuleDataHelper.markSyncReturn(wrapClusterRuleData(data), syncReturnNodeId);
+        }
+        Queue<RuleData> queue = getQueue(data);
 
         String dataId = data.getId();
         log.info("execute rule:{} data:{}", id, data);
@@ -55,7 +69,7 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
         ClusterSemaphore semaphore = clusterManager.getSemaphore(dataId, 0);
 
         //发送数据到规则入口队列
-        return inputQueue
+        return queue
                 .putAsync(data)
                 .thenCompose(nil -> semaphore.tryAcquireAsync(syncTimeout, TimeUnit.MILLISECONDS))
                 .thenComposeAsync(isSuccess -> {
@@ -77,7 +91,7 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
                 return execute(data);
             } else {
                 //没有标记则直接发送到队列然后返回结果null
-                return inputQueue
+                return getQueue(data)
                         .putAsync(wrapClusterRuleData(data))
                         .thenApply(nil -> null);
             }

@@ -1,6 +1,6 @@
-package org.jetlinks.rule.engine.cluster;
+package org.jetlinks.rule.engine.api.cluster;
 
-import org.jetlinks.rule.engine.cluster.ha.HaManager;
+import org.jetlinks.rule.engine.api.cluster.ha.HaManager;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;

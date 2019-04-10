@@ -53,6 +53,8 @@ public class DefaultRuleExecutor implements RuleExecutor {
 
     private ExecutionContext context;
 
+    private volatile boolean running;
+
     @Getter
     @Setter
     private List<GlobalNodeEventListener> listeners = new ArrayList<>();
@@ -72,9 +74,11 @@ public class DefaultRuleExecutor implements RuleExecutor {
         }
     }
 
-    public void start() {
-
-        next.forEach(RuleExecutor::start);
+    public synchronized void start() {
+        if (running) {
+            return;
+        }
+        running = true;
         context = new SimpleContext();
         ruleNode.start(context);
     }
@@ -85,7 +89,6 @@ public class DefaultRuleExecutor implements RuleExecutor {
         if (context != null) {
             context.stop();
         }
-        next.forEach(RuleExecutor::stop);
     }
 
     protected void fireEvent(String event, RuleData ruleData) {
@@ -134,9 +137,6 @@ public class DefaultRuleExecutor implements RuleExecutor {
     @Override
     public void addEventListener(GlobalNodeEventListener listener) {
         listeners.add(listener);
-        for (RuleExecutor ruleExecutor : next) {
-            ruleExecutor.addEventListener(listener);
-        }
     }
 
 

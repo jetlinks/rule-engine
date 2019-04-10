@@ -1,7 +1,7 @@
 package org.jetlinks.rule.engine.cluster.redisson;
 
 import lombok.SneakyThrows;
-import org.jetlinks.rule.engine.cluster.Queue;
+import org.jetlinks.rule.engine.api.cluster.Queue;
 import org.redisson.api.RQueue;
 
 import java.util.concurrent.CompletionStage;

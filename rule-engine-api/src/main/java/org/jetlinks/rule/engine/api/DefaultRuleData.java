@@ -30,6 +30,11 @@ public class DefaultRuleData implements RuleData {
     }
 
     @Override
+    public void removeAttribute(String key) {
+        attributes.remove(key);
+    }
+
+    @Override
     public void clear() {
         attributes.clear();
     }

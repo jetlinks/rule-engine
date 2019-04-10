@@ -1,6 +1,6 @@
 package org.jetlinks.rule.engine.cluster.redisson;
 
-import org.jetlinks.rule.engine.cluster.ClusterMap;
+import org.jetlinks.rule.engine.api.cluster.ClusterMap;
 import org.redisson.api.RMap;
 
 import java.util.Map;

@@ -1,6 +1,6 @@
-package org.jetlinks.rule.engine.cluster.ha;
+package org.jetlinks.rule.engine.api.cluster.ha;
 
-import org.jetlinks.rule.engine.cluster.NodeInfo;
+import org.jetlinks.rule.engine.api.cluster.NodeInfo;
 
 import java.util.List;
 import java.util.concurrent.CompletionStage;

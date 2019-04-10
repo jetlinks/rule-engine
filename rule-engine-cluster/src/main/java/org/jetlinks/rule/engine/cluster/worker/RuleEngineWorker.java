@@ -14,8 +14,8 @@ import org.jetlinks.rule.engine.api.model.RuleEngineModelParser;
 import org.jetlinks.rule.engine.api.persistent.RulePersistent;
 import org.jetlinks.rule.engine.api.persistent.repository.RuleRepository;
 import org.jetlinks.rule.engine.api.executor.Output;
-import org.jetlinks.rule.engine.cluster.ClusterManager;
-import org.jetlinks.rule.engine.cluster.Queue;
+import org.jetlinks.rule.engine.api.cluster.ClusterManager;
+import org.jetlinks.rule.engine.api.cluster.Queue;
 import org.jetlinks.rule.engine.cluster.logger.ClusterLogger;
 import org.jetlinks.rule.engine.cluster.logger.LogInfo;
 import org.jetlinks.rule.engine.cluster.message.*;
@@ -155,10 +155,10 @@ public class RuleEngineWorker {
 
     @AllArgsConstructor
     private class StandaloneRunningRule implements RunningRule {
-        private QueueInput input;
+        private QueueInput          input;
         private RuleInstanceContext context;
-        private Logger logger;
-        private StartRuleRequest request;
+        private Logger              logger;
+        private StartRuleRequest    request;
 
         @Override
         public void start() {
@@ -263,14 +263,14 @@ public class RuleEngineWorker {
             @Override
             public void fireEvent(String event, RuleData data) {
                 data = data.newData(data);
+                if (RuleEvent.NODE_EXECUTE_DONE.equals(event)) {
+                    RuleDataHelper.clearError(data);
+                }
                 log.info("fire event {}.{}:{}", configuration.getNodeId(), event, data);
                 data.setAttribute("event", event);
-                if (RuleEvent.NODE_EXECUTE_BEFORE.equals(event)) {
-                    data.setAttribute("nodeId", configuration.getId());
-                    data.setAttribute("instanceId", request.getInstanceId());
-                } else if (RuleEvent.NODE_EXECUTE_DONE.equals(event) || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) {
+                if (RuleEvent.NODE_EXECUTE_DONE.equals(event) || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) {
                     //同步返回结果
-                    if (configuration.getNodeId().equals(RuleDataHelper.getSyncReturnNodeId(data))) {
+                    if (configuration.getNodeId().equals(RuleDataHelper.getEndWithNodeId(data).orElse(null))) {
                         logger.info("sync return:{}", data);
                         clusterManager
                                 .getObject(data.getId())

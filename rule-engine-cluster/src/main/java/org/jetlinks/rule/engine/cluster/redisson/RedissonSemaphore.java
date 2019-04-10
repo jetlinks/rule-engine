@@ -1,7 +1,7 @@
 package org.jetlinks.rule.engine.cluster.redisson;
 
 import lombok.SneakyThrows;
-import org.jetlinks.rule.engine.cluster.ClusterSemaphore;
+import org.jetlinks.rule.engine.api.cluster.ClusterSemaphore;
 import org.redisson.api.RSemaphore;
 
 import java.util.concurrent.CompletionStage;

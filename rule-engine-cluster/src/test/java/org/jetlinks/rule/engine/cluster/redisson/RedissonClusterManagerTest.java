@@ -1,9 +1,10 @@
 package org.jetlinks.rule.engine.cluster.redisson;
 
 import lombok.SneakyThrows;
-import org.jetlinks.rule.engine.cluster.ClusterLock;
-import org.jetlinks.rule.engine.cluster.ClusterSemaphore;
-import org.jetlinks.rule.engine.cluster.NodeInfo;
+import org.hswebframework.web.id.IDGenerator;
+import org.jetlinks.rule.engine.api.cluster.ClusterLock;
+import org.jetlinks.rule.engine.api.cluster.ClusterSemaphore;
+import org.jetlinks.rule.engine.api.cluster.NodeInfo;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -38,12 +39,14 @@ public class RedissonClusterManagerTest {
         haManager.setExecutorService(Executors.newScheduledThreadPool(5));
         haManager.setRedissonClient(redissonClient);
         haManager.setTimeToLeave(5);
+        haManager.setClusterName("cluster:" + IDGenerator.MD5.generate());
 
         clusterManager = new RedissonClusterManager();
         clusterManager.setRedissonClient(redissonClient);
         clusterManager.setExecutorService(Executors.newScheduledThreadPool(5));
         clusterManager.setHaManager(haManager);
         clusterManager.start();
+        clusterManager.setName(haManager.getClusterName());
         haManager.start();
     }
 

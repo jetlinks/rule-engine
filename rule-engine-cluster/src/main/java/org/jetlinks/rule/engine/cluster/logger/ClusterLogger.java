@@ -3,9 +3,7 @@ package org.jetlinks.rule.engine.cluster.logger;
 import lombok.Getter;
 import lombok.Setter;
 import org.jetlinks.rule.engine.api.Logger;
-import org.jetlinks.rule.engine.cluster.Topic;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;

@@ -1,10 +1,7 @@
 package org.jetlinks.rule.engine.standalone;
 
 import lombok.SneakyThrows;
-import org.jetlinks.rule.engine.api.ConditionEvaluator;
-import org.jetlinks.rule.engine.api.Rule;
-import org.jetlinks.rule.engine.api.RuleData;
-import org.jetlinks.rule.engine.api.RuleInstanceContext;
+import org.jetlinks.rule.engine.api.*;
 import org.jetlinks.rule.engine.api.events.RuleEvent;
 import org.jetlinks.rule.engine.api.model.NodeType;
 import org.jetlinks.rule.engine.api.model.RuleLink;
@@ -17,6 +14,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.concurrent.TimeUnit;
+
+import static org.jetlinks.rule.engine.api.RuleDataHelper.*;
 
 /**
  * @author zhouhao
@@ -77,7 +76,7 @@ public class StandaloneRuleEngineTest {
         afterEvent.setId("after-event");
         afterEvent.setExecutor("java-method");
         afterEvent.setName("执行java方法");
-        afterEvent.setNodeType(NodeType.PEEK);
+        afterEvent.setNodeType(NodeType.MAP);
         afterEvent.addConfiguration("className", "org.jetlinks.rule.engine.standalone.TestExecutor");
         afterEvent.addConfiguration("methodName", "event1");
 
@@ -128,6 +127,22 @@ public class StandaloneRuleEngineTest {
             System.out.println(ruleData.getData());
         }
 
+        RuleData ruleData = context.execute(newHelper(RuleData.create("abc1234"))
+                .markEndWith("after-event")
+                .done())
+                .toCompletableFuture()
+                .get(10, TimeUnit.SECONDS);
+        Assert.assertNotNull(ruleData);
+        Assert.assertEquals(ruleData.getData(), "abc1234_");
+
+        RuleData ruleData2 = context.execute(newHelper(RuleData.create("ABC1234"))
+                .markStartWith("log")
+                .markEndWith("after-event")
+                .done())
+                .toCompletableFuture()
+                .get(10, TimeUnit.SECONDS);
+        Assert.assertNotNull(ruleData2);
+        Assert.assertEquals(ruleData2.getData(), "abc1234_");
 
     }
 

@@ -1,6 +1,6 @@
 package org.jetlinks.rule.engine.cluster.redisson;
 
-import org.jetlinks.rule.engine.cluster.ClusterLock;
+import org.jetlinks.rule.engine.api.cluster.ClusterLock;
 import org.redisson.api.RSemaphore;
 
 /**

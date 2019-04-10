@@ -1,4 +1,4 @@
-package org.jetlinks.rule.engine.cluster;
+package org.jetlinks.rule.engine.api.cluster;
 
 import java.util.Map;
 import java.util.Optional;

@@ -4,9 +4,9 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.jetlinks.rule.engine.cluster.*;
-import org.jetlinks.rule.engine.cluster.Queue;
-import org.jetlinks.rule.engine.cluster.ha.HaManager;
+import org.jetlinks.rule.engine.api.cluster.*;
+import org.jetlinks.rule.engine.api.cluster.Queue;
+import org.jetlinks.rule.engine.api.cluster.ha.HaManager;
 import org.redisson.api.*;
 
 import java.util.*;
@@ -15,7 +15,6 @@ import java.util.concurrent.*;
 @SuppressWarnings("all")
 @Slf4j
 public class RedissonClusterManager implements ClusterManager {
-
 
     @Setter
     @Getter

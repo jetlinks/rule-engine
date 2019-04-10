@@ -11,7 +11,7 @@ import java.util.concurrent.CompletionStage;
  */
 public class TestExecutor {
     public CompletionStage<String> execute(Object data) {
-        return CompletableFuture.supplyAsync(() -> String.valueOf(data).toUpperCase());
+        return CompletableFuture.completedFuture( String.valueOf(data).toUpperCase());
     }
 
     @SneakyThrows
@@ -27,9 +27,8 @@ public class TestExecutor {
         throw new RuntimeException("error");
     }
 
-
-    public void event1(Object data) {
+    public String event1(Object data) {
 //        throw new UnsupportedOperationException();
-        System.out.println(String.valueOf(data).toLowerCase() + "_event");
+        return String.valueOf(data).toLowerCase() + "_event";
     }
 }
