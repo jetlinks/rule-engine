@@ -14,6 +14,7 @@ import org.jetlinks.rule.engine.api.model.Condition;
 import org.jetlinks.rule.engine.api.model.RuleLink;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.*;
@@ -43,52 +44,56 @@ public class StandaloneRuleEngine implements RuleEngine {
 
     public Map<String, RuleInstanceContext> contextMap = new ConcurrentHashMap<>();
 
-    public RuleExecutor createSingleRuleExecutor(String contextId, Condition condition, RuleNodeModel nodeModel) {
-        ExecutableRuleNode ruleNode = nodeFactory.create(nodeModel.createConfiguration());
+    private class RuleExecutorBuilder {
+        Map<String, RuleExecutor> allExecutor = new HashMap<>();
 
-        Logger logger = new Slf4jLogger("rule.engine.node." + nodeModel.getId());
-        DefaultRuleExecutor executor = new DefaultRuleExecutor();
-        executor.setLogger(logger);
-        executor.setRuleNode(ruleNode);
-        if (null != condition) {
-            executor.setCondition(ruleData -> Boolean.TRUE.equals(evaluator.evaluate(condition, ruleData)));
-        }
-        //event
-        for (RuleLink output : nodeModel.getEvents()) {
-            executor.addEventListener(output.getType(), createRuleExecutor(contextId, output.getCondition(), output.getTarget(), null));
+        private RuleExecutor createSingleRuleExecutor(String contextId, Condition condition, RuleNodeModel nodeModel) {
+            return allExecutor.computeIfAbsent(nodeModel.getId(), id -> {
+                ExecutableRuleNode ruleNode = nodeFactory.create(nodeModel.createConfiguration());
+                Logger logger = new Slf4jLogger("rule.engine.node." + nodeModel.getId());
+                DefaultRuleExecutor executor = new DefaultRuleExecutor();
+                executor.setLogger(logger);
+                executor.setRuleNode(ruleNode);
+                if (null != condition) {
+                    executor.setCondition(ruleData -> Boolean.TRUE.equals(evaluator.evaluate(condition, ruleData)));
+                }
+                //event
+                for (RuleLink event : nodeModel.getEvents()) {
+                    executor.addEventListener(event.getType(), createRuleExecutor(contextId, event.getCondition(), event.getTarget(), null));
+                }
+
+                executor.setInstanceId(contextId);
+                executor.setNodeId(nodeModel.getId());
+                executor.setNodeType(nodeModel.getNodeType());
+                return executor;
+            });
         }
 
-        executor.setInstanceId(contextId);
-        executor.setNodeId(nodeModel.getId());
-        executor.setNodeType(nodeModel.getNodeType());
-        return executor;
+        private RuleExecutor createRuleExecutor(String contextId, Condition condition, RuleNodeModel nodeModel, RuleExecutor parent) {
+            RuleExecutor executor = createSingleRuleExecutor(contextId, condition, nodeModel);
+            if (parent != null) {
+                parent.addNext(executor);
+            }
+
+            //output
+            for (RuleLink output : nodeModel.getOutputs()) {
+                createRuleExecutor(contextId, output.getCondition(), output.getTarget(), executor);
+            }
+
+            return parent != null ? parent : executor;
+        }
     }
-
-    public RuleExecutor createRuleExecutor(String contextId, Condition condition, RuleNodeModel nodeModel, RuleExecutor parent) {
-        RuleExecutor executor = createSingleRuleExecutor(contextId, condition, nodeModel);
-        if (parent != null) {
-            parent.addNext(executor);
-        }
-
-        //output
-        for (RuleLink output : nodeModel.getOutputs()) {
-            createRuleExecutor(contextId, output.getCondition(), output.getTarget(), executor);
-        }
-
-        return parent != null ? parent : executor;
-    }
-
 
     @Override
     public RuleInstanceContext startRule(Rule rule) {
         String id = IDGenerator.MD5.generate();
         RuleNodeModel nodeModel = rule.getModel().getStartNode()
                 .orElseThrow(() -> new UnsupportedOperationException("无法获取启动节点"));
-
+        RuleExecutorBuilder builder = new RuleExecutorBuilder();
         StandaloneRuleInstanceContext context = new StandaloneRuleInstanceContext();
         context.id = id;
         context.startTime = System.currentTimeMillis();
-        context.rootExecutor = createRuleExecutor(id, null, nodeModel, null);
+        context.rootExecutor = builder.createRuleExecutor(id, null, nodeModel, null);
         rule.getModel()
                 .getEndNodes()
                 .stream()
@@ -108,7 +113,7 @@ public class StandaloneRuleEngine implements RuleEngine {
     @Setter
     public class StandaloneRuleInstanceContext implements RuleInstanceContext, EventSupportRuleInstanceContext {
         private String id;
-        private long startTime;
+        private long   startTime;
 
         private String endNodeId;
 
@@ -172,6 +177,6 @@ public class StandaloneRuleEngine implements RuleEngine {
 
     static class Sync {
         CountDownLatch countDownLatch = new CountDownLatch(1);
-        RuleData ruleData;
+        RuleData       ruleData;
     }
 }
