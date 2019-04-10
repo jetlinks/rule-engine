@@ -31,7 +31,7 @@ public class RuleNodeModel {
 
     private String executor;
 
-    private NodeType nodeType;
+    private NodeType nodeType = NodeType.MAP;
 
     private SchedulingRule schedulingRule;
 

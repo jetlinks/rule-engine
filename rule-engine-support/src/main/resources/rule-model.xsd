@@ -1,0 +1,88 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.jetlinls.org/RuleEngine"
+           xmlns="http://www.jetlinls.org/RuleEngine"
+           elementFormDefault="qualified">
+
+    <xs:group name="link">
+        <xs:choice>
+            <xs:element name="condition" nillable="true" type="xs:element">
+                <xs:complexType>
+                    <xs:attribute name="type" type="xs:string"/>
+                </xs:complexType>
+            </xs:element>
+        </xs:choice>
+    </xs:group>
+
+    <xs:element name="rule">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="testCase">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element maxOccurs="999" name="test" type="xs:element">
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="node" maxOccurs="999">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="configuration" type="xs:element"/>
+                            <xs:element name="outputs" minOccurs="0">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element name="output" maxOccurs="9999">
+                                            <xs:complexType>
+                                                <xs:choice minOccurs="0">
+                                                    <xs:group ref="link"/>
+                                                </xs:choice>
+                                                <xs:attribute name="id" use="required"/>
+                                                <xs:attribute name="target" use="required"/>
+                                            </xs:complexType>
+                                        </xs:element>
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>
+                            <xs:element name="events" minOccurs="0">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element name="event" maxOccurs="999">
+                                            <xs:complexType>
+                                                <xs:choice minOccurs="0">
+                                                    <xs:group ref="link"/>
+                                                </xs:choice>
+                                                <xs:attribute name="id" use="required"/>
+                                                <xs:attribute name="type" use="required"/>
+                                                <xs:attribute name="target" use="required"/>
+                                            </xs:complexType>
+                                        </xs:element>
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>
+                            <xs:element name="scheduling-rule" minOccurs="0">
+                                <xs:complexType>
+                                    <xs:complexContent>
+                                        <xs:extension base="xs:element">
+                                            <xs:attribute name="type" use="required"/>
+                                        </xs:extension>
+                                    </xs:complexContent>
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                        <xs:attribute name="id" type="xs:string"/>
+                        <xs:attribute name="name" type="xs:string"/>
+                        <xs:attribute name="executor" type="xs:string"/>
+                        <xs:attribute name="nodeType" default="MAP" type="xs:string"/>
+                        <xs:attribute name="start" default="false" type="xs:boolean"/>
+                        <xs:attribute name="end" default="false" type="xs:boolean"/>
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+            <xs:attribute name="id" type="xs:string"/>
+            <xs:attribute name="name" type="xs:string"/>
+        </xs:complexType>
+
+    </xs:element>
+
+</xs:schema>

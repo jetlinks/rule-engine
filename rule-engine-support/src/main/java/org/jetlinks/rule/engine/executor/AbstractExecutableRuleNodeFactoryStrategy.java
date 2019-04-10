@@ -24,7 +24,7 @@ public abstract class AbstractExecutableRuleNodeFactoryStrategy<C extends RuleNo
 
     public abstract BiFunction<Logger, Object, CompletionStage<Object>> createExecutor(C config);
 
-    public ExecutableRuleNode doCreate(C config) {
+    protected ExecutableRuleNode doCreate(C config) {
         BiFunction<Logger, Object, CompletionStage<Object>> executor = createExecutor(config);
         return context -> context.getInput()
                 .acceptOnce(data -> {

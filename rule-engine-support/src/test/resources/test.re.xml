@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<rule id="test:1.0" name="测试规则" xmlns="http://www.jetlinls.org/RuleEngine"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.jetlinls.org/RuleEngine rule-model.xsd">
+    <testCase>
+        <test>
+            <startWith>start</startWith>
+            <endWith>to-upper-case</endWith>
+            <data type="string">abc123</data>
+            <expect>ABC123</expect>
+        </test>
+    </testCase>
+
+    <node id="start" executor="java-method" start="true" nodeType="MAP" name="启动">
+        <configuration>
+            <className>org.jetlinks.rule.engine.model.TestExecutor</className>
+            <methodName>test</methodName>
+        </configuration>
+
+        <outputs>
+            <output id="test" target="to-upper-case"/>
+        </outputs>
+
+    </node>
+
+    <node id="to-upper-case" executor="java-method" end="true" nodeType="MAP" name="转为大写">
+        <configuration>
+            <className>org.jetlinks.rule.engine.model.TestExecutor</className>
+            <methodName>upperCase</methodName>
+        </configuration>
+
+        <events>
+            <event id="tuc-ed" type="NODE_EXECUTE_DONE" target="to-upper-case"/>
+        </events>
+
+        <scheduling-rule type="random">
+            <max-node>3</max-node>
+        </scheduling-rule>
+    </node>
+
+    <node id="event-done" executor="java-method" nodeType="PEEK" name="执行完成事件">
+        <configuration>
+            <className>org.jetlinks.rule.engine.model.TestExecutor</className>
+            <methodName>println</methodName>
+        </configuration>
+    </node>
+</rule>

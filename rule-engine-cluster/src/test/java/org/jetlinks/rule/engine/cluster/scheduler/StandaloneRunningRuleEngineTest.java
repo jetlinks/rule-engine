@@ -18,12 +18,16 @@ import org.jetlinks.rule.engine.cluster.repository.MockRuleInstanceRepository;
 import org.jetlinks.rule.engine.cluster.worker.RuleEngineWorker;
 import org.jetlinks.rule.engine.executor.DefaultExecutableRuleNodeFactory;
 import org.jetlinks.rule.engine.executor.supports.JavaMethodInvokeStrategy;
+import org.jetlinks.rule.engine.model.xml.XmlRuleModelParserStrategy;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.redisson.api.RedissonClient;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.util.StreamUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -43,87 +47,16 @@ public class StandaloneRunningRuleEngineTest {
 
     private Rule rule;
 
+    @SneakyThrows
     public void initRuleModel() {
-        RuleModel model = new RuleModel();
-        model.setId("test");
-        model.setName("测试");
-        model.setRunMode(RunMode.CLUSTER);
-        RuleNodeModel startNode = new RuleNodeModel();
-        startNode.setId("start");
-        startNode.setExecutor("java-method");
-        startNode.setName("执行java方法");
-        startNode.setNodeType(NodeType.MAP);
-        startNode.addConfiguration("className", "org.jetlinks.rule.engine.cluster.TestExecutor");
-        startNode.addConfiguration("methodName", "execute");
-        startNode.setStart(true);
+        ClassPathResource resource = new ClassPathResource("test.re.xml");
 
-        RuleNodeModel end = new RuleNodeModel();
-        end.setId("end");
-        end.setExecutor("java-method");
-        end.setName("执行java方法");
-        end.setNodeType(NodeType.PEEK);
-        end.addConfiguration("className", "org.jetlinks.rule.engine.cluster.TestExecutor");
-        end.addConfiguration("methodName", "execute2");
-        end.setEnd(true);
-        RuleNodeModel log = new RuleNodeModel();
-        log.setId("log");
-        log.setExecutor("java-method");
-        log.setName("执行java方法");
-        log.setNodeType(NodeType.PEEK);
-        log.addConfiguration("className", "org.jetlinks.rule.engine.cluster.TestExecutor");
-        log.addConfiguration("methodName", "execute3");
-
-        RuleNodeModel errorEvent = new RuleNodeModel();
-        errorEvent.setId("error-event");
-        errorEvent.setExecutor("java-method");
-        errorEvent.setName("执行java方法");
-        errorEvent.setNodeType(NodeType.MAP);
-        errorEvent.addConfiguration("className", "org.jetlinks.rule.engine.cluster.TestExecutor");
-        errorEvent.addConfiguration("methodName", "event1");
-
-        RuleLink event1 = new RuleLink();
-        event1.setTarget(errorEvent);
-        event1.setSource(log);
-        event1.setType(RuleEvent.NODE_EXECUTE_FAIL);
-        event1.setId("error-event-link");
-
-        errorEvent.getInputs().add(event1);
-
-        log.getEvents().add(event1);
-
-
-        RuleLink link = new RuleLink();
-        link.setCondition(null);
-        link.setId("link-start-end");
-        link.setTarget(end);
-        link.setSource(startNode);
-
-        RuleLink logLink = new RuleLink();
-        logLink.setCondition(null);
-        logLink.setId("link-start-log");
-        logLink.setTarget(log);
-        logLink.setSource(startNode);
-
-        log.getInputs().add(logLink);
-        end.getInputs().add(link);
-
-        startNode.getOutputs().add(link);
-        startNode.getOutputs().add(logLink);
-
-
+        XmlRuleModelParserStrategy strategy = new XmlRuleModelParserStrategy();
+        RuleModel model = strategy.parse(StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8));
         rule = new Rule();
         rule.setId("test-1.0");
         rule.setVersion(1);
         rule.setModel(model);
-        startNode.setRuleId(rule.getId());
-        end.setRuleId(rule.getId());
-        log.setRuleId(rule.getId());
-        errorEvent.setRuleId(rule.getId());
-
-        model.getNodes().add(startNode);
-        model.getNodes().add(end);
-        model.getNodes().add(log);
-        model.getNodes().add(errorEvent);
     }
 
     @Before
@@ -198,29 +131,28 @@ public class StandaloneRunningRuleEngineTest {
         Assert.assertNotNull(context);
 
         for (int i = 0; i < 100; i++) {
-            Object data = context
-                    .execute(RuleData.create("abc123"))
+            RuleData ruleData = context.execute(RuleData.create("abc1234"))
                     .toCompletableFuture()
-                    .get(10, TimeUnit.SECONDS)
-                    .getData();
-            Assert.assertEquals(data, "ABC123");
+                    .get(10, TimeUnit.SECONDS);
+
+            Assert.assertEquals(ruleData.getData(), "abc1234_");
+            System.out.println(ruleData.getData());
         }
-        //指定结束节点
-        RuleData ruleData = context.execute(RuleDataHelper.markSyncReturn(RuleData.create("abc1234"),"error-event"))
+        RuleData ruleData = context.execute(newHelper(RuleData.create("abc1234"))
+                .markEndWith("append-underline")
+                .done())
                 .toCompletableFuture()
                 .get(10, TimeUnit.SECONDS);
         Assert.assertNotNull(ruleData);
-        Assert.assertEquals(ruleData.getData(),"abc1234_event");
-
-        //指定开始和结束节点
+        Assert.assertEquals(ruleData.getData(), "ABC1234_");
         RuleData ruleData2 = context.execute(newHelper(RuleData.create("ABC1234"))
-                .markStartWith("log")
-                .markEndWith("error-event")
+                .markStartWith("to-low-case")
+                .markEndWith("event-done")
                 .done())
                 .toCompletableFuture()
                 .get(10, TimeUnit.SECONDS);
         Assert.assertNotNull(ruleData2);
-        Assert.assertEquals(ruleData2.getData(), "abc1234_event");
+        Assert.assertEquals(ruleData2.getData(), "abc1234");
 
         context.stop();
         Thread.sleep(1000);
@@ -240,29 +172,29 @@ public class StandaloneRunningRuleEngineTest {
         //
         context = ruleEngine.getInstance(context.getId());
         Assert.assertNotNull(context);
-
         for (int i = 0; i < 100; i++) {
-            Object data = context
-                    .execute(RuleData.create("abc123"))
+            RuleData ruleData = context.execute(RuleData.create("abc1234"))
                     .toCompletableFuture()
-                    .get(10, TimeUnit.SECONDS)
-                    .getData();
-            Assert.assertEquals(data, "ABC123");
+                    .get(10, TimeUnit.SECONDS);
+
+            Assert.assertEquals(ruleData.getData(), "abc1234_");
+            System.out.println(ruleData.getData());
         }
-        RuleData ruleData = context.execute(RuleDataHelper.markSyncReturn(RuleData.create("abc1234"),"error-event"))
+        RuleData ruleData = context.execute(newHelper(RuleData.create("abc1234"))
+                .markEndWith("append-underline")
+                .done())
                 .toCompletableFuture()
                 .get(10, TimeUnit.SECONDS);
         Assert.assertNotNull(ruleData);
-        Assert.assertEquals(ruleData.getData(),"abc1234_event");
-
+        Assert.assertEquals(ruleData.getData(), "ABC1234_");
         RuleData ruleData2 = context.execute(newHelper(RuleData.create("ABC1234"))
-                .markStartWith("log")
-                .markEndWith("error-event")
+                .markStartWith("to-low-case")
+                .markEndWith("event-done")
                 .done())
                 .toCompletableFuture()
                 .get(10, TimeUnit.SECONDS);
         Assert.assertNotNull(ruleData2);
-        Assert.assertEquals(ruleData2.getData(), "abc1234_event");
+        Assert.assertEquals(ruleData2.getData(), "abc1234");
 
         context.stop();
         Thread.sleep(1000);
