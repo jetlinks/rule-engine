@@ -16,7 +16,7 @@ public class NodeInfo implements Serializable {
 
     private String[] tags;
 
-    private NodeRule[] rules;
+    private NodeRule[] rules = {NodeRule.SCHEDULER, NodeRule.WORKER, NodeRule.MONITOR};
 
     private long uptime;
 

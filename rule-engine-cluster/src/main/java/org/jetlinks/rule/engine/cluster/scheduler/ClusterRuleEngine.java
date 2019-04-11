@@ -13,6 +13,7 @@ import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleEngine;
 import org.jetlinks.rule.engine.api.RuleInstanceContext;
 import org.jetlinks.rule.engine.api.cluster.RunMode;
+import org.jetlinks.rule.engine.api.cluster.WorkerNodeSelector;
 import org.jetlinks.rule.engine.api.events.GlobalNodeEventListener;
 import org.jetlinks.rule.engine.api.model.RuleEngineModelParser;
 import org.jetlinks.rule.engine.api.model.RuleLink;
@@ -380,7 +381,7 @@ public class ClusterRuleEngine implements RuleEngine {
 
             RunningRule runningRule = createRunningRule(rule, instanceId);
             runningRule.init();
-            //runningRule.start();
+            runningRule.start();
             return runningRule;
         }).getContext();
     }

@@ -157,15 +157,26 @@ public class RuleEngineWorker {
     }
 
 
-    @AllArgsConstructor
     private class StandaloneRunningRule implements RunningRule {
         private QueueInput          input;
         private RuleInstanceContext context;
         private Logger              logger;
         private StartRuleRequest    request;
 
+        volatile boolean running = false;
+
+        public StandaloneRunningRule(QueueInput input, RuleInstanceContext context, Logger logger, StartRuleRequest request) {
+            this.input = input;
+            this.context = context;
+            this.logger = logger;
+            this.request = request;
+        }
+
         @Override
-        public void start() {
+        public synchronized void start() {
+            if (running) {
+                return;
+            }
             AtomicReference<Function<RuleData, CompletionStage<RuleData>>> reference = new AtomicReference<>();
             context.execute(reference::set);
             input.acceptOnce(data -> {
@@ -201,110 +212,116 @@ public class RuleEngineWorker {
     }
 
     protected synchronized boolean createClusterRule(StartRuleRequest request) {
-        String instanceId = request.getInstanceId();
-        String ruleId = request.getRuleId();
-        RulePersistent persistent = ruleRepository.findRuleById(ruleId)
-                .orElseThrow(() -> new NotFoundException("规则[" + ruleId + "]不存在"));
-        Rule rule = persistent.toRule(modelParser);
-        //输入队列
-        List<Queue<RuleData>> inputsQueue = request.getInputQueue()
-                .stream()
-                .map(queueName -> clusterManager.<RuleData>getQueue(queueName))
-                .collect(Collectors.toList());
-        QueueInput input = new QueueInput(inputsQueue);
-        ClusterLogger logger = new ClusterLogger();
-        logger.setParent(new Slf4jLogger("rule.engine.cluster." + request.getRuleId()));
-        logger.setLogInfoConsumer(this::acceptLog);
+        Map<String, RunningRule> map = getRunningRuleNode(request.getInstanceId());
+        synchronized (map) {
+            if (map.containsKey(request.getRuleId())) {
+                log.info("rule node worker {}.{} already exists", request.getRuleId());
+                return true;
+            }
+            String ruleId = request.getRuleId();
+            RulePersistent persistent = ruleRepository.findRuleById(ruleId)
+                    .orElseThrow(() -> new NotFoundException("规则[" + ruleId + "]不存在"));
+            Rule rule = persistent.toRule(modelParser);
+            //输入队列
+            List<Queue<RuleData>> inputsQueue = request.getInputQueue()
+                    .stream()
+                    .map(queueName -> clusterManager.<RuleData>getQueue(queueName))
+                    .collect(Collectors.toList());
+            QueueInput input = new QueueInput(inputsQueue);
+            ClusterLogger logger = new ClusterLogger();
+            logger.setParent(new Slf4jLogger("rule.engine.cluster." + request.getRuleId()));
+            logger.setLogInfoConsumer(this::acceptLog);
 
-        getRunningRuleNode(request.getInstanceId())
-                .put(request.getRuleId(),
-                        new StandaloneRunningRule(input, standaloneRuleEngine.startRule(rule), logger, request));
-
+            map.put(request.getRuleId(), new StandaloneRunningRule(input, standaloneRuleEngine.startRule(rule), logger, request));
+        }
         return true;
     }
 
     //分布式流式规则
-    protected synchronized boolean createRuleNode(StartRuleNodeRequest request) {
-        //已经存在了
-        if (getRunningRuleNode(request.getInstanceId()).containsKey(request.getNodeId())) {
-            log.info("rule node worker {}.{} already exists", request.getRuleId(), request.getNodeId());
+    protected boolean createRuleNode(StartRuleNodeRequest request) {
+        Map<String, RunningRule> map = getRunningRuleNode(request.getInstanceId());
+        synchronized (map) {
+            //已经存在了
+            if (map.containsKey(request.getNodeId())) {
+                log.info("rule node worker {}.{} already exists", request.getRuleId(), request.getNodeId());
+                return true;
+            }
+            DefaultContext context = new DefaultContext();
+
+            RuleNodeConfiguration configuration = request.getNodeConfig();
+            log.info("create executor rule worker :{}.{}", request.getInstanceId(), configuration.getNodeId());
+            ExecutableRuleNode ruleNode = nodeFactory.create(configuration);
+            //事件队列
+            Map<String, Output> events = request.getEventQueue()
+                    .stream()
+                    .collect(Collectors.groupingBy(EventConfig::getEvent,
+                            Collectors.collectingAndThen(Collectors.toList(),
+                                    list -> new QueueOutput(list.stream()
+                                            .map(this::createConditionQueue)
+                                            .collect(Collectors.toList())))));
+
+            //输出队列
+            List<QueueOutput.ConditionQueue> outputQueue = request.getOutputQueue()
+                    .stream()
+                    .map(this::createConditionQueue)
+                    .collect(Collectors.toList());
+
+            //输入队列
+            List<Queue<RuleData>> inputsQueue = request.getInputQueue()
+                    .stream()
+                    .map(InputConfig::getQueue)
+                    .map(queueName -> clusterManager.<RuleData>getQueue(queueName))
+                    .collect(Collectors.toList());
+
+            QueueInput input = new QueueInput(inputsQueue);
+            QueueOutput output = new QueueOutput(outputQueue);
+            ClusterLogger logger = new ClusterLogger();
+            logger.setParent(new Slf4jLogger("rule.engine.cluster." + request.getNodeConfig().getId()));
+            logger.setContext(request.getLogContext());
+
+            logger.setLogInfoConsumer(this::acceptLog);
+
+            context.setEventHandler((event, data) -> {
+                data = data.newData(data);
+                if (RuleEvent.NODE_EXECUTE_DONE.equals(event)) {
+                    RuleDataHelper.clearError(data);
+                }
+                log.info("fire event {}.{}:{}", configuration.getNodeId(), event, data);
+                data.setAttribute("event", event);
+                if (RuleEvent.NODE_EXECUTE_DONE.equals(event) || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) {
+                    //同步返回结果
+                    if (configuration.getNodeId().equals(RuleDataHelper.getEndWithNodeId(data).orElse(null))) {
+                        logger.info("sync return:{}", data);
+                        clusterManager
+                                .getObject(data.getId())
+                                .setData(data);
+                        clusterManager
+                                .getSemaphore(data.getId(), 0)
+                                .release();
+                    }
+                }
+                Output eventOutput = events.get(event);
+                if (eventOutput != null) {
+                    eventOutput.write(data);
+                }
+            });
+            context.setInput(input);
+            context.setOutput(output);
+            context.setErrorHandler((ruleData, throwable) -> {
+                RuleDataHelper.putError(ruleData, throwable);
+                context.fireEvent(RuleEvent.NODE_EXECUTE_FAIL, ruleData);
+            });
+            context.setLogger(logger);
+
+            RunningRuleNode rule = new RunningRuleNode();
+            rule.context = context;
+            rule.executor = ruleNode;
+            rule.ruleId = request.getRuleId();
+            rule.nodeId = request.getNodeId();
+
+            map.put(request.getNodeId(), rule);
             return true;
         }
-        DefaultContext context = new DefaultContext();
-
-        RuleNodeConfiguration configuration = request.getNodeConfig();
-        log.info("create executor rule worker :{}.{}", request.getInstanceId(), configuration.getNodeId());
-        ExecutableRuleNode ruleNode = nodeFactory.create(configuration);
-        //事件队列
-        Map<String, Output> events = request.getEventQueue()
-                .stream()
-                .collect(Collectors.groupingBy(EventConfig::getEvent,
-                        Collectors.collectingAndThen(Collectors.toList(),
-                                list -> new QueueOutput(list.stream()
-                                        .map(this::createConditionQueue)
-                                        .collect(Collectors.toList())))));
-
-        //输出队列
-        List<QueueOutput.ConditionQueue> outputQueue = request.getOutputQueue()
-                .stream()
-                .map(this::createConditionQueue)
-                .collect(Collectors.toList());
-
-        //输入队列
-        List<Queue<RuleData>> inputsQueue = request.getInputQueue()
-                .stream()
-                .map(InputConfig::getQueue)
-                .map(queueName -> clusterManager.<RuleData>getQueue(queueName))
-                .collect(Collectors.toList());
-
-        QueueInput input = new QueueInput(inputsQueue);
-        QueueOutput output = new QueueOutput(outputQueue);
-        ClusterLogger logger = new ClusterLogger();
-        logger.setParent(new Slf4jLogger("rule.engine.cluster." + request.getNodeConfig().getId()));
-        logger.setContext(request.getLogContext());
-
-        logger.setLogInfoConsumer(this::acceptLog);
-
-        context.setEventHandler((event, data) -> {
-            data = data.newData(data);
-            if (RuleEvent.NODE_EXECUTE_DONE.equals(event)) {
-                RuleDataHelper.clearError(data);
-            }
-            log.info("fire event {}.{}:{}", configuration.getNodeId(), event, data);
-            data.setAttribute("event", event);
-            if (RuleEvent.NODE_EXECUTE_DONE.equals(event) || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) {
-                //同步返回结果
-                if (configuration.getNodeId().equals(RuleDataHelper.getEndWithNodeId(data).orElse(null))) {
-                    logger.info("sync return:{}", data);
-                    clusterManager
-                            .getObject(data.getId())
-                            .setData(data);
-                    clusterManager
-                            .getSemaphore(data.getId(), 0)
-                            .release();
-                }
-            }
-            Output eventOutput = events.get(event);
-            if (eventOutput != null) {
-                eventOutput.write(data);
-            }
-        });
-        context.setInput(input);
-        context.setOutput(output);
-        context.setErrorHandler((ruleData, throwable) -> {
-            RuleDataHelper.putError(ruleData, throwable);
-            context.fireEvent(RuleEvent.NODE_EXECUTE_FAIL, ruleData);
-        });
-        context.setLogger(logger);
-
-        RunningRuleNode rule = new RunningRuleNode();
-        rule.context = context;
-        rule.executor = ruleNode;
-        rule.ruleId = request.getRuleId();
-        rule.nodeId = request.getNodeId();
-
-        getRunningRuleNode(request.getInstanceId()).put(request.getNodeId(), rule);
-        return true;
     }
 
     private Map<String, RunningRule> getRunningRuleNode(String instanceId) {
