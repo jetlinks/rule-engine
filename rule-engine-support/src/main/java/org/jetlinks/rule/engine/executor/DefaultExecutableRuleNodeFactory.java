@@ -4,9 +4,7 @@ import org.jetlinks.rule.engine.api.executor.ExecutableRuleNodeFactory;
 import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
 import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -18,6 +16,11 @@ public class DefaultExecutableRuleNodeFactory implements ExecutableRuleNodeFacto
     private Map<String, ExecutableRuleNodeFactoryStrategy> strategySupports = new HashMap<>();
 
     private Map<String, Cache> streamCache = new ConcurrentHashMap<>();
+
+    @Override
+    public List<String> getAllSupportExecutor() {
+        return new ArrayList<>(strategySupports.keySet());
+    }
 
     @Override
     public ExecutableRuleNode create(RuleNodeConfiguration configuration) {

@@ -3,9 +3,7 @@ package org.jetlinks.rule.engine.model;
 import org.jetlinks.rule.engine.api.model.RuleEngineModelParser;
 import org.jetlinks.rule.engine.api.model.RuleModel;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * @author zhouhao
@@ -15,6 +13,10 @@ public class DefaultRuleModelParser implements RuleEngineModelParser {
 
     private Map<String, RuleModelParserStrategy> allStrategy = new HashMap<>();
 
+    @Override
+    public List<String> getAllSupportFormat() {
+        return new ArrayList<>(allStrategy.keySet());
+    }
 
     @Override
     public RuleModel parse(String format, String modelDefineString) {
