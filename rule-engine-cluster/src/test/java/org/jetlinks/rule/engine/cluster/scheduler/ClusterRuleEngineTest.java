@@ -11,6 +11,7 @@ import org.jetlinks.rule.engine.api.events.RuleEvent;
 import org.jetlinks.rule.engine.api.model.*;
 import org.jetlinks.rule.engine.api.persistent.RulePersistent;
 import org.jetlinks.rule.engine.api.cluster.NodeInfo;
+import org.jetlinks.rule.engine.cluster.TestExecutor;
 import org.jetlinks.rule.engine.cluster.redisson.RedissonClusterManager;
 import org.jetlinks.rule.engine.cluster.redisson.RedissonHaManager;
 import org.jetlinks.rule.engine.cluster.redisson.RedissonHelper;
@@ -53,7 +54,7 @@ public class ClusterRuleEngineTest {
 
     private DefaultRuleModelParser modelParser;
     private Rule                   rule;
-    private String modelString;
+    private String                 modelString;
 
     @SneakyThrows
     public void initRuleModel() {
@@ -139,6 +140,7 @@ public class ClusterRuleEngineTest {
     public void after() {
         clusterManager.shutdown();
         haManager.shutdown();
+        TestExecutor.counter.set(0);
     }
 
     @Test
@@ -164,6 +166,18 @@ public class ClusterRuleEngineTest {
             Assert.assertEquals(ruleData.getData(), "abc1234_");
             System.out.println(ruleData.getData());
         }
+        Assert.assertEquals(100, TestExecutor.counter.intValue());
+        TestExecutor.counter.set(0);
+
+        context.execute(consumer -> {
+            for (int i = 0; i < 100; i++) {
+                consumer.apply(RuleData.create("aaaa" + i));
+            }
+        });
+        Thread.sleep(10000);
+        Assert.assertEquals(100, TestExecutor.counter.intValue());
+        TestExecutor.counter.set(0);
+
         RuleData ruleData = context.execute(newHelper(RuleData.create("abc1234"))
                 .markEndWith("append-underline")
                 .done())
@@ -206,6 +220,18 @@ public class ClusterRuleEngineTest {
             Assert.assertEquals(ruleData.getData(), "abc1234_");
             System.out.println(ruleData.getData());
         }
+        Assert.assertEquals(100, TestExecutor.counter.intValue());
+        TestExecutor.counter.set(0);
+
+        context.execute(consumer -> {
+            for (int i = 0; i < 10; i++) {
+                consumer.apply(RuleData.create("aaaa" + i));
+            }
+        });
+        Thread.sleep(5000);
+        Assert.assertEquals(10, TestExecutor.counter.intValue());
+        TestExecutor.counter.set(0);
+
         RuleData ruleData = context.execute(newHelper(RuleData.create("abc1234"))
                 .markEndWith("append-underline")
                 .done())

@@ -2,12 +2,15 @@ package org.jetlinks.rule.engine.cluster;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author zhouhao
  * @since 1.0.0
  */
 public class TestExecutor {
+    public static AtomicLong counter= new AtomicLong();
+
     public CompletionStage<String> appendString(Object data) {
 
         return CompletableFuture.supplyAsync(() -> String.valueOf(data));
@@ -22,6 +25,7 @@ public class TestExecutor {
     }
 
     public String underline(String data) {
+        counter.incrementAndGet();
         return data.concat("_");
     }
 

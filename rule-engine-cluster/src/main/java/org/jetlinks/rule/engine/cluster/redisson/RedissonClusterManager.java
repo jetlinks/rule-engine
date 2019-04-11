@@ -62,10 +62,7 @@ public class RedissonClusterManager implements ClusterManager {
         queueTakeTopic = redissonClient.getTopic(getRedisKey("queue:take"));
         queueTakeTopic.addListener(String.class, ((channel, msg) -> {
             Optional.ofNullable(queueMap.get(msg))
-                    .ifPresent(queue -> {
-                        log.info("flush queue:{}", msg);
-                        queue.flush();
-                    });
+                    .ifPresent(RedissonQueue::flush);
         }));
 
         executorService.scheduleAtFixedRate(() -> {
