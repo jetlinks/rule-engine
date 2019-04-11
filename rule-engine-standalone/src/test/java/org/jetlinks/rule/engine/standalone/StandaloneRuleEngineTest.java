@@ -86,6 +86,7 @@ public class StandaloneRuleEngineTest {
         Assert.assertNotNull(ruleData2);
         Assert.assertEquals(ruleData2.getData(), "abc1234");
 
+        context.stop();
     }
 
 }
