@@ -29,5 +29,12 @@
             <version>2.1.1</version>
             <optional>true</optional>
         </dependency>
+
+        <dependency>
+            <groupId>org.hswebframework</groupId>
+            <artifactId>hsweb-expands-script</artifactId>
+            <version>${hsweb.expands.version}</version>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
 </project>
