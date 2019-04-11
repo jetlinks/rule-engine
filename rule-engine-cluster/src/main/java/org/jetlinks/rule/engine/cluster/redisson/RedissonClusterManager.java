@@ -33,7 +33,7 @@ public class RedissonClusterManager implements ClusterManager {
     private String name = "rule:engine";
 
     private Map<String, RedissonQueue> queueMap = new ConcurrentHashMap<>();
-    private Map<String, Topic> topicMap = new ConcurrentHashMap<>();
+    private Map<String, Topic>         topicMap = new ConcurrentHashMap<>();
 
     private RTopic queueTakeTopic;
 
@@ -62,7 +62,10 @@ public class RedissonClusterManager implements ClusterManager {
         queueTakeTopic = redissonClient.getTopic(getRedisKey("queue:take"));
         queueTakeTopic.addListener(String.class, ((channel, msg) -> {
             Optional.ofNullable(queueMap.get(msg))
-                    .ifPresent(RedissonQueue::flush);
+                    .ifPresent(queue -> {
+                        log.info("flush queue:{}", msg);
+                        queue.flush();
+                    });
         }));
 
         executorService.scheduleAtFixedRate(() -> {

@@ -55,7 +55,7 @@ public class StandaloneRuleEngine implements RuleEngine {
                 executor.setLogger(logger);
                 executor.setRuleNode(ruleNode);
                 if (null != condition) {
-                    executor.setCondition(ruleData -> Boolean.TRUE.equals(evaluator.evaluate(condition, ruleData)));
+                    executor.setCondition(ruleData ->evaluator.evaluate(condition, ruleData));
                 }
                 //event
                 for (RuleLink event : nodeModel.getEvents()) {

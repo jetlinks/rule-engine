@@ -5,6 +5,7 @@ import lombok.Setter;
 
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * 规则条件
@@ -21,5 +22,12 @@ public class Condition implements Serializable {
     private String type;
 
     private Map<String, Object> configuration;
-    
+
+    @SuppressWarnings("all")
+    public <T> Optional<T> getConfig(String key) {
+        return Optional
+                .ofNullable(configuration)
+                .map(cfg -> (T) cfg.get(key));
+    }
+
 }

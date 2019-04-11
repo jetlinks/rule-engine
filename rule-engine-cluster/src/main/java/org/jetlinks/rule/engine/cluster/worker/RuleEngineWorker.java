@@ -114,8 +114,12 @@ public class RuleEngineWorker {
     protected QueueOutput.ConditionQueue createConditionQueue(OutputConfig config) {
         Queue<RuleData> ruleData = clusterManager.getQueue(config.getQueue());
         Predicate<RuleData> ruleDataPredicate = data -> {
-            Object passed = conditionEvaluator.evaluate(config.getCondition(), data);
-            return Boolean.TRUE.equals(passed);
+            try {
+                return conditionEvaluator.evaluate(config.getCondition(), data);
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+                return false;
+            }
         };
         return new QueueOutput.ConditionQueue(ruleData, ruleDataPredicate);
     }
@@ -226,6 +230,8 @@ public class RuleEngineWorker {
             log.info("rule node worker {}.{} already exists", request.getRuleId(), request.getNodeId());
             return true;
         }
+        DefaultContext context = new DefaultContext();
+
         RuleNodeConfiguration configuration = request.getNodeConfig();
         log.info("create executor rule worker :{}.{}", request.getInstanceId(), configuration.getNodeId());
         ExecutableRuleNode ruleNode = nodeFactory.create(configuration);
@@ -259,33 +265,30 @@ public class RuleEngineWorker {
 
         logger.setLogInfoConsumer(this::acceptLog);
 
-        DefaultContext context = new DefaultContext() {
-            @Override
-            public void fireEvent(String event, RuleData data) {
-                data = data.newData(data);
-                if (RuleEvent.NODE_EXECUTE_DONE.equals(event)) {
-                    RuleDataHelper.clearError(data);
-                }
-                log.info("fire event {}.{}:{}", configuration.getNodeId(), event, data);
-                data.setAttribute("event", event);
-                if (RuleEvent.NODE_EXECUTE_DONE.equals(event) || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) {
-                    //同步返回结果
-                    if (configuration.getNodeId().equals(RuleDataHelper.getEndWithNodeId(data).orElse(null))) {
-                        logger.info("sync return:{}", data);
-                        clusterManager
-                                .getObject(data.getId())
-                                .setData(data);
-                        clusterManager
-                                .getSemaphore(data.getId(), 0)
-                                .release();
-                    }
-                }
-                Output eventOutput = events.get(event);
-                if (eventOutput != null) {
-                    eventOutput.write(data);
+        context.setEventHandler((event, data) -> {
+            data = data.newData(data);
+            if (RuleEvent.NODE_EXECUTE_DONE.equals(event)) {
+                RuleDataHelper.clearError(data);
+            }
+            log.info("fire event {}.{}:{}", configuration.getNodeId(), event, data);
+            data.setAttribute("event", event);
+            if (RuleEvent.NODE_EXECUTE_DONE.equals(event) || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) {
+                //同步返回结果
+                if (configuration.getNodeId().equals(RuleDataHelper.getEndWithNodeId(data).orElse(null))) {
+                    logger.info("sync return:{}", data);
+                    clusterManager
+                            .getObject(data.getId())
+                            .setData(data);
+                    clusterManager
+                            .getSemaphore(data.getId(), 0)
+                            .release();
                 }
             }
-        };
+            Output eventOutput = events.get(event);
+            if (eventOutput != null) {
+                eventOutput.write(data);
+            }
+        });
         context.setInput(input);
         context.setOutput(output);
         context.setErrorHandler((ruleData, throwable) -> {

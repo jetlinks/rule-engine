@@ -37,6 +37,7 @@ public class RedissonQueue<T> implements Queue<T> {
                 if ((consumer = this.consumer.get()) != null) {
                     consumer.accept(data);
                 } else {
+                    queue.add(data);
                     break;
                 }
             }
@@ -73,9 +74,9 @@ public class RedissonQueue<T> implements Queue<T> {
     @Override
     @SneakyThrows
     public void put(T data) {
-        queue.addAsync(data)
-                .toCompletableFuture()
-                .get(10, TimeUnit.SECONDS);
+        if(!queue.add(data)){
+            throw new RuntimeException();
+        }
     }
 
     @Override

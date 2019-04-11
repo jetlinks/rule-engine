@@ -8,7 +8,11 @@
         <xs:choice>
             <xs:element name="condition" nillable="true" type="xs:element">
                 <xs:complexType>
-                    <xs:attribute name="type" type="xs:string"/>
+                    <xs:complexContent>
+                        <xs:extension base="xs:element">
+                            <xs:attribute name="type" use="required"/>
+                        </xs:extension>
+                    </xs:complexContent>
                 </xs:complexType>
             </xs:element>
         </xs:choice>

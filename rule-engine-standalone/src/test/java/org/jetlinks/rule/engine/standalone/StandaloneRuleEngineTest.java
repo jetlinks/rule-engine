@@ -7,6 +7,9 @@ import org.jetlinks.rule.engine.api.model.NodeType;
 import org.jetlinks.rule.engine.api.model.RuleLink;
 import org.jetlinks.rule.engine.api.model.RuleModel;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;
+import org.jetlinks.rule.engine.condition.DefaultConditionEvaluator;
+import org.jetlinks.rule.engine.condition.supports.DefaultScriptEvaluator;
+import org.jetlinks.rule.engine.condition.supports.ScriptConditionEvaluatorStrategy;
 import org.jetlinks.rule.engine.executor.DefaultExecutableRuleNodeFactory;
 import org.jetlinks.rule.engine.executor.supports.JavaMethodInvokeStrategy;
 import org.jetlinks.rule.engine.model.xml.XmlRuleModelParserStrategy;
@@ -33,8 +36,8 @@ public class StandaloneRuleEngineTest {
     public void init() {
         DefaultExecutableRuleNodeFactory nodeFactory = new DefaultExecutableRuleNodeFactory();
         nodeFactory.registerStrategy(new JavaMethodInvokeStrategy());
-        ConditionEvaluator evaluator = (condition, context) -> true;
-
+        DefaultConditionEvaluator evaluator = new DefaultConditionEvaluator();
+        evaluator.register(new ScriptConditionEvaluatorStrategy(new DefaultScriptEvaluator()));
 
         engine = new StandaloneRuleEngine();
         engine.setEvaluator(evaluator);

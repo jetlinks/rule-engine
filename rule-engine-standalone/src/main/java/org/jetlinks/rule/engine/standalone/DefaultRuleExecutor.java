@@ -125,7 +125,14 @@ public class DefaultRuleExecutor implements RuleExecutor {
 
     @Override
     public boolean should(RuleData data) {
-        return condition == null || condition.test(data);
+        try {
+            return condition == null || condition.test(data);
+        } catch (Throwable e) {
+            logger.error("condition error", e);
+            RuleDataHelper.putError(data, e);
+            fireEvent(RuleEvent.NODE_EXECUTE_FAIL, data);
+            return false;
+        }
     }
 
     @Override

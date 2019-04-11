@@ -30,11 +30,15 @@ public class DefaultContext implements ExecutionContext {
     @Setter
     private BiConsumer<RuleData, Throwable> errorHandler;
 
+    @Getter
+    @Setter
+    private BiConsumer<String,RuleData> eventHandler;
+
     private List<Runnable> stopListener = new ArrayList<>();
 
     @Override
     public void fireEvent(String event, RuleData data) {
-
+        eventHandler.accept(event,data);
     }
 
     @Override

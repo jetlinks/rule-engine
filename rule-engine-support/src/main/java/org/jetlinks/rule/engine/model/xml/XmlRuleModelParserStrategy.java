@@ -163,7 +163,7 @@ public class XmlRuleModelParserStrategy implements RuleModelParserStrategy {
         if (conditionEl != null) {
             Element configuration = element.element("condition");
             link.condition = new Condition();
-            link.condition.setType(conditionEl.elementText("type"));
+            link.condition.setType(conditionEl.attributeValue("type"));
             if (null != configuration) {
                 link.condition.setConfiguration(configuration.elements().stream()
                         .collect(Collectors.toMap(Element::getName, Element::getTextTrim)));

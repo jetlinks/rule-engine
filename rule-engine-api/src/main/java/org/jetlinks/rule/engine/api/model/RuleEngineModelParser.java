@@ -1,5 +1,7 @@
 package org.jetlinks.rule.engine.api.model;
 
+import java.util.List;
+
 /**
  * 规则引起模型解析器
  *
@@ -10,4 +12,5 @@ public interface RuleEngineModelParser {
 
     RuleModel parse(String format, String modelDefineString);
 
+    List<String> getAllSupportFormat();
 }

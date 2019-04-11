@@ -42,6 +42,12 @@
 
         <outputs>
             <output id="go-low-case" target="to-low-case">
+                <condition type="script">
+                    <lang>js</lang>
+                    <script>
+                        return data!=null;
+                    </script>
+                </condition>
             </output>
         </outputs>
     </node>

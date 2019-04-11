@@ -22,7 +22,7 @@ public class DefaultRuleModelParser implements RuleEngineModelParser {
     public RuleModel parse(String format, String modelDefineString) {
         return Optional.ofNullable(allStrategy.get(format))
                 .map(strategy -> strategy.parse(modelDefineString))
-                .orElseThrow(() -> new UnsupportedOperationException("不支持的格式:" + format));
+                .orElseThrow(() -> new UnsupportedOperationException("不支持的模型格式:" + format));
     }
 
     public void register(RuleModelParserStrategy strategy) {

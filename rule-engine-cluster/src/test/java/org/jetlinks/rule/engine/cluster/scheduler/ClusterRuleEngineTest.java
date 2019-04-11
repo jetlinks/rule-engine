@@ -16,8 +16,12 @@ import org.jetlinks.rule.engine.cluster.redisson.RedissonHaManager;
 import org.jetlinks.rule.engine.cluster.redisson.RedissonHelper;
 import org.jetlinks.rule.engine.cluster.repository.MockRuleInstanceRepository;
 import org.jetlinks.rule.engine.cluster.worker.RuleEngineWorker;
+import org.jetlinks.rule.engine.condition.DefaultConditionEvaluator;
+import org.jetlinks.rule.engine.condition.supports.DefaultScriptEvaluator;
+import org.jetlinks.rule.engine.condition.supports.ScriptConditionEvaluatorStrategy;
 import org.jetlinks.rule.engine.executor.DefaultExecutableRuleNodeFactory;
 import org.jetlinks.rule.engine.executor.supports.JavaMethodInvokeStrategy;
+import org.jetlinks.rule.engine.model.DefaultRuleModelParser;
 import org.jetlinks.rule.engine.model.xml.XmlRuleModelParserStrategy;
 import org.junit.After;
 import org.junit.Assert;
@@ -28,6 +32,8 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.StreamUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -39,20 +45,24 @@ import static org.jetlinks.rule.engine.api.RuleDataHelper.newHelper;
  * @author zhouhao
  * @since 1.0.0
  */
-public class StandaloneRunningRuleEngineTest {
+public class ClusterRuleEngineTest {
     private RedissonClusterManager clusterManager;
     private RedissonClient         redissonClient = RedissonHelper.newRedissonClient();
     private RedissonHaManager      haManager;
     private ClusterRuleEngine      ruleEngine;
 
-    private Rule rule;
+    private DefaultRuleModelParser modelParser;
+    private Rule                   rule;
+    private String modelString;
 
     @SneakyThrows
     public void initRuleModel() {
         ClassPathResource resource = new ClassPathResource("test.re.xml");
-
         XmlRuleModelParserStrategy strategy = new XmlRuleModelParserStrategy();
-        RuleModel model = strategy.parse(StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8));
+        modelParser = new DefaultRuleModelParser();
+        modelParser.register(strategy);
+        modelString = StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
+        RuleModel model = strategy.parse(modelString);
         rule = new Rule();
         rule.setId("test-1.0");
         rule.setVersion(1);
@@ -66,16 +76,16 @@ public class StandaloneRunningRuleEngineTest {
         NodeInfo nodeInfo = new NodeInfo();
         nodeInfo.setId("test-node");
         nodeInfo.setUptime(System.currentTimeMillis());
-        ScheduledExecutorService executorService = Executors.newScheduledThreadPool(5);
+        ScheduledExecutorService executorService = Executors.newScheduledThreadPool(10);
 
         haManager = new RedissonHaManager();
         haManager.setCurrentNode(nodeInfo);
         haManager.setExecutorService(executorService);
         haManager.setRedissonClient(redissonClient);
-        haManager.setClusterName("cluster-"+IDGenerator.UUID.generate());
+        haManager.setClusterName("cluster-" + IDGenerator.UUID.generate());
 
         clusterManager = new RedissonClusterManager();
-        clusterManager.setName("cluster-"+IDGenerator.UUID.generate());
+        clusterManager.setName(haManager.getClusterName());
         clusterManager.setRedissonClient(redissonClient);
         clusterManager.setHaManager(haManager);
         clusterManager.setExecutorService(executorService);
@@ -87,10 +97,22 @@ public class StandaloneRunningRuleEngineTest {
         ruleEngine.setClusterManager(clusterManager);
         ruleEngine.setNodeSelector((model, allNode) -> allNode);
         ruleEngine.setInstanceRepository(new MockRuleInstanceRepository());
-        ruleEngine.setModelParser((format, modelDefineString) -> rule.getModel());
+        ruleEngine.setModelParser(new RuleEngineModelParser() {
+            @Override
+            public RuleModel parse(String format, String modelDefineString) {
+                return rule.getModel();
+            }
+
+            @Override
+            public List<String> getAllSupportFormat() {
+                return Collections.emptyList();
+            }
+        });
         ruleEngine.setRuleRepository(ruleId -> {
             RulePersistent persistent = new RulePersistent();
             persistent.setRuleId(ruleId);
+            persistent.setModelFormat("re.xml");
+            persistent.setModel(modelString);
             persistent.setId(IDGenerator.MD5.generate());
             return Optional.of(persistent);
         });
@@ -99,12 +121,16 @@ public class StandaloneRunningRuleEngineTest {
         DefaultExecutableRuleNodeFactory nodeFactory = new DefaultExecutableRuleNodeFactory();
         nodeFactory.registerStrategy(new JavaMethodInvokeStrategy());
 
+        DefaultConditionEvaluator evaluator = new DefaultConditionEvaluator();
+        evaluator.register(new ScriptConditionEvaluatorStrategy(new DefaultScriptEvaluator()));
+
         RuleEngineWorker worker = new RuleEngineWorker();
         worker.setRuleRepository(ruleEngine.getRuleRepository());
         worker.setModelParser(ruleEngine.getModelParser());
 
         worker.setClusterManager(clusterManager);
-        worker.setConditionEvaluator((condition, data) -> true);
+
+        worker.setConditionEvaluator(evaluator);
         worker.setNodeFactory(nodeFactory);
         worker.start();
     }
