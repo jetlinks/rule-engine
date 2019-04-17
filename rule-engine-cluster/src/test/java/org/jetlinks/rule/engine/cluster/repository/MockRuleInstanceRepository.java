@@ -4,8 +4,10 @@ import org.jetlinks.rule.engine.api.persistent.RuleInstancePersistent;
 import org.jetlinks.rule.engine.api.persistent.repository.RuleInstanceRepository;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * @author zhouhao
@@ -18,6 +20,14 @@ public class MockRuleInstanceRepository implements RuleInstanceRepository {
     @Override
     public Optional<RuleInstancePersistent> findInstanceById(String instanceId) {
         return Optional.ofNullable(repository.get(instanceId));
+    }
+
+    @Override
+    public List<RuleInstancePersistent> findInstanceByRuleId(String ruleId) {
+        return repository.values()
+                .stream()
+                .filter(persistent->persistent.getRuleId().equals(ruleId))
+                .collect(Collectors.toList());
     }
 
     @Override

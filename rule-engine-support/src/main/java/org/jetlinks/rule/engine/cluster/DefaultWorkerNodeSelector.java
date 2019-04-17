@@ -25,7 +25,10 @@ public class DefaultWorkerNodeSelector implements WorkerNodeSelector {
 
     @Override
     public List<NodeInfo> select(SchedulingRule rule, List<NodeInfo> allNode) {
-        return Optional.ofNullable(allStrategy.get(rule.getType()))
+        return Optional
+                .ofNullable(rule)
+                .map(SchedulingRule::getType)
+                .map(type -> allStrategy.get(type))
                 .orElse(defaultStrategy)
                 .select(rule, allNode);
     }

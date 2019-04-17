@@ -14,4 +14,9 @@ public class MockRuleRepository implements RuleRepository {
     public Optional<RulePersistent> findRuleById(String ruleId) {
         return Optional.empty();
     }
+
+    @Override
+    public void save(RulePersistent persistent) {
+
+    }
 }

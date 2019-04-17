@@ -4,12 +4,14 @@ import org.hswebframework.web.bean.FastBeanCopier;
 import org.jetlinks.rule.engine.api.Logger;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.events.RuleEvent;
+import org.jetlinks.rule.engine.api.executor.ExecutionContext;
 import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
 import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
 import org.jetlinks.rule.engine.executor.supports.RuleNodeConfig;
 
 import java.util.concurrent.CompletionStage;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /**
  * @author zhouhao
@@ -22,29 +24,31 @@ public abstract class AbstractExecutableRuleNodeFactoryStrategy<C extends RuleNo
 
     public abstract String getSupportType();
 
-    public abstract BiFunction<Logger, Object, CompletionStage<Object>> createExecutor(C config);
+    public abstract Function<RuleData, CompletionStage<Object>> createExecutor(ExecutionContext context, C config);
 
     protected ExecutableRuleNode doCreate(C config) {
-        BiFunction<Logger, Object, CompletionStage<Object>> executor = createExecutor(config);
-        return context -> context.getInput()
-                .acceptOnce(data -> {
-                    context.fireEvent(RuleEvent.NODE_EXECUTE_BEFORE, data.newData(data));
-                    executor.apply(context.logger(), data.getData())
-                            .whenComplete((result, error) -> {
-                                if (error != null) {
-                                    context.onError(data, error);
-                                } else {
-                                    RuleData newData;
-                                    if (config.getNodeType().isReturnNewValue()) {
-                                        newData = data.newData(result);
+        return context -> {
+            Function<RuleData, CompletionStage<Object>> executor = createExecutor(context, config);
+            context.getInput()
+                    .acceptOnce(data -> {
+                        context.fireEvent(RuleEvent.NODE_EXECUTE_BEFORE, data.newData(data));
+                        executor.apply(data)
+                                .whenComplete((result, error) -> {
+                                    if (error != null) {
+                                        context.onError(data, error);
                                     } else {
-                                        newData = data.newData(data);
+                                        RuleData newData;
+                                        if (config.getNodeType().isReturnNewValue()) {
+                                            newData = data.newData(result);
+                                        } else {
+                                            newData = data.newData(data);
+                                        }
+                                        context.fireEvent(RuleEvent.NODE_EXECUTE_DONE, newData);
+                                        context.getOutput().write(newData);
                                     }
-                                    context.fireEvent(RuleEvent.NODE_EXECUTE_DONE, newData);
-                                    context.getOutput().write(newData);
-                                }
-                            });
-                });
+                                });
+                    });
+        };
     }
 
     @Override

@@ -18,10 +18,15 @@
         </xs:choice>
     </xs:group>
 
+    <xs:complexType name="A">
+        <xs:attribute name="CLUSTER" type="xs:string"/>
+        <xs:attribute name="y" type="xs:string"/>
+    </xs:complexType>
+
     <xs:element name="rule">
         <xs:complexType>
             <xs:sequence>
-                <xs:element name="testCase">
+                <xs:element name="testCase" minOccurs="0">
                     <xs:complexType>
                         <xs:sequence>
                             <xs:element maxOccurs="999" name="test" type="xs:element">
@@ -85,8 +90,18 @@
             </xs:sequence>
             <xs:attribute name="id" type="xs:string"/>
             <xs:attribute name="name" type="xs:string"/>
+
+            <xs:attribute name="runMode" type="xs:complexType">
+                <xs:simpleType>
+                    <xs:restriction base="xs:string">
+                        <xs:enumeration value="DISTRIBUTED"/>
+                        <xs:enumeration value="CLUSTER"/>
+                    </xs:restriction>
+                </xs:simpleType>
+            </xs:attribute>
         </xs:complexType>
 
     </xs:element>
+
 
 </xs:schema>

@@ -8,4 +8,5 @@ public interface RuleRepository {
 
     Optional<RulePersistent> findRuleById(String ruleId);
 
+    void save(RulePersistent persistent);
 }

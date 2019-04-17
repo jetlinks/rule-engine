@@ -5,7 +5,9 @@ import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.rule.engine.api.Logger;
+import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.TypeConverter;
+import org.jetlinks.rule.engine.api.executor.ExecutionContext;
 import org.jetlinks.rule.engine.api.model.NodeType;
 import org.jetlinks.rule.engine.executor.AbstractExecutableRuleNodeFactoryStrategy;
 
@@ -51,7 +53,7 @@ public class JavaMethodInvokeStrategy extends AbstractExecutableRuleNodeFactoryS
     }
 
     @SneakyThrows
-    public BiFunction<Logger, Object, CompletionStage<Object>> createExecutor(JavaMethodInvokeStrategyConfiguration config) {
+    public Function<RuleData, CompletionStage<Object>> createExecutor(ExecutionContext context, JavaMethodInvokeStrategyConfiguration config) {
         String className = config.getClassName();
         String methodName = config.getMethodName();
         Class clazz = getType(className);
@@ -76,14 +78,14 @@ public class JavaMethodInvokeStrategy extends AbstractExecutableRuleNodeFactoryS
         int parameterCount = method.getParameterCount();
         Class[] methodTypes = method.getParameterTypes();
         log.debug("create java method invoke executor:{}.{}", className, methodName);
-        return (logger, data) -> {
+        return (data) -> {
             CompletableFuture future = new CompletableFuture();
             try {
                 Object[] invokeParameter = parameterCount > 0 ? new Object[parameterCount] : emptyArgs;
                 for (int i = 0; i < parameterCount; i++) {
                     invokeParameter[i] = convertParameter(methodTypes[i], data, config, i);
                 }
-                logger.info("invoke {}.{}", className, methodName);
+                context.logger().info("invoke {}.{}", className, methodName);
                 Object result = finaleMethod.invoke(instance, (Object[]) invokeParameter);
                 if (result instanceof CompletionStage) {
                     return ((CompletionStage) result);
@@ -96,13 +98,13 @@ public class JavaMethodInvokeStrategy extends AbstractExecutableRuleNodeFactoryS
         };
     }
 
-    protected Object convertParameter(Class type, Object data,
+    protected Object convertParameter(Class type, RuleData data,
                                       JavaMethodInvokeStrategyConfiguration config,
                                       int index) {
 
         // FIXME: 19-3-29 类型转换未实现
         return Optional.ofNullable(config.getParameter(index))
-                .orElseGet(() -> data);
+                .orElseGet(() -> data.getData());
     }
 
     @SneakyThrows
