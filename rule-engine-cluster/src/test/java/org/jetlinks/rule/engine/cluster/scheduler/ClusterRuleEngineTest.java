@@ -11,6 +11,7 @@ import org.jetlinks.rule.engine.api.events.RuleEvent;
 import org.jetlinks.rule.engine.api.model.*;
 import org.jetlinks.rule.engine.api.persistent.RulePersistent;
 import org.jetlinks.rule.engine.api.cluster.NodeInfo;
+import org.jetlinks.rule.engine.api.persistent.repository.RuleRepository;
 import org.jetlinks.rule.engine.cluster.TestExecutor;
 import org.jetlinks.rule.engine.cluster.redisson.RedissonClusterManager;
 import org.jetlinks.rule.engine.cluster.redisson.RedissonHaManager;
@@ -109,13 +110,21 @@ public class ClusterRuleEngineTest {
                 return Collections.emptyList();
             }
         });
-        ruleEngine.setRuleRepository(ruleId -> {
-            RulePersistent persistent = new RulePersistent();
-            persistent.setRuleId(ruleId);
-            persistent.setModelFormat("re.xml");
-            persistent.setModel(modelString);
-            persistent.setId(IDGenerator.MD5.generate());
-            return Optional.of(persistent);
+        ruleEngine.setRuleRepository(new RuleRepository() {
+            @Override
+            public Optional<RulePersistent> findRuleById(String ruleId) {
+                RulePersistent persistent = new RulePersistent();
+                persistent.setRuleId(ruleId);
+                persistent.setModelFormat("re.xml");
+                persistent.setModel(modelString);
+                persistent.setId(IDGenerator.MD5.generate());
+                return Optional.of(persistent);
+            }
+
+            @Override
+            public void save(RulePersistent persistent) {
+
+            }
         });
         ruleEngine.start();
 
