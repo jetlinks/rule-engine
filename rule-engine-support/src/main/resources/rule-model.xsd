@@ -18,11 +18,6 @@
         </xs:choice>
     </xs:group>
 
-    <xs:complexType name="A">
-        <xs:attribute name="CLUSTER" type="xs:string"/>
-        <xs:attribute name="y" type="xs:string"/>
-    </xs:complexType>
-
     <xs:element name="rule">
         <xs:complexType>
             <xs:sequence>
