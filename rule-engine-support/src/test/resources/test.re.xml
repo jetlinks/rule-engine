@@ -2,14 +2,10 @@
 <rule id="test:1.0" name="测试规则" xmlns="http://www.jetlinls.org/RuleEngine"
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xsi:schemaLocation="http://www.jetlinls.org/RuleEngine rule-model.xsd">
-    <testCase>
-        <test>
-            <startWith>start</startWith>
-            <endWith>to-upper-case</endWith>
-            <data type="string">abc123</data>
-            <expect>ABC123</expect>
-        </test>
-    </testCase>
+
+    <configuration>
+        <test>1234</test>
+    </configuration>
 
     <node id="start" executor="java-method" start="true" nodeType="MAP" name="启动">
         <configuration>
@@ -44,4 +40,5 @@
             <methodName>println</methodName>
         </configuration>
     </node>
+
 </rule>

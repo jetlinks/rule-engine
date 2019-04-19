@@ -1,5 +1,6 @@
 package org.jetlinks.rule.engine.executor;
 
+import com.alibaba.fastjson.JSON;
 import org.hswebframework.web.bean.FastBeanCopier;
 import org.jetlinks.rule.engine.api.Logger;
 import org.jetlinks.rule.engine.api.RuleData;
@@ -60,5 +61,13 @@ public abstract class AbstractExecutableRuleNodeFactoryStrategy<C extends RuleNo
         C config = FastBeanCopier.copy(configuration.getConfiguration(), this::newConfig);
         config.setNodeType(configuration.getNodeType());
         return config;
+    }
+
+    protected Object convertObject(Object object) {
+        if (object instanceof String) {
+            String stringJson = ((String) object);
+            return JSON.parse(stringJson);
+        }
+        return object;
     }
 }

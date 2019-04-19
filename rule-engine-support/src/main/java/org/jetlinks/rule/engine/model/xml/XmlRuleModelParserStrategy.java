@@ -13,6 +13,7 @@ import org.jetlinks.rule.engine.api.model.RuleLink;
 import org.jetlinks.rule.engine.api.model.RuleModel;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 import org.jetlinks.rule.engine.model.RuleModelParserStrategy;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.io.StringReader;
@@ -45,6 +46,11 @@ public class XmlRuleModelParserStrategy implements RuleModelParserStrategy {
         ruleModel.setName(rule.attributeValue("name"));
         ruleModel.setDescription(rule.attributeValue("description"));
         ruleModel.setRunMode(Optional.ofNullable(rule.attributeValue("runMode")).map(RunMode::valueOf).orElse(RunMode.CLUSTER));
+
+        ruleModel.setConfiguration(new HashMap<>());
+
+        parseConfig(rule.element("configuration"), ruleModel.getConfiguration());
+
         //预处理所有节点信息
         for (Iterator<Element> it = rule.elementIterator("node"); it.hasNext(); ) {
             Element element = it.next();
@@ -120,16 +126,14 @@ public class XmlRuleModelParserStrategy implements RuleModelParserStrategy {
             SchedulingRule rule = new SchedulingRule();
             String type = schedulingRule.attributeValue("type");
             rule.setType(type);
-            rule.setConfiguration(schedulingRule.elements()
-                    .stream()
-                    .collect(Collectors.toMap(Element::getName, Element::getTextTrim)));
+            Map<String, Object> config = new HashMap<>();
+            schedulingRule.elements().forEach(ele -> parseConfig(ele, config));
+            rule.setConfiguration(config);
             node.nodeProperties.put("schedulingRule", schedulingRule);
         }
 
         //配置信息
-        element.element("configuration")
-                .elementIterator()
-                .forEachRemaining(e -> node.configuration.put(e.getName(), e.getTextTrim()));
+        parseConfig(element.element("configuration"), node.configuration);
 
         Optional.ofNullable(element.element("outputs"))
                 .map(e -> e.elements("output"))
@@ -147,6 +151,45 @@ public class XmlRuleModelParserStrategy implements RuleModelParserStrategy {
                                 .map(this::parseLink)
                                 .collect(Collectors.toList())));
         return node;
+    }
+
+    private void parseConfig(Element element, Map<String, Object> map) {
+        if (element == null) {
+            return;
+        }
+        for (Element ele : element.elements()) {
+            List<Element> elements = ele.elements();
+            String key = ele.getName();
+            String type = ele.attributeValue("type");
+            Object value;
+            if (!CollectionUtils.isEmpty(elements)) {
+                if ("list".equals(type)) {
+                    List<Map<String, Object>> data = new ArrayList<>();
+                    for (Element child : elements) {
+                        Map<String, Object> val = new HashMap<>();
+                        parseConfig(child, val);
+                        data.add(val);
+                    }
+                    value = data;
+                } else {
+                    Map<String, Object> val = new HashMap<>();
+                    for (Element child : elements) {
+                        if (CollectionUtils.isEmpty(child.elements())) {
+                            val.put(child.getName(), child.getTextTrim());
+                        } else {
+                            Map<String, Object> childMap = new HashMap<>();
+                            parseConfig(child, childMap);
+                            val.put(child.getName(), childMap);
+                        }
+                    }
+                    value = val;
+                }
+
+            } else {
+                value = ele.getTextTrim();
+            }
+            map.put(key, value);
+        }
     }
 
     private PrepareLink parseLink(Element element) {

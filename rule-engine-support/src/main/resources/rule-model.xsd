@@ -29,6 +29,7 @@
                         </xs:sequence>
                     </xs:complexType>
                 </xs:element>
+                <xs:element name="configuration" minOccurs="0" type="xs:element"/>
                 <xs:element name="node" maxOccurs="999">
                     <xs:complexType>
                         <xs:sequence>
