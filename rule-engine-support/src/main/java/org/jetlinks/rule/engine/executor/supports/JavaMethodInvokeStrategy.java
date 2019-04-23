@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.hswebframework.web.bean.Converter;
+import org.hswebframework.web.bean.FastBeanCopier;
 import org.jetlinks.rule.engine.api.Logger;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.TypeConverter;
@@ -14,9 +16,11 @@ import org.jetlinks.rule.engine.executor.AbstractExecutableRuleNodeFactoryStrate
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -83,7 +87,7 @@ public class JavaMethodInvokeStrategy extends AbstractExecutableRuleNodeFactoryS
             try {
                 Object[] invokeParameter = parameterCount > 0 ? new Object[parameterCount] : emptyArgs;
                 for (int i = 0; i < parameterCount; i++) {
-                    invokeParameter[i] = convertParameter(methodTypes[i], data, config, i);
+                    invokeParameter[i] = convertParameter(context, methodTypes[i], data, config, i);
                 }
                 context.logger().info("invoke {}.{}", className, methodName);
                 Object result = finaleMethod.invoke(instance, (Object[]) invokeParameter);
@@ -98,13 +102,36 @@ public class JavaMethodInvokeStrategy extends AbstractExecutableRuleNodeFactoryS
         };
     }
 
-    protected Object convertParameter(Class type, RuleData data,
+    private Converter converter = FastBeanCopier.DEFAULT_CONVERT;
+
+    protected Object convertParameter(ExecutionContext context, Class type, RuleData data,
                                       JavaMethodInvokeStrategyConfiguration config,
                                       int index) {
+        String parameter = config.getParameter(index);
+        if (Logger.class.equals(type)) {
+            return context.logger();
+        }
+        if (ExecutionContext.class.equals(type)) {
+            return context;
+        }
+        if (RuleData.class.equals(type)) {
+            return data;
+        }
+        if (type.isInstance(data.getData())) {
+            return data.getData();
+        }
 
-        // FIXME: 19-3-29 类型转换未实现
-        return Optional.ofNullable(config.getParameter(index))
-                .orElseGet(() -> data.getData());
+        AtomicReference<Object> reference = new AtomicReference<>();
+
+        data.acceptMap(map -> {
+            reference.set(converter.convert(convertParameter(parameter, map),type,null));
+        });
+
+        return reference.get();
+    }
+
+    protected Object convertParameter(String parameter, Map<String, Object> mapData) {
+        return mapData.get(parameter);
     }
 
     @SneakyThrows
@@ -121,9 +148,9 @@ public class JavaMethodInvokeStrategy extends AbstractExecutableRuleNodeFactoryS
 
         private NodeType nodeType;
 
-        private List<Object> parameters;
+        private List<String> parameters;
 
-        public Object getParameter(int index) {
+        public String getParameter(int index) {
             if (parameters == null || parameters.size() <= index) {
                 return null;
             }
