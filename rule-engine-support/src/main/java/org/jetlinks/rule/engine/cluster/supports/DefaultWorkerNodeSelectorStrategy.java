@@ -2,7 +2,7 @@ package org.jetlinks.rule.engine.cluster.supports;
 
 import org.hswebframework.web.dict.EnumDict;
 import org.jetlinks.rule.engine.api.cluster.NodeInfo;
-import org.jetlinks.rule.engine.api.cluster.NodeRule;
+import org.jetlinks.rule.engine.api.cluster.NodeRole;
 import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
 import org.jetlinks.rule.engine.cluster.WorkerNodeSelectorStrategy;
 
@@ -22,7 +22,7 @@ public class DefaultWorkerNodeSelectorStrategy implements WorkerNodeSelectorStra
     @Override
     public List<NodeInfo> select(SchedulingRule rule, List<NodeInfo> allNode) {
         return allNode.stream()
-                .filter(node -> EnumDict.in(NodeRule.WORKER, node.getRules()))
+                .filter(node -> EnumDict.in(NodeRole.WORKER, node.getRules()))
                 .collect(Collectors.toList());
     }
 }

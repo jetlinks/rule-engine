@@ -6,7 +6,7 @@ import org.hswebframework.web.dict.EnumDict;
 
 @Getter
 @AllArgsConstructor
-public enum NodeRule implements EnumDict<String> {
+public enum NodeRole implements EnumDict<String> {
     SCHEDULER,
     MONITOR,
     WORKER;

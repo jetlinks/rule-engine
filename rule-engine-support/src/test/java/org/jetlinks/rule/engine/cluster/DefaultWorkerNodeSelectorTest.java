@@ -1,15 +1,13 @@
 package org.jetlinks.rule.engine.cluster;
 
 import org.jetlinks.rule.engine.api.cluster.NodeInfo;
-import org.jetlinks.rule.engine.api.cluster.NodeRule;
+import org.jetlinks.rule.engine.api.cluster.NodeRole;
 import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import static org.junit.Assert.*;
 
 /**
  * @author zhouhao
@@ -32,7 +30,7 @@ public class DefaultWorkerNodeSelectorTest {
         NodeInfo node2 = new NodeInfo();
         node2.setId("node2");
         node2.setName("node2");
-        node2.setRules(new NodeRule[]{NodeRule.SCHEDULER});
+        node2.setRules(new NodeRole[]{NodeRole.SCHEDULER});
         nodeInfos.add(node1);
         nodeInfos.add(node2);
 
