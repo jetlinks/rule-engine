@@ -87,7 +87,7 @@
             <xs:attribute name="id" type="xs:string"/>
             <xs:attribute name="name" type="xs:string"/>
 
-            <xs:attribute name="runMode" type="xs:complexType">
+            <xs:attribute name="runMode" default="CLUSTER" type="xs:complexType">
                 <xs:simpleType>
                     <xs:restriction base="xs:string">
                         <xs:enumeration value="DISTRIBUTED"/>
