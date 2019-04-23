@@ -3,10 +3,13 @@ package org.jetlinks.rule.engine.api;
 import com.alibaba.fastjson.JSON;
 import lombok.Getter;
 import lombok.Setter;
+import org.hswebframework.web.bean.FastBeanCopier;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * @author zhouhao
@@ -52,6 +55,37 @@ public class DefaultRuleData implements RuleData {
     @Override
     public Object getData() {
         return data;
+    }
+
+    @Override
+    @SuppressWarnings("all")
+    public void acceptMap(Consumer<Map<String, Object>> consumer) {
+        if(data==null){
+            return;
+        }
+        else if(data instanceof byte[]){
+            data =JSON.parse(((byte[]) data));
+        }
+        else if(data instanceof String){
+            data =JSON.parse(((String) data));
+        }
+        else if(data instanceof Map){
+          doAcceptMap(data,consumer);
+        }
+        else if(data instanceof Collection){
+            ((Collection) data).forEach(d->doAcceptMap(d,consumer));
+        }else{
+            doAcceptMap(data,consumer);
+        }
+    }
+
+    @SuppressWarnings("all")
+    private void doAcceptMap(Object data,Consumer<Map<String, Object>> consumer){
+        if(data instanceof Map){
+            consumer.accept(((Map) data));
+        }else{
+            consumer.accept(FastBeanCopier.copy(data,HashMap::new));
+        }
     }
 
     @Override

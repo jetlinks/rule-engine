@@ -25,21 +25,28 @@ public class RedissonQueue<T> implements Queue<T> {
         this.queue = queue;
     }
 
+    private volatile boolean flushing = false;
+
     public void start() {
         accepted = true;
         flush();
     }
 
     public void flush() {
-        if (accepted) {
-            for (T data = queue.poll(); data != null; data = queue.poll()) {
-                Consumer<T> consumer;
-                if ((consumer = this.consumer.get()) != null) {
-                    consumer.accept(data);
-                } else {
-                    queue.add(data);
-                    break;
+        if (accepted && !flushing) {
+            try {
+                for (T data = queue.poll(); data != null; data = queue.poll()) {
+                    flushing = true;
+                    Consumer<T> consumer;
+                    if ((consumer = this.consumer.get()) != null) {
+                        consumer.accept(data);
+                    } else {
+                        queue.add(data);
+                        break;
+                    }
                 }
+            } finally {
+                flushing = false;
             }
         }
 
@@ -74,7 +81,7 @@ public class RedissonQueue<T> implements Queue<T> {
     @Override
     @SneakyThrows
     public void put(T data) {
-        if(!queue.add(data)){
+        if (!queue.add(data)) {
             throw new RuntimeException();
         }
     }

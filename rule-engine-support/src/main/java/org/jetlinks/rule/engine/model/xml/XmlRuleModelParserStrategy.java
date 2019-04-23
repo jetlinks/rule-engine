@@ -164,8 +164,13 @@ public class XmlRuleModelParserStrategy implements RuleModelParserStrategy {
             Object value;
             if (!CollectionUtils.isEmpty(elements)) {
                 if ("list".equals(type)) {
-                    List<Map<String, Object>> data = new ArrayList<>();
+                    List<Object> data = new ArrayList<>();
                     for (Element child : elements) {
+                        String text =child.getTextTrim();
+                        if(StringUtils.hasLength(text)){
+                            data.add(text);
+                            continue;
+                        }
                         Map<String, Object> val = new HashMap<>();
                         parseConfig(child, val);
                         data.add(val);

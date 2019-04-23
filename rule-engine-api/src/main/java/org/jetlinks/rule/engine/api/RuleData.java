@@ -5,6 +5,7 @@ import org.hswebframework.web.id.IDGenerator;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * @author zhouhao
@@ -14,6 +15,8 @@ public interface RuleData extends Serializable {
     String getId();
 
     Object getData();
+
+    void acceptMap(Consumer<Map<String,Object>> consumer);
 
     RuleData newData(Object data);
 
