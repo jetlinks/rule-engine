@@ -12,6 +12,10 @@ import java.util.Map;
 @Setter
 public class LogInfo implements Serializable {
 
+    private String instanceId;
+
+    private String nodeId;
+
     private String level;
 
     private String message;

@@ -1,11 +1,11 @@
 package org.jetlinks.rule.engine.cluster.worker;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.hswebframework.web.NotFoundException;
 import org.jetlinks.rule.engine.api.*;
+import org.jetlinks.rule.engine.api.events.NodeExecuteEvent;
 import org.jetlinks.rule.engine.api.events.RuleEvent;
 import org.jetlinks.rule.engine.api.executor.ExecutableRuleNodeFactory;
 import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -66,6 +67,14 @@ public class RuleEngineWorker {
     @Setter
     private RuleEngine standaloneRuleEngine;
 
+    @Getter
+    @Setter
+    private Consumer<NodeExecuteEvent> executeEventConsumer;
+
+    @Getter
+    @Setter
+    private Consumer<NodeExecuteLogEvent> executeLogEventConsumer;
+
     private Map<String, Map<String, RunningRule>> allRule = new ConcurrentHashMap<>();
 
     private boolean running = false;
@@ -79,6 +88,14 @@ public class RuleEngineWorker {
             StandaloneRuleEngine ruleEngine = new StandaloneRuleEngine();
             ruleEngine.setEvaluator(conditionEvaluator);
             ruleEngine.setNodeFactory(nodeFactory);
+            ruleEngine.setLoggerSupplier((contextId, ruleNodeModel) -> {
+                ClusterLogger logger = new ClusterLogger();
+                logger.setLogInfoConsumer(this::acceptLog);
+                logger.setInstanceId(contextId);
+                logger.setNodeId(ruleNodeModel.getId());
+                logger.setParent(new Slf4jLogger("rule.engine.cluster." + ruleNodeModel.getId()));
+                return logger;
+            });
             this.standaloneRuleEngine = ruleEngine;
         }
         //初始化
@@ -158,10 +175,10 @@ public class RuleEngineWorker {
 
 
     private class StandaloneRunningRule implements RunningRule {
-        private QueueInput          input;
+        private QueueInput input;
         private RuleInstanceContext context;
-        private Logger              logger;
-        private StartRuleRequest    request;
+        private Logger logger;
+        private StartRuleRequest request;
 
         volatile boolean running = false;
 
@@ -207,9 +224,6 @@ public class RuleEngineWorker {
         }
     }
 
-    protected void acceptLog(LogInfo logInfo) {
-        // TODO: 19-4-9
-    }
 
     protected synchronized boolean createClusterRule(StartRuleRequest request) {
         Map<String, RunningRule> map = getRunningRuleNode(request.getInstanceId());
@@ -227,14 +241,34 @@ public class RuleEngineWorker {
                     .stream()
                     .map(queueName -> clusterManager.<RuleData>getQueue(queueName))
                     .collect(Collectors.toList());
+
             QueueInput input = new QueueInput(inputsQueue);
             ClusterLogger logger = new ClusterLogger();
             logger.setParent(new Slf4jLogger("rule.engine.cluster." + request.getRuleId()));
             logger.setLogInfoConsumer(this::acceptLog);
 
-            map.put(request.getRuleId(), new StandaloneRunningRule(input, standaloneRuleEngine.startRule(rule), logger, request));
+            StandaloneRuleEngine.StandaloneRuleInstanceContext context = (StandaloneRuleEngine.StandaloneRuleInstanceContext) standaloneRuleEngine.startRule(rule);
+            //添加监听器
+            context.addEventListener(executeEvent -> handleEvent(executeEvent.getEvent(), executeEvent.getNodeId(), executeEvent.getInstanceId(), executeEvent.getRuleData()));
+
+            StandaloneRunningRule runningRule = new StandaloneRunningRule(input, standaloneRuleEngine.startRule(rule), logger, request);
+
+            map.put(request.getRuleId(), runningRule);
         }
         return true;
+    }
+
+
+    protected void acceptLog(LogInfo logInfo) {
+        if (null != executeLogEventConsumer && !"info".equals(logInfo.getLevel())) {
+            executeLogEventConsumer.accept(new NodeExecuteLogEvent(logInfo));
+        }
+    }
+
+    protected void handleEvent(String event, String nodeId, String instanceId, RuleData ruleData) {
+        if (null != executeEventConsumer) {
+            executeEventConsumer.accept(new NodeExecuteEvent(event, instanceId, nodeId, ruleData));
+        }
     }
 
     //分布式流式规则
@@ -278,7 +312,8 @@ public class RuleEngineWorker {
             ClusterLogger logger = new ClusterLogger();
             logger.setParent(new Slf4jLogger("rule.engine.cluster." + request.getNodeConfig().getId()));
             logger.setContext(request.getLogContext());
-
+            logger.setInstanceId(request.getInstanceId());
+            logger.setNodeId(request.getNodeId());
             logger.setLogInfoConsumer(this::acceptLog);
 
             context.setEventHandler((event, data) -> {
@@ -304,6 +339,7 @@ public class RuleEngineWorker {
                 if (eventOutput != null) {
                     eventOutput.write(data);
                 }
+                handleEvent(event, request.getNodeId(), request.getInstanceId(), data);
             });
             context.setInput(input);
             context.setOutput(output);

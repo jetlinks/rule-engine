@@ -13,14 +13,20 @@ import java.util.stream.Stream;
 @Setter
 public class ClusterLogger implements Logger {
 
-    private Consumer<LogInfo>   logInfoConsumer;
-    private Logger              parent;
+    private Consumer<LogInfo> logInfoConsumer;
+    private Logger parent;
     private Map<String, String> context;
+
+    private String instanceId;
+
+    private String nodeId;
 
     protected LogInfo createLogInfo(String level, String message, Object... args) {
         LogInfo logInfo = new LogInfo();
         logInfo.setContext(context);
         logInfo.setLevel(level);
+        logInfo.setInstanceId(instanceId);
+        logInfo.setNodeId(nodeId);
         logInfo.setMessage(message);
         logInfo.setArgs(Stream.of(args).map(String::valueOf).collect(Collectors.toList()));
         return logInfo;

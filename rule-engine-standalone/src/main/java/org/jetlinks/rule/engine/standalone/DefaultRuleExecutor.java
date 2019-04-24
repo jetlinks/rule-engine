@@ -57,7 +57,7 @@ public class DefaultRuleExecutor implements RuleExecutor {
 
     @Getter
     @Setter
-    private List<GlobalNodeEventListener> listeners = new ArrayList<>();
+    private List<GlobalNodeEventListener> listeners = new CopyOnWriteArrayList<>();
 
     private List<RuleExecutor> next = new ArrayList<>();
 

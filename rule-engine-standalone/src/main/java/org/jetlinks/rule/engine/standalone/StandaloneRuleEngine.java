@@ -18,8 +18,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.*;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * 单点规则引擎实现
@@ -42,20 +44,26 @@ public class StandaloneRuleEngine implements RuleEngine {
     @Setter
     private Executor executor = ForkJoinPool.commonPool();
 
+    @Getter
+    @Setter
+    private BiFunction<String, RuleNodeModel,Logger> loggerSupplier = (contextId,ruleNodeModel) -> new Slf4jLogger("rule.engine.cluster."+ruleNodeModel.getId());
+
+
     public Map<String, RuleInstanceContext> contextMap = new ConcurrentHashMap<>();
 
     private class RuleExecutorBuilder {
-        Map<String, RuleExecutor> allExecutor = new HashMap<>();
+        private Map<String, RuleExecutor> allExecutor = new HashMap<>();
 
         private RuleExecutor createSingleRuleExecutor(String contextId, Condition condition, RuleNodeModel nodeModel) {
             return allExecutor.computeIfAbsent(nodeModel.getId(), id -> {
                 ExecutableRuleNode ruleNode = nodeFactory.create(nodeModel.createConfiguration());
-                Logger logger = new Slf4jLogger("rule.engine.node." + nodeModel.getId());
+                Logger logger = loggerSupplier.apply(contextId,nodeModel);
+
                 DefaultRuleExecutor executor = new DefaultRuleExecutor();
                 executor.setLogger(logger);
                 executor.setRuleNode(ruleNode);
                 if (null != condition) {
-                    executor.setCondition(ruleData ->evaluator.evaluate(condition, ruleData));
+                    executor.setCondition(ruleData -> evaluator.evaluate(condition, ruleData));
                 }
                 //event
                 for (RuleLink event : nodeModel.getEvents()) {
@@ -90,6 +98,7 @@ public class StandaloneRuleEngine implements RuleEngine {
         RuleNodeModel nodeModel = rule.getModel().getStartNode()
                 .orElseThrow(() -> new UnsupportedOperationException("无法获取启动节点"));
         RuleExecutorBuilder builder = new RuleExecutorBuilder();
+
         StandaloneRuleInstanceContext context = new StandaloneRuleInstanceContext();
         context.id = id;
         context.startTime = System.currentTimeMillis();
@@ -114,7 +123,7 @@ public class StandaloneRuleEngine implements RuleEngine {
     @Setter
     public class StandaloneRuleInstanceContext implements RuleInstanceContext, EventSupportRuleInstanceContext {
         private String id;
-        private long   startTime;
+        private long startTime;
 
         private String endNodeId;
 
@@ -160,7 +169,9 @@ public class StandaloneRuleEngine implements RuleEngine {
 
         @Override
         public void addEventListener(GlobalNodeEventListener listener) {
-            rootExecutor.addEventListener(listener);
+            for (RuleExecutor ruleExecutor : allExecutor.values()) {
+                ruleExecutor.addEventListener(listener);
+            }
         }
 
         @Override
@@ -199,6 +210,6 @@ public class StandaloneRuleEngine implements RuleEngine {
 
     static class Sync {
         CountDownLatch countDownLatch = new CountDownLatch(1);
-        RuleData       ruleData;
+        RuleData ruleData;
     }
 }

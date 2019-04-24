@@ -17,9 +17,9 @@ public class NodeExecuteEvent implements RuleEvent {
 
     private String event;
 
-    private String nodeId;
-
     private String instanceId;
+
+    private String nodeId;
 
     private RuleData ruleData;
 
