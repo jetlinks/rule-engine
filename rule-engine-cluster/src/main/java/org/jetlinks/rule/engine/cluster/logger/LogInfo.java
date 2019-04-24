@@ -20,6 +20,8 @@ public class LogInfo implements Serializable {
 
     private String message;
 
+    private long timestamp;
+
     private List<String> args;
 
     private Map<String, String> context;

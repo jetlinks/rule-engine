@@ -2,6 +2,7 @@ package org.jetlinks.rule.engine.cluster.logger;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.hswebframework.utils.StringUtils;
 import org.jetlinks.rule.engine.api.Logger;
 
 import java.util.Map;
@@ -23,12 +24,20 @@ public class ClusterLogger implements Logger {
 
     protected LogInfo createLogInfo(String level, String message, Object... args) {
         LogInfo logInfo = new LogInfo();
+        logInfo.setTimestamp(System.currentTimeMillis());
         logInfo.setContext(context);
         logInfo.setLevel(level);
         logInfo.setInstanceId(instanceId);
         logInfo.setNodeId(nodeId);
         logInfo.setMessage(message);
-        logInfo.setArgs(Stream.of(args).map(String::valueOf).collect(Collectors.toList()));
+        logInfo.setArgs(Stream.of(args)
+                .map(arg -> {
+                    if (arg instanceof Throwable) {
+                        return StringUtils.throwable2String(((Throwable) arg));
+                    }
+                    return arg;
+                })
+                .map(String::valueOf).collect(Collectors.toList()));
         return logInfo;
     }
 

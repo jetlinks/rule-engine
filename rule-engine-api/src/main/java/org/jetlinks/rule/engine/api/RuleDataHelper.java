@@ -9,18 +9,21 @@ import java.util.function.Consumer;
 public class RuleDataHelper {
 
     //同步返回执行结果
-    private static String SYNC_RETURN   = "sync_return";
-    private static String END_WITH_NODE = "end_with";
+    public final static String SYNC_RETURN   = "sync_return";
+    public final static String END_WITH_NODE = "end_with";
 
     //错误信息
-    private static String ERROR_TYPE    = "error_type";
-    private static String ERROR_MESSAGE = "error_message";
-    private static String ERROR_STACK   = "error_stack";
+    public final static String ERROR_TYPE    = "error_type";
+    public final static String ERROR_MESSAGE = "error_message";
+    public final static String ERROR_STACK   = "error_stack";
 
     //指定启动节点
-    private static String START_WITH_NODE = "start_with";
+    public final static String START_WITH_NODE = "start_with";
 
-    private RuleData ruleData;
+
+    public final static String EXECUTE_TIME = "execute_time";
+
+    public RuleData ruleData;
 
     private RuleDataHelper() {
     }
@@ -55,6 +58,10 @@ public class RuleDataHelper {
 
     public static void markStartWith(RuleData data, String startWithNodeId) {
         data.setAttribute(START_WITH_NODE, startWithNodeId);
+    }
+
+    public static void setExecuteTimeNow(RuleData data) {
+        data.setAttribute(EXECUTE_TIME, System.currentTimeMillis());
     }
 
     public static boolean isSync(RuleData data) {

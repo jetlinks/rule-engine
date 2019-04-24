@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON;
 import org.hswebframework.web.bean.FastBeanCopier;
 import org.jetlinks.rule.engine.api.Logger;
 import org.jetlinks.rule.engine.api.RuleData;
+import org.jetlinks.rule.engine.api.RuleDataHelper;
 import org.jetlinks.rule.engine.api.events.RuleEvent;
 import org.jetlinks.rule.engine.api.executor.ExecutionContext;
 import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
@@ -33,6 +34,9 @@ public abstract class AbstractExecutableRuleNodeFactoryStrategy<C extends RuleNo
             context.getInput()
                     .acceptOnce(data -> {
                         context.fireEvent(RuleEvent.NODE_EXECUTE_BEFORE, data.newData(data));
+
+                        RuleDataHelper.setExecuteTimeNow(data);
+
                         executor.apply(data)
                                 .whenComplete((result, error) -> {
                                     if (error != null) {
