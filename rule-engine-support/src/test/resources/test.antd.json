@@ -1,0 +1,98 @@
+{
+  "id": "test",
+  "name": "测试流程",
+  "runMode": "CLUSTER",
+  "schedulingRule": {
+    "type": "random",
+    "configuration": {
+      "nodeList": ["node1","node2"]
+    }
+  },
+  "nodes": [
+    {
+      "type": "Start",
+      "size": "72*72",
+      "shape": "flow-circle",
+      "color": "#FA8C16",
+      "label": "20:00",
+      "executor": "java-method",
+      "x": 373.5,
+      "y": 119,
+      "isStart": true,
+      "id": "213b64a1",
+      "config":{
+        "className": "testClass"
+      },
+      "index": 0
+    },
+    {
+      "type": "BB",
+      "size": "80*48",
+      "shape": "flow-rect",
+      "color": "#1890FF",
+      "label": "台灯",
+      "executor": "java-method",
+      "x": 378.5,
+      "y": 247,
+      "id": "ce2c0043",
+      "index": 1
+    },
+    {
+      "type": "BB",
+      "size": "80*48",
+      "shape": "flow-rect",
+      "color": "#1890FF",
+      "label": "空调",
+      "executor": "python-method",
+      "x": 515.5,
+      "y": 245,
+      "id": "0e55a8b4",
+      "index": 3
+    },
+    {
+      "type": "AA",
+      "size": "72*72",
+      "shape": "flow-circle",
+      "color": "#FA8C16",
+      "label": "电源开关",
+      "executor": "java-method",
+      "x": 513.5,
+      "y": 359,
+      "id": "3685e990",
+      "index": 5
+    }
+  ],
+  "edges": [
+    {
+      "source": "213b64a1",
+      "sourceAnchor": 2,
+      "target": "ce2c0043",
+      "targetAnchor": 0,
+      "id": "0824b425",
+      "condition": {
+        "type": "script",
+        "config": {
+          "lang": "js",
+          "script": "return true;"
+        }
+      },
+      "index": 2
+    },
+    {
+      "source": "213b64a1",
+      "sourceAnchor": 2,
+      "target": "0e55a8b4",
+      "targetAnchor": 0,
+      "id": "298d3b35",
+      "index": 4
+    },
+    {
+      "source": "0e55a8b4",
+      "sourceAnchor": 2,
+      "target": "3685e990",
+      "targetAnchor": 0,
+      "id": "4a25178b",
+      "index": 6
+    }
+  ]
+}
