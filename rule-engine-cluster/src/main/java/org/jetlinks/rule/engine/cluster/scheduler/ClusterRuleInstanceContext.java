@@ -67,7 +67,6 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
         log.info("execute rule:{} data:{}", id, data);
         //执行完成的信号，规则执行完成后会由对应的节点去触发。
         ClusterSemaphore semaphore = clusterManager.getSemaphore(dataId, 0);
-
         //发送数据到规则入口队列
         return queue
                 .putAsync(data)

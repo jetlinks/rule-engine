@@ -158,9 +158,11 @@ public class StandaloneRuleEngine implements RuleEngine {
             return CompletableFuture.supplyAsync(() -> {
                 ruleExecutor.execute(data);
                 try {
-                    sync.countDownLatch.await(30, TimeUnit.SECONDS);
+                   sync.countDownLatch.await(30, TimeUnit.SECONDS);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
+                }finally {
+                    syncMap.remove(data.getId());
                 }
                 log.info("rule[{}] execute complete:{}", id, sync.ruleData);
                 return sync.ruleData;
