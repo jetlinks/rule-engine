@@ -51,7 +51,9 @@ public class DefaultRuleExecutor implements RuleExecutor {
     @Setter
     private String nodeId;
 
-    private ExecutionContext context;
+    private volatile ExecutionContext context = new SimpleContext();
+
+    private List<Runnable> stopListener = new ArrayList<>();
 
     private volatile boolean running;
 
@@ -74,20 +76,24 @@ public class DefaultRuleExecutor implements RuleExecutor {
         }
     }
 
-    public synchronized void start() {
-        if (running) {
-            return;
+    public void start() {
+        synchronized (this) {
+            if (running) {
+                return;
+            }
+            running = true;
+            ruleNode.start(context);
         }
-        running = true;
-        context = new SimpleContext();
-        ruleNode.start(context);
     }
 
     @Override
     @SneakyThrows
     public void stop() {
-        if (context != null) {
-            context.stop();
+        synchronized (this) {
+            if (context != null) {
+                context.stop();
+            }
+            running = false;
         }
     }
 
@@ -148,7 +154,6 @@ public class DefaultRuleExecutor implements RuleExecutor {
 
 
     private class SimpleContext implements ExecutionContext {
-        private List<Runnable> stopListener = new ArrayList<>();
 
         @Override
         public Input getInput() {
@@ -192,6 +197,7 @@ public class DefaultRuleExecutor implements RuleExecutor {
         @Override
         public void stop() {
             stopListener.forEach(Runnable::run);
+          //  stopListener.clear();
         }
 
         @Override

@@ -54,6 +54,7 @@ public class DefaultContext implements ExecutionContext {
     public void stop() {
         input.close();
         stopListener.forEach(Runnable::run);
+        stopListener.clear();
     }
 
     @Override

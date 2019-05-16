@@ -77,7 +77,7 @@ public class RuleEngineWorker {
 
     private Map<String, Map<String, RunningRule>> allRule = new ConcurrentHashMap<>();
 
-    private boolean running = false;
+    private volatile boolean running = false;
 
     public void start() {
         if (running) {
@@ -111,6 +111,16 @@ public class RuleEngineWorker {
         clusterManager
                 .getHaManager()
                 .<String, Boolean>onNotify("rule:stop", instanceId -> {
+                    for (RunningRule value : getRunningRuleNode(instanceId).values()) {
+                        value.stop();
+                    }
+                    return true;
+                });
+
+        //规则下线
+        clusterManager
+                .getHaManager()
+                .<String, Boolean>onNotify("rule:down", instanceId -> {
                     for (RunningRule value : getRunningRuleNode(instanceId).values()) {
                         value.stop();
                     }
@@ -163,12 +173,13 @@ public class RuleEngineWorker {
                 return;
             }
             log.debug("start rule node {}.{}", ruleId, nodeId);
-            running = true;
             executor.start(context);
+            running = true;
         }
 
         public void stop() {
             log.debug("stop rule node {}.{}", ruleId, nodeId);
+            running = false;
             context.stop();
         }
     }
@@ -194,6 +205,7 @@ public class RuleEngineWorker {
             if (running) {
                 return;
             }
+            running=true;
             AtomicReference<Function<RuleData, CompletionStage<RuleData>>> reference = new AtomicReference<>();
             context.execute(reference::set);
             input.acceptOnce(data -> {
@@ -213,6 +225,7 @@ public class RuleEngineWorker {
                             .apply(data);
                 }
             });
+            context.start();
             log.debug("start rule {}", request.getRuleId());
         }
 
@@ -221,6 +234,7 @@ public class RuleEngineWorker {
             log.debug("stop rule {}", request.getRuleId());
             input.close();
             context.stop();
+            running = false;
         }
     }
 
@@ -229,7 +243,7 @@ public class RuleEngineWorker {
         Map<String, RunningRule> map = getRunningRuleNode(request.getInstanceId());
         synchronized (map) {
             if (map.containsKey(request.getRuleId())) {
-                log.info("rule node worker {}.{} already exists", request.getRuleId());
+                log.info("rule node worker {} already exists", request.getRuleId());
                 return true;
             }
             String ruleId = request.getRuleId();
@@ -251,7 +265,7 @@ public class RuleEngineWorker {
             //添加监听器
             context.addEventListener(executeEvent -> handleEvent(executeEvent.getEvent(), executeEvent.getNodeId(), executeEvent.getInstanceId(), executeEvent.getRuleData()));
 
-            StandaloneRunningRule runningRule = new StandaloneRunningRule(input, standaloneRuleEngine.startRule(rule), logger, request);
+            StandaloneRunningRule runningRule = new StandaloneRunningRule(input, context, logger, request);
 
             map.put(request.getRuleId(), runningRule);
         }

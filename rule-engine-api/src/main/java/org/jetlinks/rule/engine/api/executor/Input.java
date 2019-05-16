@@ -9,6 +9,7 @@ import java.util.function.Consumer;
  * @since 1.0.0
  */
 public interface Input {
+    @Deprecated
     void accept(Consumer<RuleData> accept);
 
     boolean acceptOnce(Consumer<RuleData> accept);

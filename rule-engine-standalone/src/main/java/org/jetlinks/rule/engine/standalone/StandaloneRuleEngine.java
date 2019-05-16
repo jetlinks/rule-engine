@@ -46,20 +46,24 @@ public class StandaloneRuleEngine implements RuleEngine {
 
     @Getter
     @Setter
-    private BiFunction<String, RuleNodeModel,Logger> loggerSupplier = (contextId,ruleNodeModel) -> new Slf4jLogger("rule.engine.cluster."+ruleNodeModel.getId());
+    private BiFunction<String, RuleNodeModel, Logger> loggerSupplier = (contextId, ruleNodeModel) -> new Slf4jLogger("rule.engine.cluster." + ruleNodeModel.getId());
 
 
     public Map<String, RuleInstanceContext> contextMap = new ConcurrentHashMap<>();
 
     private class RuleExecutorBuilder {
-        private Map<String, RuleExecutor> allExecutor = new HashMap<>();
+        private Map<String, RuleExecutor> allExecutor = new ConcurrentHashMap<>();
 
         private RuleExecutor createSingleRuleExecutor(String contextId, Condition condition, RuleNodeModel nodeModel) {
-            return allExecutor.computeIfAbsent(nodeModel.getId(), id -> {
-                ExecutableRuleNode ruleNode = nodeFactory.create(nodeModel.createConfiguration());
-                Logger logger = loggerSupplier.apply(contextId,nodeModel);
+            RuleExecutor tmp = allExecutor.get(nodeModel.getId());
+
+            if (tmp == null) {
 
                 DefaultRuleExecutor executor = new DefaultRuleExecutor();
+                allExecutor.put(nodeModel.getId(), tmp = executor);
+
+                ExecutableRuleNode ruleNode = nodeFactory.create(nodeModel.createConfiguration());
+                Logger logger = loggerSupplier.apply(contextId, nodeModel);
                 executor.setLogger(logger);
                 executor.setRuleNode(ruleNode);
                 if (null != condition) {
@@ -73,8 +77,9 @@ public class StandaloneRuleEngine implements RuleEngine {
                 executor.setInstanceId(contextId);
                 executor.setNodeId(nodeModel.getId());
                 executor.setNodeType(nodeModel.getNodeType());
-                return executor;
-            });
+            }
+            return tmp;
+
         }
 
         private RuleExecutor createRuleExecutor(String contextId, Condition condition, RuleNodeModel nodeModel, RuleExecutor parent) {
@@ -103,14 +108,15 @@ public class StandaloneRuleEngine implements RuleEngine {
         context.id = id;
         context.startTime = System.currentTimeMillis();
         context.rootExecutor = builder.createRuleExecutor(id, null, nodeModel, null);
-        context.allExecutor = new HashMap<>(builder.allExecutor);
+        context.allExecutor = builder.allExecutor;
         rule.getModel()
                 .getEndNodes()
                 .stream()
                 .findFirst()
                 .ifPresent(endNode -> context.setEndNodeId(endNode.getId()));
-        contextMap.put(id, context);
+        context.init();
         context.start();
+        contextMap.put(id, context);
         return context;
     }
 
@@ -132,7 +138,6 @@ public class StandaloneRuleEngine implements RuleEngine {
         private Map<String, RuleExecutor> allExecutor;
 
         private Map<String, Sync> syncMap = new ConcurrentHashMap<>();
-
 
         private RuleExecutor getExecutor(RuleData data) {
             return RuleDataHelper
@@ -176,6 +181,12 @@ public class StandaloneRuleEngine implements RuleEngine {
 
         @Override
         public void start() {
+            for (RuleExecutor ruleExecutor : allExecutor.values()) {
+                ruleExecutor.start();
+            }
+        }
+
+        public void init() {
             GlobalNodeEventListener listener = executeEvent -> {
                 String event = executeEvent.getEvent();
 
@@ -193,10 +204,8 @@ public class StandaloneRuleEngine implements RuleEngine {
                             });
                 }
             };
-
             for (RuleExecutor ruleExecutor : allExecutor.values()) {
                 ruleExecutor.addEventListener(listener);
-                ruleExecutor.start();
             }
         }
 
@@ -206,6 +215,7 @@ public class StandaloneRuleEngine implements RuleEngine {
                 ruleExecutor.stop();
             }
         }
+
     }
 
     static class Sync {
