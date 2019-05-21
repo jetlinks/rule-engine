@@ -16,6 +16,7 @@ public class QueueInput implements Input {
     private List<Queue<RuleData>> queues;
 
     @Override
+    @Deprecated
     public void accept(Consumer<RuleData> accept) {
         queues.forEach(queue -> queue.accept(accept));
     }

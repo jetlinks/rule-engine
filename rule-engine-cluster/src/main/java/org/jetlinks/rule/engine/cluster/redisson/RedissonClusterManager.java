@@ -137,8 +137,8 @@ public class RedissonClusterManager implements ClusterManager {
         if (!rSemaphore.isExists()) {
             semaphoreMap.put(key, rSemaphore = redissonClient.getSemaphore(key));
         }
-        rSemaphore.trySetPermits(permits);
-        rSemaphore.expire(12, TimeUnit.HOURS);
+        rSemaphore.trySetPermitsAsync(permits);
+        rSemaphore.expireAsync(12, TimeUnit.HOURS);
         return rSemaphore;
     }
 

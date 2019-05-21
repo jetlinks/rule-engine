@@ -82,7 +82,7 @@ public class RedissonQueue<T> implements Queue<T> {
     @SneakyThrows
     public void put(T data) {
         if (!queue.add(data)) {
-            throw new RuntimeException();
+            throw new RuntimeException("add data to queue fail: " + data);
         }
     }
 
