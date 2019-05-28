@@ -10,6 +10,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>rule-engine-standalone</artifactId>
+    <name>JetLinks RuleEngine Standalone</name>
 
     <dependencies>
         <dependency>

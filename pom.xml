@@ -19,10 +19,10 @@
     <artifactId>rule-engine</artifactId>
     <packaging>pom</packaging>
 
-    <name>jetlinks-protocol</name>
+    <name>JetLinks RuleEngine</name>
     <url>http://jetlinks.org</url>
     <inceptionYear>2019</inceptionYear>
-    <description>jetlinks 物联网平台-规则引擎</description>
+    <description>JetLinks 物联网平台-规则引擎</description>
 
     <licenses>
         <license>

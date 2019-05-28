@@ -11,6 +11,7 @@
 
     <artifactId>rule-engine-cluster</artifactId>
 
+    <name>JetLinks RuleEngine Cluster</name>
 
     <dependencies>
         <dependency>
