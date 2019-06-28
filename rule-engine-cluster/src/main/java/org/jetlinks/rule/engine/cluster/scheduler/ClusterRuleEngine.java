@@ -28,6 +28,7 @@ import org.jetlinks.rule.engine.cluster.message.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 public class ClusterRuleEngine implements RuleEngine {
@@ -146,21 +147,27 @@ public class ClusterRuleEngine implements RuleEngine {
 
         @SneakyThrows
         public void tryResume(String nodeId) {
-            List<NodeInfo> nodeInfoList = new ArrayList<>();
             for (StartRuleNodeRequest request : requests) {
-                for (NodeInfo nodeInfo : nodeRunnerInfo.get(request.getNodeId())) {
+                List<NodeInfo> nodeList = nodeRunnerInfo.get(request.getNodeId());
+                AtomicInteger size = new AtomicInteger(nodeList.size());
+
+                for (NodeInfo nodeInfo : nodeList) {
                     if (nodeInfo.getId().equals(nodeId)) {
                         log.debug("resume executor node {}.{}", context.getId(), request.getNodeId());
                         clusterManager
                                 .getHaManager()
                                 .sendNotify(nodeInfo.getId(), "rule:node:init", request)
-                                .toCompletableFuture()
-                                .get(10, TimeUnit.SECONDS);
-                        nodeInfoList.add(nodeInfo);
+                                .whenCompleteAsync((success, error) -> {
+                                    if (Boolean.TRUE.equals(success) && size.decrementAndGet() <= 0) {
+                                        doStart(nodeList);
+                                    }
+                                    if (error != null) {
+                                        log.error("resume executor node {}.{}", context.getId(), request.getNodeId(), error);
+                                    }
+                                });
                     }
                 }
             }
-            doStart(nodeInfoList);
         }
 
         private void doStop(List<NodeInfo> nodeList) {
@@ -187,15 +194,23 @@ public class ClusterRuleEngine implements RuleEngine {
         public void start() {
             log.info("start rule {}", rule.getId());
             for (StartRuleNodeRequest request : requests) {
-                for (NodeInfo nodeInfo : nodeRunnerInfo.get(request.getNodeId())) {
+                List<NodeInfo> nodeList = nodeRunnerInfo.get(request.getNodeId());
+                AtomicInteger size = new AtomicInteger(nodeList.size());
+
+                for (NodeInfo nodeInfo : nodeList) {
                     clusterManager
                             .getHaManager()
                             .sendNotify(nodeInfo.getId(), "rule:node:init", request)
-                            .toCompletableFuture()
-                            .get(20, TimeUnit.SECONDS);
+                            .whenCompleteAsync((success, error) -> {
+                                if (Boolean.TRUE.equals(success) && size.decrementAndGet() <= 0) {
+                                    doStart(nodeList);
+                                }
+                                if (error != null) {
+                                    log.error("init executor node {}.{}", context.getId(), request.getNodeId(), error);
+                                }
+                            });
                 }
             }
-            doStart(allRunningNode);
         }
 
         private void prepare(RuleNodeModel model) {

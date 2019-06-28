@@ -172,13 +172,13 @@ public class RuleEngineWorker {
             if (running) {
                 return;
             }
-            log.debug("start rule node {}.{}", ruleId, nodeId);
+            log.info("start rule node {}.{}", ruleId, nodeId);
             executor.start(context);
             running = true;
         }
 
         public void stop() {
-            log.debug("stop rule node {}.{}", ruleId, nodeId);
+            log.info("stop rule node {}.{}", ruleId, nodeId);
             running = false;
             context.stop();
         }
@@ -291,7 +291,7 @@ public class RuleEngineWorker {
         synchronized (map) {
             //已经存在了
             if (map.containsKey(request.getNodeId())) {
-                log.info("rule node worker {}.{} already exists", request.getRuleId(), request.getNodeId());
+                log.debug("rule node worker {}.{} already exists", request.getRuleId(), request.getNodeId());
                 return true;
             }
             DefaultContext context = new DefaultContext();
@@ -335,12 +335,12 @@ public class RuleEngineWorker {
                 if (RuleEvent.NODE_EXECUTE_DONE.equals(event)) {
                     RuleDataHelper.clearError(data);
                 }
-                log.info("fire event {}.{}:{}", configuration.getNodeId(), event, data);
+                log.debug("fire event {}.{}:{}", configuration.getNodeId(), event, data);
                 data.setAttribute("event", event);
                 if (RuleEvent.NODE_EXECUTE_DONE.equals(event) || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) {
                     //同步返回结果
                     if (configuration.getNodeId().equals(RuleDataHelper.getEndWithNodeId(data).orElse(null))) {
-                        logger.info("sync return:{}", data);
+                        logger.debug("sync return:{}", data);
                         clusterManager
                                 .getObject(data.getId())
                                 .setData(data);

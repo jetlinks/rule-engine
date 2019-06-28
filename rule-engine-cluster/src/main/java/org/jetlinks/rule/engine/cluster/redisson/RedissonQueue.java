@@ -5,7 +5,7 @@ import org.jetlinks.rule.engine.api.cluster.Queue;
 import org.redisson.api.RQueue;
 
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -25,18 +25,18 @@ public class RedissonQueue<T> implements Queue<T> {
         this.queue = queue;
     }
 
-    private volatile boolean flushing = false;
-
     public void start() {
         accepted = true;
         flush();
     }
 
+    private final AtomicInteger flushThread = new AtomicInteger(0);
+
     public void flush() {
-        if (accepted && !flushing) {
+        if (accepted && flushThread.get() < 5) {
             try {
+                flushThread.incrementAndGet();
                 for (T data = queue.poll(); data != null; data = queue.poll()) {
-                    flushing = true;
                     Consumer<T> consumer;
                     if ((consumer = this.consumer.get()) != null) {
                         consumer.accept(data);
@@ -46,22 +46,10 @@ public class RedissonQueue<T> implements Queue<T> {
                     }
                 }
             } finally {
-                flushing = false;
+                flushThread.decrementAndGet();
             }
         }
 
-    }
-
-    @Override
-    public void accept(Consumer<T> consumer) {
-        if (this.consumer.get() == null) {
-            this.consumer.set(consumer);
-        } else {
-            this.consumer.set(this.consumer.get().andThen(consumer));
-        }
-        if (!accepted) {
-            start();
-        }
     }
 
     @Override

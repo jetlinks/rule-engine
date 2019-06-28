@@ -33,7 +33,7 @@ public class RedissonClusterManager implements ClusterManager {
     private String name = "rule:engine";
 
     private Map<String, RedissonQueue> queueMap = new ConcurrentHashMap<>();
-    private Map<String, Topic>         topicMap = new ConcurrentHashMap<>();
+    private Map<String, Topic> topicMap = new ConcurrentHashMap<>();
 
     private RTopic queueTakeTopic;
 
@@ -105,14 +105,14 @@ public class RedissonClusterManager implements ClusterManager {
                 @Override
                 public void put(T data) {
                     super.put(data);
-                    queueTakeTopic.publishAsync(n);
+                    queueTakeTopic.publish(n);
                 }
 
                 @Override
                 public CompletionStage<Boolean> putAsync(T data) {
                     return super.putAsync(data)
                             .thenApply(success -> {
-                                queueTakeTopic.publishAsync(n);
+                                queueTakeTopic.publish(n);
                                 return success;
                             });
                 }

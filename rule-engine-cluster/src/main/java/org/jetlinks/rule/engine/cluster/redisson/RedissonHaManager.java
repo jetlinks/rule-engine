@@ -21,6 +21,7 @@ import java.util.function.Function;
  * @since 1.0.0
  */
 @Slf4j
+@SuppressWarnings("all")
 public class RedissonHaManager implements HaManager {
 
     @Getter
@@ -41,7 +42,6 @@ public class RedissonHaManager implements HaManager {
 
     protected RPatternTopic clusterNodeTopic;
 
-    protected RTopic clusterNodeKeepTopic;
     protected RTopic clusterNodeLeaveTopic;
 
     protected Map<String, Function> notifyListener = new ConcurrentHashMap<>();
@@ -51,7 +51,7 @@ public class RedissonHaManager implements HaManager {
     private long timeToLeave = 10;
 
     private RMap<String, NodeInfo> allNodeInfo;
-    private Map<String, NodeInfo>  localAllNode;
+    private Map<String, NodeInfo> localAllNode;
 
     protected void doNodeJoin(NodeInfo nodeInfo) {
         if (nodeInfo.getId().equals(currentNode.getId())) {
@@ -84,6 +84,8 @@ public class RedissonHaManager implements HaManager {
         Assert.notNull(currentNode.getId(), "currentNode.id");
         Assert.notNull(executorService, "executorService");
 
+        notifyListener.put("ping", (o) -> "pong");
+
         allNodeInfo = redissonClient.getMap(getRedisKey("cluster:nodes"));
         //注册自己
         allNodeInfo.put(currentNode.getId(), currentNode);
@@ -91,32 +93,32 @@ public class RedissonHaManager implements HaManager {
         localAllNode = new HashMap<>(allNodeInfo);
 
         clusterNodeTopic = redissonClient.getPatternTopic(getRedisKey("cluster:node:*"));
-        clusterNodeKeepTopic = redissonClient.getTopic(getRedisKey("cluster:node:keep"));
         clusterNodeLeaveTopic = redissonClient.getTopic(getRedisKey("cluster:node:leave"));
-
+        RTopic keepAlive = redissonClient.getTopic(getRedisKey("cluster:node:keep"));
         //集群通知
         redissonClient.getTopic(getRedisKey("cluster:notify:" + currentNode.getId()))
-                .addListener(ClusterNotify.class, (channel, msg) ->
-                        Optional.ofNullable(notifyListener.get(msg.getAddress()))
-                                .ifPresent(consumer -> {
-                                    String replyId = msg.getReplyId();
-                                    ClusterNotifyReply reply = new ClusterNotifyReply();
-                                    reply.setReplyId(replyId);
-                                    try {
-                                        Object result = consumer.apply(msg.getMessage());
-                                        reply.setSuccess(true);
-                                        reply.setReply(result);
-                                    } catch (Throwable error) {
-                                        log.error("execute notify error : "+error.getMessage(), error);
-                                        reply.setErrorType(error.getClass().getName());
-                                        reply.setErrorMessage(error.getMessage());
-                                    }
-                                    redissonClient.getBucket("notify:result:" + replyId)
-                                            .set(reply, 10, TimeUnit.MINUTES);
-                                    RSemaphore rSemaphore = redissonClient.getSemaphore("notify:" + replyId);
-                                    rSemaphore.expire(10, TimeUnit.MINUTES);
-                                    rSemaphore.release();
-                                }));
+                .addListener(ClusterNotify.class, (channel, msg) -> {
+                    Function<Object, Object> handler = Optional.ofNullable(notifyListener.get(msg.getAddress()))
+                            .orElseGet(() -> (obj -> {
+                                throw new UnsupportedOperationException("unsupported address:".concat(msg.getAddress()));
+                            }));
+                    String replyId = msg.getReplyId();
+                    ClusterNotifyReply reply = new ClusterNotifyReply();
+                    reply.setReplyId(replyId);
+                    try {
+                        Object result = handler.apply(msg.getMessage());
+                        reply.setSuccess(true);
+                        reply.setReply(result);
+                    } catch (Throwable error) {
+                        log.error("execute notify error : " + error.getMessage(), error);
+                        reply.setErrorType(error.getClass().getName());
+                        reply.setErrorMessage(error.getMessage());
+                    }
+                    redissonClient.getBucket("notify:result:" + replyId).set(reply, 1, TimeUnit.MINUTES);
+                    RSemaphore rSemaphore = redissonClient.getSemaphore("notify:" + replyId);
+                    rSemaphore.release();
+                    rSemaphore.expire(1, TimeUnit.MINUTES);
+                });
 
         //订阅节点上下线
         clusterNodeTopic.addListener(NodeInfo.class, (pattern, channel, msg) -> {
@@ -140,17 +142,20 @@ public class RedissonHaManager implements HaManager {
         executorService.scheduleAtFixedRate(() -> {
             //保活
             currentNode.setLastKeepAliveTime(System.currentTimeMillis());
-            clusterNodeKeepTopic.publish(currentNode);
             //注册自己
             allNodeInfo.put(currentNode.getId(), currentNode);
+            keepAlive.publish(currentNode);
 
-            //检查节点是否存活
-            localAllNode
-                    .values()
-                    .stream()
-                    .filter(info -> System.currentTimeMillis() - info.getLastKeepAliveTime() > TimeUnit.SECONDS.toMillis(timeToLeave))
-                    .forEach(clusterNodeLeaveTopic::publish);
-        }, 1, Math.min(2, timeToLeave), TimeUnit.SECONDS);
+            for (NodeInfo value : localAllNode.values()) {
+                sendNotify(value.getId(), "ping", System.currentTimeMillis())
+                        .whenCompleteAsync((pong, err) -> {
+                            if (!"pong".equals(pong)) {
+                                clusterNodeLeaveTopic.publishAsync(value);
+                            }
+                        });
+            }
+
+        }, 5, Math.min(2, timeToLeave), TimeUnit.SECONDS);
     }
 
     public void shutdown() {
@@ -195,7 +200,7 @@ public class RedissonHaManager implements HaManager {
     @Override
     public <V> CompletionStage<V> sendNotify(String nodeId, String address, Object message) {
         String replyId = IDGenerator.MD5.generate();
-        return redissonClient.getTopic(getRedisKey("cluster:notify:" + nodeId))
+        return redissonClient.getTopic(getRedisKey("cluster:notify:".concat(nodeId)))
                 .publishAsync(new ClusterNotify(replyId, address, message))
                 .thenCompose(len -> {
                     if (len <= 0) {
@@ -203,11 +208,9 @@ public class RedissonHaManager implements HaManager {
                     }
                     RSemaphore rSemaphore = redissonClient.getSemaphore("notify:" + replyId);
                     return rSemaphore
-                            .tryAcquireAsync(10, TimeUnit.MINUTES)
+                            .tryAcquireAsync(len.intValue(), 10, TimeUnit.MINUTES)
                             .thenCompose(success -> {
-                                if (success) {
-                                    rSemaphore.delete();
-                                }
+                                rSemaphore.delete();
                                 CompletableFuture<V> future = new CompletableFuture<>();
                                 redissonClient.<ClusterNotifyReply>getBucket("notify:result:" + replyId)
                                         .getAndDeleteAsync()
@@ -216,7 +219,7 @@ public class RedissonHaManager implements HaManager {
                                                 future.completeExceptionally(throwable);
                                             } else if (clusterNotifyReply.isSuccess()) {
                                                 future.complete((V) clusterNotifyReply.getReply());
-                                            } else {
+                                            } else if (clusterNotifyReply != null) {
                                                 future.completeExceptionally(new RuntimeException(clusterNotifyReply.getErrorType() + ":" + clusterNotifyReply.getErrorMessage()));
                                             }
                                         });

@@ -158,10 +158,6 @@ public class DefaultRuleExecutor implements RuleExecutor {
         @Override
         public Input getInput() {
             return new Input() {
-                @Override
-                public void accept(Consumer<RuleData> accept) {
-                    consumer.andThen(accept);
-                }
 
                 @Override
                 public boolean acceptOnce(Consumer<RuleData> accept) {
@@ -183,7 +179,7 @@ public class DefaultRuleExecutor implements RuleExecutor {
 
         @Override
         public void fireEvent(String event, RuleData data) {
-            logger.info("fire event {}.{}:{}", nodeId, event, data);
+            logger.debug("fire event {}.{}:{}", nodeId, event, data);
             data.setAttribute("event", event);
             DefaultRuleExecutor.this.fireEvent(event, data);
         }

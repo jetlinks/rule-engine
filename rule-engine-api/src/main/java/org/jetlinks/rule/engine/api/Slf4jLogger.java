@@ -16,12 +16,16 @@ public class Slf4jLogger implements Logger {
 
     @Override
     public void info(String message, Object... args) {
-        logger.info(message, args);
+        if(logger.isInfoEnabled()) {
+            logger.info(message, args);
+        }
     }
 
     @Override
     public void debug(String message, Object... args) {
-        logger.debug(message, args);
+        if(logger.isDebugEnabled()) {
+            logger.debug(message, args);
+        }
     }
 
     @Override

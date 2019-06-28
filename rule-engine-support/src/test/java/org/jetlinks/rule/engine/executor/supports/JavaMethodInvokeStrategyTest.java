@@ -12,8 +12,6 @@ import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-import static org.junit.Assert.*;
-
 /**
  * @author zhouhao
  * @since 1.0.0
@@ -43,10 +41,6 @@ public class JavaMethodInvokeStrategyTest {
             @Override
             public Input getInput() {
                 return new Input() {
-                    @Override
-                    public void accept(Consumer<RuleData> accept) {
-
-                    }
 
                     @Override
                     public boolean acceptOnce(Consumer<RuleData> accept) {

@@ -8,20 +8,18 @@ import org.jetlinks.rule.engine.api.*;
 import org.jetlinks.rule.engine.api.events.EventSupportRuleInstanceContext;
 import org.jetlinks.rule.engine.api.events.GlobalNodeEventListener;
 import org.jetlinks.rule.engine.api.events.RuleEvent;
-import org.jetlinks.rule.engine.api.executor.ExecutableRuleNodeFactory;
 import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
+import org.jetlinks.rule.engine.api.executor.ExecutableRuleNodeFactory;
 import org.jetlinks.rule.engine.api.model.Condition;
 import org.jetlinks.rule.engine.api.model.RuleLink;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 /**
  * 单点规则引擎实现
@@ -158,13 +156,15 @@ public class StandaloneRuleEngine implements RuleEngine {
             return CompletableFuture.supplyAsync(() -> {
                 ruleExecutor.execute(data);
                 try {
-                   sync.countDownLatch.await(30, TimeUnit.SECONDS);
+                    sync.countDownLatch.await(30, TimeUnit.SECONDS);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                }finally {
+                } finally {
                     syncMap.remove(data.getId());
                 }
-                log.info("rule[{}] execute complete:{}", id, sync.ruleData);
+                if (log.isDebugEnabled()) {
+                    log.debug("rule[{}] execute complete:{}", id, sync.ruleData);
+                }
                 return sync.ruleData;
             }, executor);
         }

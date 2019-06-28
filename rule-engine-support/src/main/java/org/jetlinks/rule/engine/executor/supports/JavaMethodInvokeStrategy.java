@@ -17,11 +17,9 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -89,7 +87,7 @@ public class JavaMethodInvokeStrategy extends AbstractExecutableRuleNodeFactoryS
                 for (int i = 0; i < parameterCount; i++) {
                     invokeParameter[i] = convertParameter(context, methodTypes[i], data, config, i);
                 }
-                context.logger().info("invoke {}.{}", className, methodName);
+                context.logger().debug("invoke {}.{}", className, methodName);
                 Object result = finaleMethod.invoke(instance, (Object[]) invokeParameter);
                 if (result instanceof CompletionStage) {
                     return ((CompletionStage) result);

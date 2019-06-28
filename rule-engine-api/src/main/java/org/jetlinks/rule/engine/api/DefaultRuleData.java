@@ -60,31 +60,29 @@ public class DefaultRuleData implements RuleData {
     @Override
     @SuppressWarnings("all")
     public void acceptMap(Consumer<Map<String, Object>> consumer) {
-        if(data==null){
+        if (data == null) {
             return;
-        }
-        else if(data instanceof byte[]){
-            data =JSON.parse(((byte[]) data));
-        }
-        else if(data instanceof String){
-            data =JSON.parse(((String) data));
-        }
-        else if(data instanceof Map){
-          doAcceptMap(data,consumer);
-        }
-        else if(data instanceof Collection){
-            ((Collection) data).forEach(d->doAcceptMap(d,consumer));
-        }else{
-            doAcceptMap(data,consumer);
+        } else if (data instanceof byte[]) {
+            data = JSON.parse(((byte[]) data));
+        } else if (data instanceof String) {
+            data = JSON.parse(((String) data));
+        } else if (data instanceof Map) {
+            doAcceptMap(data, consumer);
+        } else if (data instanceof RuleData) {
+            ((RuleData) data).acceptMap(consumer);
+        } else if (data instanceof Collection) {
+            ((Collection) data).forEach(d -> doAcceptMap(d, consumer));
+        } else {
+            doAcceptMap(data, consumer);
         }
     }
 
     @SuppressWarnings("all")
-    private void doAcceptMap(Object data,Consumer<Map<String, Object>> consumer){
-        if(data instanceof Map){
+    private void doAcceptMap(Object data, Consumer<Map<String, Object>> consumer) {
+        if (data instanceof Map) {
             consumer.accept(((Map) data));
-        }else{
-            consumer.accept(FastBeanCopier.copy(data,HashMap::new));
+        } else {
+            consumer.accept(FastBeanCopier.copy(data, HashMap::new));
         }
     }
 

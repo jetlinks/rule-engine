@@ -84,7 +84,9 @@ public class RedissonClusterManagerTest {
                     System.out.println("leave:" + node);
                 });
         int oldSize = clusterManager.getAllAliveNode().size();
-        haManager.clusterNodeKeepTopic.publish(nodeInfo);
+       redissonClient.getTopic( haManager.getRedisKey("cluster:node:join"))
+               .publish(nodeInfo);
+
         Thread.sleep(1000);
         Assert.assertEquals(counter.get(), 1);
         Assert.assertEquals(clusterManager.getAllAliveNode().size(), oldSize + 1);

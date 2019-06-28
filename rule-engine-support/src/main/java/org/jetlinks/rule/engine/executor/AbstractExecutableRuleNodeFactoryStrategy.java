@@ -2,17 +2,15 @@ package org.jetlinks.rule.engine.executor;
 
 import com.alibaba.fastjson.JSON;
 import org.hswebframework.web.bean.FastBeanCopier;
-import org.jetlinks.rule.engine.api.Logger;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleDataHelper;
 import org.jetlinks.rule.engine.api.events.RuleEvent;
+import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
 import org.jetlinks.rule.engine.api.executor.ExecutionContext;
 import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
-import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
 import org.jetlinks.rule.engine.executor.supports.RuleNodeConfig;
 
 import java.util.concurrent.CompletionStage;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**
