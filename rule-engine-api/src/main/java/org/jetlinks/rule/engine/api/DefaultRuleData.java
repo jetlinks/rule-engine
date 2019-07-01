@@ -66,7 +66,9 @@ public class DefaultRuleData implements RuleData {
             data = JSON.parse(((byte[]) data));
         } else if (data instanceof String) {
             data = JSON.parse(((String) data));
-        } else if (data instanceof Map) {
+        }
+
+        if (data instanceof Map) {
             doAcceptMap(data, consumer);
         } else if (data instanceof RuleData) {
             ((RuleData) data).acceptMap(consumer);

@@ -105,7 +105,12 @@ public class StandaloneRuleEngine implements RuleEngine {
         StandaloneRuleInstanceContext context = new StandaloneRuleInstanceContext();
         context.id = id;
         context.startTime = System.currentTimeMillis();
-        context.rootExecutor = builder.createRuleExecutor(id, null, nodeModel, null);
+
+        for (RuleNodeModel node : rule.getModel().getNodes()) {
+            builder.createRuleExecutor(id, null, node,null);
+        }
+        context.rootExecutor = builder.createRuleExecutor(id, null, nodeModel,null);
+
         context.allExecutor = builder.allExecutor;
         rule.getModel()
                 .getEndNodes()

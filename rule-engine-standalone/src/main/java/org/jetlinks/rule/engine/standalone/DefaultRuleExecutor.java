@@ -61,7 +61,7 @@ public class DefaultRuleExecutor implements RuleExecutor {
     @Setter
     private List<GlobalNodeEventListener> listeners = new CopyOnWriteArrayList<>();
 
-    private List<RuleExecutor> next = new ArrayList<>();
+    private Set<RuleExecutor> next = new HashSet<>();
 
     private Map<String, List<RuleExecutor>> eventHandler = new HashMap<>();
 
