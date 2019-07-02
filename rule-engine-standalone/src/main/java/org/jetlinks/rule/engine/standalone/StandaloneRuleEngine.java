@@ -211,6 +211,10 @@ public class StandaloneRuleEngine implements RuleEngine {
             for (RuleExecutor ruleExecutor : allExecutor.values()) {
                 ruleExecutor.stop();
             }
+            for (Sync value : syncMap.values()) {
+                value.future.completeExceptionally(new InterruptedException("rule stop"));
+            }
+            syncMap.clear();
         }
 
     }
