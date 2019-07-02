@@ -90,14 +90,28 @@ public class DefaultRuleData implements RuleData {
 
     @Override
     public RuleData newData(Object data) {
+        DefaultRuleData ruleData = new DefaultRuleData();
         if (data instanceof RuleData) {
             data = ((RuleData) data).getData();
         }
-        DefaultRuleData ruleData = new DefaultRuleData();
-        ruleData.data = data;
         ruleData.id = id;
         ruleData.attributes = new HashMap<>(attributes);
+        ruleData.data = data;
+
         RuleDataHelper.clearError(ruleData);
+        return ruleData;
+    }
+
+    @Override
+    public RuleData copy() {
+        DefaultRuleData ruleData = new DefaultRuleData();
+        ruleData.id = id;
+        ruleData.attributes = new HashMap<>(attributes);
+        ruleData.data = data;
+
+        RuleDataHelper.clearError(ruleData);
+        RuleDataHelper.clearError(ruleData);
+
         return ruleData;
     }
 

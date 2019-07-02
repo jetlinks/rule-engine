@@ -20,6 +20,8 @@ public interface RuleData extends Serializable {
 
     RuleData newData(Object data);
 
+    RuleData copy();
+
     Map<String, Object> getAttributes();
 
     Optional<Object> getAttribute(String key);

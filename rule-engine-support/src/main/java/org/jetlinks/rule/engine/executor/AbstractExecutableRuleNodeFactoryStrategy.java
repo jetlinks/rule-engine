@@ -26,6 +26,7 @@ public abstract class AbstractExecutableRuleNodeFactoryStrategy<C extends RuleNo
 
     public abstract Function<RuleData, CompletionStage<Object>> createExecutor(ExecutionContext context, C config);
 
+
     protected ExecutableRuleNode doCreate(C config) {
         return context -> {
             Function<RuleData, CompletionStage<Object>> executor = createExecutor(context, config);
@@ -47,7 +48,9 @@ public abstract class AbstractExecutableRuleNodeFactoryStrategy<C extends RuleNo
                                             newData = data.newData(data);
                                         }
                                         context.fireEvent(RuleEvent.NODE_EXECUTE_DONE, newData);
-                                        context.getOutput().write(newData);
+                                        if (result == SkipNextValue.INSTANCE) {
+                                            context.getOutput().write(newData);
+                                        }
                                     }
                                 });
                     });

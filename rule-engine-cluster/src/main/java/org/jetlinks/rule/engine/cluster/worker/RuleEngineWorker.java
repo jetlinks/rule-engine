@@ -331,7 +331,7 @@ public class RuleEngineWorker {
             logger.setLogInfoConsumer(this::acceptLog);
 
             context.setEventHandler((event, data) -> {
-                data = data.newData(data);
+                data = data.copy();
                 if (RuleEvent.NODE_EXECUTE_DONE.equals(event)) {
                     RuleDataHelper.clearError(data);
                 }
