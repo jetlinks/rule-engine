@@ -111,8 +111,8 @@ public class StandaloneRuleEngine implements RuleEngine {
         //处理所有没有指定输入的节点
         rule.getModel().getNodes()
                 .stream()
-                .filter(node->node.getInputs().isEmpty())
-                .forEach(node-> builder.createRuleExecutor(id, null, node, null));
+                .filter(node -> node.getInputs().isEmpty())
+                .forEach(node -> builder.createRuleExecutor(id, null, node, null));
 
         context.allExecutor = new HashMap<>(builder.allExecutor);
 
@@ -159,23 +159,12 @@ public class StandaloneRuleEngine implements RuleEngine {
                 RuleDataHelper.markSyncReturn(data, endNodeId);
             }
             Sync sync = new Sync();
+
             syncMap.put(data.getId(), sync);
             RuleExecutor ruleExecutor = getExecutor(data);
+            ruleExecutor.execute(data);
 
-            return CompletableFuture.supplyAsync(() -> {
-                ruleExecutor.execute(data);
-                try {
-                    sync.countDownLatch.await(30, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                } finally {
-                    syncMap.remove(data.getId());
-                }
-                if (log.isDebugEnabled()) {
-                    log.debug("rule[{}] execute complete:{}", id, sync.ruleData);
-                }
-                return sync.ruleData;
-            }, executor);
+            return sync.future;
         }
 
         @Override
@@ -209,10 +198,7 @@ public class StandaloneRuleEngine implements RuleEngine {
                 if ((RuleEvent.NODE_EXECUTE_DONE.equals(event) || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) &&
                         executeEvent.getNodeId().equals(RuleDataHelper.getEndWithNodeId(data).orElse(null))) {
                     Optional.ofNullable(syncMap.remove(data.getId()))
-                            .ifPresent(sync -> {
-                                sync.ruleData = data;
-                                sync.countDownLatch.countDown();
-                            });
+                            .ifPresent(sync -> sync.future.complete(data));
                 }
             };
             for (RuleExecutor ruleExecutor : allExecutor.values()) {
@@ -230,7 +216,6 @@ public class StandaloneRuleEngine implements RuleEngine {
     }
 
     static class Sync {
-        CountDownLatch countDownLatch = new CountDownLatch(1);
-        RuleData ruleData;
+        CompletableFuture<RuleData> future = new CompletableFuture<>();
     }
 }

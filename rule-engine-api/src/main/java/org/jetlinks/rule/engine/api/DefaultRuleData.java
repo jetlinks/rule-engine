@@ -110,7 +110,6 @@ public class DefaultRuleData implements RuleData {
         ruleData.data = data;
 
         RuleDataHelper.clearError(ruleData);
-        RuleDataHelper.clearError(ruleData);
 
         return ruleData;
     }

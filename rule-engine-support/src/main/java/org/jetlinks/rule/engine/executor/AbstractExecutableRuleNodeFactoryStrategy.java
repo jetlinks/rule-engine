@@ -45,10 +45,10 @@ public abstract class AbstractExecutableRuleNodeFactoryStrategy<C extends RuleNo
                                         if (config.getNodeType().isReturnNewValue()) {
                                             newData = data.newData(result);
                                         } else {
-                                            newData = data.newData(data);
+                                            newData = data.copy();
                                         }
                                         context.fireEvent(RuleEvent.NODE_EXECUTE_DONE, newData);
-                                        if (result == SkipNextValue.INSTANCE) {
+                                        if (result != SkipNextValue.INSTANCE) {
                                             context.getOutput().write(newData);
                                         }
                                     }
