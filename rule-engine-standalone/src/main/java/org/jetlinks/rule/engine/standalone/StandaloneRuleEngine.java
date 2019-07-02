@@ -14,6 +14,7 @@ import org.jetlinks.rule.engine.api.model.Condition;
 import org.jetlinks.rule.engine.api.model.RuleLink;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.*;
@@ -50,13 +51,12 @@ public class StandaloneRuleEngine implements RuleEngine {
     public Map<String, RuleInstanceContext> contextMap = new ConcurrentHashMap<>();
 
     private class RuleExecutorBuilder {
-        private Map<String, RuleExecutor> allExecutor = new ConcurrentHashMap<>();
+        private Map<String, DefaultRuleExecutor> allExecutor = new ConcurrentHashMap<>();
 
         private RuleExecutor createSingleRuleExecutor(String contextId, Condition condition, RuleNodeModel nodeModel) {
-            RuleExecutor tmp = allExecutor.get(nodeModel.getId());
+            DefaultRuleExecutor tmp = allExecutor.get(nodeModel.getId());
 
             if (tmp == null) {
-
                 DefaultRuleExecutor executor = new DefaultRuleExecutor();
                 allExecutor.put(nodeModel.getId(), tmp = executor);
 
@@ -106,12 +106,16 @@ public class StandaloneRuleEngine implements RuleEngine {
         context.id = id;
         context.startTime = System.currentTimeMillis();
 
-        for (RuleNodeModel node : rule.getModel().getNodes()) {
-            builder.createRuleExecutor(id, null, node,null);
-        }
-        context.rootExecutor = builder.createRuleExecutor(id, null, nodeModel,null);
+        context.rootExecutor = builder.createRuleExecutor(id, null, nodeModel, null);
 
-        context.allExecutor = builder.allExecutor;
+        //处理所有没有指定输入的节点
+        rule.getModel().getNodes()
+                .stream()
+                .filter(node->node.getInputs().isEmpty())
+                .forEach(node-> builder.createRuleExecutor(id, null, node, null));
+
+        context.allExecutor = new HashMap<>(builder.allExecutor);
+
         rule.getModel()
                 .getEndNodes()
                 .stream()
