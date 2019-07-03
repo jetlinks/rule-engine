@@ -35,24 +35,27 @@ public abstract class AbstractExecutableRuleNodeFactoryStrategy<C extends RuleNo
                         context.fireEvent(RuleEvent.NODE_EXECUTE_BEFORE, data.newData(data));
 
                         RuleDataHelper.setExecuteTimeNow(data);
-
-                        executor.apply(data)
-                                .whenComplete((result, error) -> {
-                                    if (error != null) {
-                                        context.onError(data, error);
-                                    } else {
-                                        RuleData newData;
-                                        if (config.getNodeType().isReturnNewValue()) {
-                                            newData = data.newData(result);
+                        try {
+                            executor.apply(data)
+                                    .whenComplete((result, error) -> {
+                                        if (error != null) {
+                                            context.onError(data, error);
                                         } else {
-                                            newData = data.copy();
+                                            RuleData newData;
+                                            if (config.getNodeType().isReturnNewValue()) {
+                                                newData = data.newData(result);
+                                            } else {
+                                                newData = data.copy();
+                                            }
+                                            context.fireEvent(RuleEvent.NODE_EXECUTE_DONE, newData);
+                                            if (result != SkipNextValue.INSTANCE) {
+                                                context.getOutput().write(newData);
+                                            }
                                         }
-                                        context.fireEvent(RuleEvent.NODE_EXECUTE_DONE, newData);
-                                        if (result != SkipNextValue.INSTANCE) {
-                                            context.getOutput().write(newData);
-                                        }
-                                    }
-                                });
+                                    });
+                        } catch (Throwable e) {
+                            context.onError(data, e);
+                        }
                     });
         };
     }

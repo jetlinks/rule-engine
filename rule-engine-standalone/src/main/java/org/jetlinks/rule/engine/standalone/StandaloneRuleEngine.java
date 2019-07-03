@@ -53,20 +53,18 @@ public class StandaloneRuleEngine implements RuleEngine {
     private class RuleExecutorBuilder {
         private Map<String, DefaultRuleExecutor> allExecutor = new ConcurrentHashMap<>();
 
-        private RuleExecutor createSingleRuleExecutor(String contextId, Condition condition, RuleNodeModel nodeModel) {
+        private RuleExecutor createSingleRuleExecutor(String contextId, RuleNodeModel nodeModel) {
             DefaultRuleExecutor tmp = allExecutor.get(nodeModel.getId());
 
             if (tmp == null) {
                 DefaultRuleExecutor executor = new DefaultRuleExecutor();
+                executor.setParallel(nodeModel.isParallel());
                 allExecutor.put(nodeModel.getId(), tmp = executor);
 
                 ExecutableRuleNode ruleNode = nodeFactory.create(nodeModel.createConfiguration());
                 Logger logger = loggerSupplier.apply(contextId, nodeModel);
                 executor.setLogger(logger);
                 executor.setRuleNode(ruleNode);
-                if (null != condition) {
-                    executor.setCondition(ruleData -> evaluator.evaluate(condition, ruleData));
-                }
                 //event
                 for (RuleLink event : nodeModel.getEvents()) {
                     executor.addEventListener(event.getType(), createRuleExecutor(contextId, event.getCondition(), event.getTarget(), null));
@@ -81,9 +79,9 @@ public class StandaloneRuleEngine implements RuleEngine {
         }
 
         private RuleExecutor createRuleExecutor(String contextId, Condition condition, RuleNodeModel nodeModel, RuleExecutor parent) {
-            RuleExecutor executor = createSingleRuleExecutor(contextId, condition, nodeModel);
+            RuleExecutor executor = createSingleRuleExecutor(contextId, nodeModel);
             if (parent != null) {
-                parent.addNext(executor);
+                parent.addNext(condition == null ? (data) -> true : (data) -> evaluator.evaluate(condition, data), executor);
             }
 
             //output
@@ -221,5 +219,7 @@ public class StandaloneRuleEngine implements RuleEngine {
 
     static class Sync {
         CompletableFuture<RuleData> future = new CompletableFuture<>();
+
+        long createTime = System.currentTimeMillis();
     }
 }

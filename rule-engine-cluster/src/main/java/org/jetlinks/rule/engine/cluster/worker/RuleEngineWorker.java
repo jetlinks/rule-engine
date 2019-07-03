@@ -205,21 +205,13 @@ public class RuleEngineWorker {
             if (running) {
                 return;
             }
-            running=true;
+            running = true;
             AtomicReference<Function<RuleData, CompletionStage<RuleData>>> reference = new AtomicReference<>();
             context.execute(reference::set);
             input.acceptOnce(data -> {
                 if (RuleDataHelper.isSync(data)) {
                     context.execute(data)
-                            .whenComplete((ruleData, throwable) -> {
-                                logger.info("sync return:{}", ruleData);
-                                clusterManager
-                                        .getObject(ruleData.getId())
-                                        .setData(ruleData);
-                                clusterManager
-                                        .getSemaphore(ruleData.getId(), 0)
-                                        .release();
-                            });
+                            .whenComplete((ruleData, throwable) -> syncReturn(request.getInstanceId(), ruleData, throwable));
                 } else {
                     reference.get()
                             .apply(data);
@@ -285,6 +277,31 @@ public class RuleEngineWorker {
         }
     }
 
+    private void syncReturn(String instanceId, RuleData data, Throwable error) {
+        if (data == null) {
+            log.error("sync return [{}] error", instanceId, error);
+            return;
+        }
+        String server = data.getAttribute("fromServer").map(String.class::cast).orElse(null);
+
+        if (server != null) {
+            data.setAttribute("endServer", clusterManager.getHaManager().getCurrentNode().getId());
+            data.setAttribute("instanceId", instanceId);
+            clusterManager.getHaManager()
+                    .sendNotifyNoReply(server, "sync-return", data);
+        } else {
+            clusterManager
+                    .getObject(data.getId())
+                    .setData(data);
+            clusterManager
+                    .getSemaphore(data.getId(), 0)
+                    .release();
+        }
+        if (log.isInfoEnabled()) {
+            log.info("sync return:{}", data);
+        }
+    }
+
     //分布式流式规则
     protected boolean createRuleNode(StartRuleNodeRequest request) {
         Map<String, RunningRule> map = getRunningRuleNode(request.getInstanceId());
@@ -340,13 +357,8 @@ public class RuleEngineWorker {
                 if (RuleEvent.NODE_EXECUTE_DONE.equals(event) || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) {
                     //同步返回结果
                     if (configuration.getNodeId().equals(RuleDataHelper.getEndWithNodeId(data).orElse(null))) {
-                        logger.debug("sync return:{}", data);
-                        clusterManager
-                                .getObject(data.getId())
-                                .setData(data);
-                        clusterManager
-                                .getSemaphore(data.getId(), 0)
-                                .release();
+
+                        syncReturn(request.getInstanceId(), data, null);
                     }
                 }
                 Output eventOutput = events.get(event);
@@ -358,6 +370,7 @@ public class RuleEngineWorker {
             context.setInput(input);
             context.setOutput(output);
             context.setErrorHandler((ruleData, throwable) -> {
+                context.getLogger().error(throwable.getMessage(), throwable);
                 RuleDataHelper.putError(ruleData, throwable);
                 context.fireEvent(RuleEvent.NODE_EXECUTE_FAIL, ruleData);
             });

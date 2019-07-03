@@ -47,6 +47,8 @@ public class RuleNodeModel {
 
     private List<RuleLink> outputs = new ArrayList<>();
 
+    private boolean parallel;
+
     public RuleNodeModel addConfiguration(String key, Object value) {
         configuration.put(key, value);
         return this;

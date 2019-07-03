@@ -4,6 +4,7 @@ import lombok.SneakyThrows;
 import org.jetlinks.rule.engine.api.cluster.Queue;
 import org.redisson.api.RQueue;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -63,7 +64,7 @@ public class RedissonQueue<T> implements Queue<T> {
 
     @Override
     public CompletionStage<Boolean> putAsync(T data) {
-        return queue.addAsync(data);
+        return CompletableFuture.supplyAsync(() -> queue.add(data));
     }
 
     @Override

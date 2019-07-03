@@ -78,6 +78,32 @@ public class RedissonHaManager implements HaManager {
         return clusterName + ":" + key;
     }
 
+    private void handleNotify(ClusterNotify msg) {
+        Function<Object, Object> handler = Optional.ofNullable(notifyListener.get(msg.getAddress()))
+                .orElseGet(() -> (obj -> {
+                    throw new UnsupportedOperationException("unsupported address:".concat(msg.getAddress()));
+                }));
+        String replyId = msg.getReplyId();
+        ClusterNotifyReply reply = new ClusterNotifyReply();
+        reply.setReplyId(replyId);
+        try {
+            Object result = handler.apply(msg.getMessage());
+            if (result == null) {
+                return;
+            }
+            reply.setSuccess(true);
+            reply.setReply(result);
+        } catch (Throwable error) {
+            log.error("execute notify error : " + error.getMessage(), error);
+            reply.setErrorType(error.getClass().getName());
+            reply.setErrorMessage(error.getMessage());
+        }
+        redissonClient.getBucket("notify:result:" + replyId).set(reply, 1, TimeUnit.MINUTES);
+        RSemaphore rSemaphore = redissonClient.getSemaphore("notify:" + replyId);
+        rSemaphore.release();
+        rSemaphore.expire(1, TimeUnit.MINUTES);
+    }
+
     public void start() {
         Assert.notNull(redissonClient, "redissonClient");
         Assert.notNull(currentNode, "currentNode");
@@ -98,26 +124,7 @@ public class RedissonHaManager implements HaManager {
         //集群通知
         redissonClient.getTopic(getRedisKey("cluster:notify:" + currentNode.getId()))
                 .addListener(ClusterNotify.class, (channel, msg) -> {
-                    Function<Object, Object> handler = Optional.ofNullable(notifyListener.get(msg.getAddress()))
-                            .orElseGet(() -> (obj -> {
-                                throw new UnsupportedOperationException("unsupported address:".concat(msg.getAddress()));
-                            }));
-                    String replyId = msg.getReplyId();
-                    ClusterNotifyReply reply = new ClusterNotifyReply();
-                    reply.setReplyId(replyId);
-                    try {
-                        Object result = handler.apply(msg.getMessage());
-                        reply.setSuccess(true);
-                        reply.setReply(result);
-                    } catch (Throwable error) {
-                        log.error("execute notify error : " + error.getMessage(), error);
-                        reply.setErrorType(error.getClass().getName());
-                        reply.setErrorMessage(error.getMessage());
-                    }
-                    redissonClient.getBucket("notify:result:" + replyId).set(reply, 1, TimeUnit.MINUTES);
-                    RSemaphore rSemaphore = redissonClient.getSemaphore("notify:" + replyId);
-                    rSemaphore.release();
-                    rSemaphore.expire(1, TimeUnit.MINUTES);
+                    handleNotify(msg);
                 });
 
         //订阅节点上下线
@@ -198,8 +205,33 @@ public class RedissonHaManager implements HaManager {
     }
 
     @Override
+    public void sendNotifyNoReply(String nodeId, String address, Object message) {
+        if (nodeId.equals(getCurrentNode().getId())) {
+            Optional.ofNullable(notifyListener.get(address))
+                    .ifPresent(function -> function.apply(message));
+            return;
+        }
+
+        redissonClient.getTopic(getRedisKey("cluster:notify:".concat(nodeId)))
+                .publish(new ClusterNotify(IDGenerator.MD5.generate(), address, message));
+    }
+
+    @Override
     public <V> CompletionStage<V> sendNotify(String nodeId, String address, Object message) {
         String replyId = IDGenerator.MD5.generate();
+        if (nodeId.equals(getCurrentNode().getId())) {
+            CompletableFuture<V> future = new CompletableFuture<>();
+            try {
+                Optional.ofNullable(notifyListener.get(address))
+                        .map(function -> function.apply(message))
+                        .map(v -> (V) v)
+                        .ifPresent(future::complete);
+            } catch (Throwable e) {
+                future.completeExceptionally(e);
+            }
+            return future;
+        }
+
         return redissonClient.getTopic(getRedisKey("cluster:notify:".concat(nodeId)))
                 .publishAsync(new ClusterNotify(replyId, address, message))
                 .thenCompose(len -> {

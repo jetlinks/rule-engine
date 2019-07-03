@@ -237,6 +237,9 @@ public class ClusterRuleEngine implements RuleEngine {
                 context.setInputQueue(clusterManager.getQueue("data:" + id + ":input"));
                 request.getInputQueue().add(new InputConfig("data:" + id + ":input"));
             }
+            if (model.getInputs().isEmpty()) {
+                request.getInputQueue().add(new InputConfig(getDataQueueName(id, model)));
+            }
             //input
             for (RuleLink inputLink : model.getInputs()) {
                 RuleNodeModel source = inputLink.getTarget();
@@ -297,7 +300,7 @@ public class ClusterRuleEngine implements RuleEngine {
 
             request = new StartRuleRequest();
             request.setInstanceId(id);
-            request.setInputQueue(Arrays.asList(inputQueue));
+            request.setInputQueue(Collections.singletonList(inputQueue));
             request.setRuleId(rule.getId());
             this.rule = rule;
         }
@@ -367,6 +370,18 @@ public class ClusterRuleEngine implements RuleEngine {
                     for (RunningRule value : contextCache.values()) {
                         value.tryResume(node.getId());
                     }
+                });
+
+        clusterManager.getHaManager()
+                .<RuleData, Object>onNotify("sync-return", data -> {
+
+                    data.getAttribute("instanceId")
+                            .map(String::valueOf)
+                            .map(contextCache::get)
+                            .map(RunningRule::getContext)
+                            .ifPresent(context -> context.syncReturn(data));
+
+                    return null;
                 });
     }
 

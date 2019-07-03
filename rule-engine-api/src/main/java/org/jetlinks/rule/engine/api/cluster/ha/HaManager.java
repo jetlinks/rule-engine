@@ -57,4 +57,6 @@ public interface HaManager {
      */
     <V> CompletionStage<V> sendNotify(String nodeId, String address, Object message);
 
+     void sendNotifyNoReply(String nodeId, String address, Object message);
+
 }

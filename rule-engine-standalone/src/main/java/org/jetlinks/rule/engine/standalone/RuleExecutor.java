@@ -5,6 +5,7 @@ import org.jetlinks.rule.engine.api.events.GlobalNodeEventListener;
 import org.jetlinks.rule.engine.api.model.NodeType;
 
 import java.util.concurrent.CompletionStage;
+import java.util.function.Predicate;
 
 /**
  * @author zhouhao
@@ -16,9 +17,7 @@ public interface RuleExecutor {
 
     CompletionStage<RuleData> execute(RuleData ruleData);
 
-    void addNext(RuleExecutor executor);
-
-    boolean should(RuleData data);
+    void addNext(Predicate<RuleData> condition, RuleExecutor executor);
 
     void addEventListener(String event, RuleExecutor executor);
 

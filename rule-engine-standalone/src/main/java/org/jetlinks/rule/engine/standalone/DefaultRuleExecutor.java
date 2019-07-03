@@ -37,10 +37,6 @@ public class DefaultRuleExecutor implements RuleExecutor {
 
     @Getter
     @Setter
-    private Predicate<RuleData> condition;
-
-    @Getter
-    @Setter
     private NodeType nodeType;
 
     @Getter
@@ -50,6 +46,10 @@ public class DefaultRuleExecutor implements RuleExecutor {
     @Getter
     @Setter
     private String nodeId;
+
+    @Getter
+    @Setter
+    private boolean parallel;
 
     private volatile ExecutionContext context = new SimpleContext();
 
@@ -61,7 +61,8 @@ public class DefaultRuleExecutor implements RuleExecutor {
     @Setter
     private List<GlobalNodeEventListener> listeners = new CopyOnWriteArrayList<>();
 
-    private Set<RuleExecutor> next = new HashSet<>();
+    private Set<OutRuleExecutor> outputs = new HashSet<>();
+
 
     private Map<String, List<RuleExecutor>> eventHandler = new HashMap<>();
 
@@ -69,11 +70,9 @@ public class DefaultRuleExecutor implements RuleExecutor {
     };
 
     private void doNext(RuleData data) {
-        for (RuleExecutor ruleExecutor : next) {
-            if (ruleExecutor.should(data)) {
-                ruleExecutor.execute(data);
-            }
-        }
+        (parallel ? outputs.parallelStream() : outputs.stream())
+                .filter(e -> e.getCondition().test(data))
+                .forEach(outRuleExecutor -> outRuleExecutor.getExecutor().execute(data));
     }
 
     public void start() {
@@ -108,11 +107,9 @@ public class DefaultRuleExecutor implements RuleExecutor {
         }
         Optional.ofNullable(eventHandler.get(event))
                 .filter(CollectionUtils::isNotEmpty)
-                .ifPresent(executor -> {
-                    for (RuleExecutor ruleExecutor : executor) {
-                        ruleExecutor.execute(ruleData);
-                    }
-                });
+                .ifPresent(executor ->
+                        (parallel ? executor.parallelStream() : executor.stream())
+                                .forEach(ruleExecutor -> ruleExecutor.execute(ruleData)));
     }
 
     @Override
@@ -125,20 +122,8 @@ public class DefaultRuleExecutor implements RuleExecutor {
     }
 
     @Override
-    public void addNext(RuleExecutor executor) {
-        next.add(executor);
-    }
-
-    @Override
-    public boolean should(RuleData data) {
-        try {
-            return condition == null || condition.test(data);
-        } catch (Throwable e) {
-            logger.error("condition error", e);
-            RuleDataHelper.putError(data, e);
-            fireEvent(RuleEvent.NODE_EXECUTE_FAIL, data);
-            return false;
-        }
+    public void addNext(Predicate<RuleData> condition, RuleExecutor executor) {
+        outputs.add(new OutRuleExecutor(condition, executor));
     }
 
     @Override
@@ -186,6 +171,7 @@ public class DefaultRuleExecutor implements RuleExecutor {
 
         @Override
         public void onError(RuleData data, Throwable e) {
+            logger().error(e.getMessage(), e);
             RuleDataHelper.putError(data, e);
             fireEvent(RuleEvent.NODE_EXECUTE_FAIL, data);
         }
@@ -193,7 +179,7 @@ public class DefaultRuleExecutor implements RuleExecutor {
         @Override
         public void stop() {
             stopListener.forEach(Runnable::run);
-          //  stopListener.clear();
+            //  stopListener.clear();
         }
 
         @Override
