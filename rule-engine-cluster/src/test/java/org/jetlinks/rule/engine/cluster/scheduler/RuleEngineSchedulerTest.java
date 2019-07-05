@@ -4,10 +4,8 @@ import lombok.SneakyThrows;
 import org.hswebframework.web.id.IDGenerator;
 import org.jetlinks.rule.engine.api.Rule;
 import org.jetlinks.rule.engine.api.RuleData;
-import org.jetlinks.rule.engine.api.RuleDataHelper;
 import org.jetlinks.rule.engine.api.RuleInstanceContext;
 import org.jetlinks.rule.engine.api.cluster.RunMode;
-import org.jetlinks.rule.engine.api.events.RuleEvent;
 import org.jetlinks.rule.engine.api.model.*;
 import org.jetlinks.rule.engine.api.persistent.RulePersistent;
 import org.jetlinks.rule.engine.api.cluster.NodeInfo;
@@ -47,11 +45,11 @@ import static org.jetlinks.rule.engine.api.RuleDataHelper.newHelper;
  * @author zhouhao
  * @since 1.0.0
  */
-public class ClusterRuleEngineTest {
+public class RuleEngineSchedulerTest {
     private RedissonClusterManager clusterManager;
     private RedissonClient         redissonClient = RedissonHelper.newRedissonClient();
     private RedissonHaManager      haManager;
-    private ClusterRuleEngine      ruleEngine;
+    private RuleEngineScheduler ruleEngine;
 
     private DefaultRuleModelParser modelParser;
     private Rule                   rule;
@@ -94,7 +92,7 @@ public class ClusterRuleEngineTest {
         clusterManager.start();
         haManager.start();
 
-        ruleEngine = new ClusterRuleEngine();
+        ruleEngine = new RuleEngineScheduler();
 
         ruleEngine.setClusterManager(clusterManager);
         ruleEngine.setNodeSelector((model, allNode) -> allNode);

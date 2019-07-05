@@ -289,14 +289,15 @@ public class RuleEngineWorker {
             data.setAttribute("instanceId", instanceId);
             clusterManager.getHaManager()
                     .sendNotifyNoReply(server, "sync-return", data);
-        } else {
-            clusterManager
-                    .getObject(data.getId())
-                    .setData(data);
-            clusterManager
-                    .getSemaphore(data.getId(), 0)
-                    .release();
         }
+//        else {
+//            clusterManager
+//                    .getObject(data.getId())
+//                    .setData(data);
+//            clusterManager
+//                    .getSemaphore(data.getId(), 0)
+//                    .release();
+//        }
         if (log.isInfoEnabled()) {
             log.info("sync return:{}", data);
         }

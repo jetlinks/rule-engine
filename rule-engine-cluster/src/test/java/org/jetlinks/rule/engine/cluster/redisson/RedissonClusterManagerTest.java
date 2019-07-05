@@ -2,8 +2,6 @@ package org.jetlinks.rule.engine.cluster.redisson;
 
 import lombok.SneakyThrows;
 import org.hswebframework.web.id.IDGenerator;
-import org.jetlinks.rule.engine.api.cluster.ClusterLock;
-import org.jetlinks.rule.engine.api.cluster.ClusterSemaphore;
 import org.jetlinks.rule.engine.api.cluster.NodeInfo;
 import org.junit.After;
 import org.junit.Assert;
@@ -26,8 +24,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public class RedissonClusterManagerTest {
 
     private RedissonClusterManager clusterManager;
-    private RedissonClient         redissonClient = RedissonHelper.newRedissonClient();
-    private RedissonHaManager      haManager;
+    private RedissonClient redissonClient = RedissonHelper.newRedissonClient();
+    private RedissonHaManager haManager;
 
     @Before
     public void init() {
@@ -84,8 +82,8 @@ public class RedissonClusterManagerTest {
                     System.out.println("leave:" + node);
                 });
         int oldSize = clusterManager.getAllAliveNode().size();
-       redissonClient.getTopic( haManager.getRedisKey("cluster:node:join"))
-               .publish(nodeInfo);
+        redissonClient.getTopic(haManager.getRedisKey("cluster:node:join"))
+                .publish(nodeInfo);
 
         Thread.sleep(1000);
         Assert.assertEquals(counter.get(), 1);
@@ -140,79 +138,5 @@ public class RedissonClusterManagerTest {
         latch.await(10, TimeUnit.SECONDS);
 
         Assert.assertEquals(data.get(), "test");
-    }
-
-    @Test
-    @SneakyThrows
-    public void testMap() {
-        clusterManager.getMap("test")
-                .put("test", "test");
-
-        Assert.assertEquals(clusterManager.getMap("test").get("test").orElse(null), "test");
-
-        Assert.assertEquals(clusterManager.getMap("test").removeAsync("test").toCompletableFuture().get(), "test");
-
-        Assert.assertNull(clusterManager.getMap("test").getAsync("test").toCompletableFuture().get());
-
-        Assert.assertNotNull(clusterManager.getMap("test").toMap());
-
-    }
-
-    @Test
-    @SuppressWarnings("all")
-    public void testLock() {
-        for (int i = 0; i < 10; i++) {
-            ClusterLock lock = clusterManager.getLock("test", 5, TimeUnit.SECONDS);
-            StringBuilder builder = new StringBuilder();
-
-            new Thread(() -> {
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                builder.append("2");
-                lock.unlock();
-            }).start();
-            builder.append("1");
-            clusterManager.getLock("test", 1, TimeUnit.SECONDS).unlock();
-            builder.append("3");
-
-            Assert.assertEquals(builder.toString(), "123");
-            System.out.println(builder + "--" + i);
-        }
-    }
-
-    @Test
-    @SuppressWarnings("all")
-    @SneakyThrows
-    public void testSemaphore() {
-        for (int i = 0; i < 10; i++) {
-            ClusterSemaphore semaphore = clusterManager.getSemaphore("test", 0);
-            StringBuilder builder = new StringBuilder();
-            new Thread(() -> {
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                builder.append("2");
-                semaphore.release();
-            }).start();
-            builder.append("1");
-            semaphore.tryAcquire(10, TimeUnit.SECONDS);
-            clusterManager
-                    .getSemaphore("test", 1)
-                    .tryAcquireAsync(1, TimeUnit.SECONDS)
-                    .thenRunAsync(() -> {
-                        clusterManager.getSemaphore("test", 1).release();
-                    })
-                    .toCompletableFuture()
-                    .get(10, TimeUnit.SECONDS);
-            builder.append("3");
-
-            Assert.assertEquals(builder.toString(), "123");
-            System.out.println(builder + "--" + i);
-        }
     }
 }

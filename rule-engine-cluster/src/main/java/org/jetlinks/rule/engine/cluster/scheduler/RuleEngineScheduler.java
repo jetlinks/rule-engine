@@ -31,7 +31,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
-public class ClusterRuleEngine implements RuleEngine {
+@SuppressWarnings("all")
+public class RuleEngineScheduler implements RuleEngine {
 
     @Getter
     @Setter
@@ -57,9 +58,66 @@ public class ClusterRuleEngine implements RuleEngine {
 
     protected Map<String, List<GlobalNodeEventListener>> allEventListener = new ConcurrentHashMap<>();
 
+    public void start() {
+        //监听节点上线
+        clusterManager.getHaManager()
+                .onNodeJoin(node -> {
+                    log.info("resume rule node");
+                    for (RunningRule value : contextCache.values()) {
+                        value.tryResume(node.getId());
+                    }
+                });
 
-    protected String getDataQueueName(String id, RuleNodeModel model) {
-        return "data:" + id + ":node:" + model.getId();
+        clusterManager.getHaManager()
+                .<RuleData, Object>onNotify("sync-return", data -> {
+
+                    data.getAttribute("instanceId")
+                            .map(String::valueOf)
+                            .map(contextCache::get)
+                            .map(RunningRule::getContext)
+                            .ifPresent(context -> context.syncReturn(data));
+
+                    return null;
+                });
+    }
+
+    @Override
+    public RuleInstanceContext startRule(Rule rule) {
+        RunningRule runningRule = createRunningRule(rule, IDGenerator.MD5.generate());
+        runningRule.init();
+
+        instanceRepository.saveInstance(runningRule.toPersistent());
+
+        RuleInstanceContext context = runningRule.getContext();
+        context.start();
+
+        contextCache.put(context.getId(), runningRule);
+        return context;
+    }
+
+    @Override
+    public RuleInstanceContext getInstance(String id) {
+        return contextCache.computeIfAbsent(id, instanceId -> {
+            RuleInstancePersistent persistent = instanceRepository
+                    .findInstanceById(instanceId)
+                    .orElseThrow(() -> new NotFoundException("规则实例[" + id + "]不存在"));
+            Rule rule = ruleRepository.findRuleById(persistent.getRuleId())
+                    .map(rulePersistent -> rulePersistent.toRule(modelParser))
+                    .orElseThrow(() -> new NotFoundException("规则[" + persistent.getRuleId() + "]不存在"));
+
+            RunningRule runningRule = createRunningRule(rule, instanceId);
+            runningRule.init();
+            runningRule.start();
+            return runningRule;
+        }).getContext();
+    }
+
+    private RunningRule createRunningRule(Rule rule, String instanceId) {
+        if (rule.getModel().getRunMode() == RunMode.DISTRIBUTED) {
+            return new RunningDistributedRule(rule, instanceId);
+        } else {
+            return new RunningClusterRule(rule, instanceId);
+        }
     }
 
     interface RunningRule {
@@ -74,6 +132,10 @@ public class ClusterRuleEngine implements RuleEngine {
         void tryResume(String nodeId);
 
         RuleInstancePersistent toPersistent();
+    }
+
+    protected String getDataQueueName(String id, RuleNodeModel model) {
+        return "data:" + id + ":node:" + model.getId();
     }
 
     //分布式流式规则
@@ -362,65 +424,4 @@ public class ClusterRuleEngine implements RuleEngine {
         }
     }
 
-    public void start() {
-        //监听节点上线
-        clusterManager.getHaManager()
-                .onNodeJoin(node -> {
-                    log.info("resume rule node");
-                    for (RunningRule value : contextCache.values()) {
-                        value.tryResume(node.getId());
-                    }
-                });
-
-        clusterManager.getHaManager()
-                .<RuleData, Object>onNotify("sync-return", data -> {
-
-                    data.getAttribute("instanceId")
-                            .map(String::valueOf)
-                            .map(contextCache::get)
-                            .map(RunningRule::getContext)
-                            .ifPresent(context -> context.syncReturn(data));
-
-                    return null;
-                });
-    }
-
-    @Override
-    public RuleInstanceContext startRule(Rule rule) {
-        RunningRule runningRule = createRunningRule(rule, IDGenerator.MD5.generate());
-        runningRule.init();
-
-        instanceRepository.saveInstance(runningRule.toPersistent());
-
-        RuleInstanceContext context = runningRule.getContext();
-        context.start();
-
-        contextCache.put(context.getId(), runningRule);
-        return context;
-    }
-
-    @Override
-    public RuleInstanceContext getInstance(String id) {
-        return contextCache.computeIfAbsent(id, instanceId -> {
-            RuleInstancePersistent persistent = instanceRepository
-                    .findInstanceById(instanceId)
-                    .orElseThrow(() -> new NotFoundException("规则实例[" + id + "]不存在"));
-            Rule rule = ruleRepository.findRuleById(persistent.getRuleId())
-                    .map(rulePersistent -> rulePersistent.toRule(modelParser))
-                    .orElseThrow(() -> new NotFoundException("规则[" + persistent.getRuleId() + "]不存在"));
-
-            RunningRule runningRule = createRunningRule(rule, instanceId);
-            runningRule.init();
-            runningRule.start();
-            return runningRule;
-        }).getContext();
-    }
-
-    private RunningRule createRunningRule(Rule rule, String instanceId) {
-        if (rule.getModel().getRunMode() == RunMode.DISTRIBUTED) {
-            return new RunningDistributedRule(rule, instanceId);
-        } else {
-            return new RunningClusterRule(rule, instanceId);
-        }
-    }
 }
