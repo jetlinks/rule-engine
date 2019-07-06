@@ -2,7 +2,7 @@
 <configuration>
     <logger name="org.redisson" level="warn"/>
     <logger name="io.netty" level="warn"/>
-    <logger name="org.jetlinks" level="debug"/>
+    <logger name="org.jetlinks" level="info"/>
     <logger name="io.lettuce" level="info"/>
 
     　
