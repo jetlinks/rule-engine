@@ -4,6 +4,8 @@
     <logger name="io.netty" level="warn"/>
     <logger name="org.jetlinks" level="info"/>
     <logger name="io.lettuce" level="info"/>
+    <logger name="rule.engine" level="info"/>
+    <logger name="org.hswebframework" level="info" />
 
     　
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">

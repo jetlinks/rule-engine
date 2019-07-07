@@ -23,6 +23,7 @@ public class LettuceClusterManagerTest {
 
     @Before
     public void init() {
+
         LettucePlus plus = DefaultLettucePlus.standalone(RedisClientHelper.createRedisClient());
         clusterManager = new LettuceClusterManager(plus);
 
