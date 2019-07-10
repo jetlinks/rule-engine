@@ -5,7 +5,6 @@ import org.jetlinks.lettuce.RedisQueue;
 import org.jetlinks.rule.engine.api.cluster.Queue;
 
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class LettuceQueue<T> implements Queue<T> {
@@ -37,9 +36,7 @@ public class LettuceQueue<T> implements Queue<T> {
     @Override
     @SneakyThrows
     public void put(T data) {
-        redisQueue.addAsync(data)
-                .toCompletableFuture()
-                .get(10, TimeUnit.SECONDS);
+        redisQueue.addAsync(data);
     }
 
     @Override
