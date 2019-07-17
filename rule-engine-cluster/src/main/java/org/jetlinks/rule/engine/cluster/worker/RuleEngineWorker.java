@@ -5,28 +5,30 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.hswebframework.web.NotFoundException;
 import org.jetlinks.rule.engine.api.*;
+import org.jetlinks.rule.engine.api.cluster.ClusterManager;
+import org.jetlinks.rule.engine.api.cluster.Queue;
+import org.jetlinks.rule.engine.api.events.EventPublisher;
+import org.jetlinks.rule.engine.api.events.EventSupportRuleInstanceContext;
 import org.jetlinks.rule.engine.api.events.NodeExecuteEvent;
 import org.jetlinks.rule.engine.api.events.RuleEvent;
-import org.jetlinks.rule.engine.api.executor.ExecutableRuleNodeFactory;
-import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
 import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
+import org.jetlinks.rule.engine.api.executor.ExecutableRuleNodeFactory;
+import org.jetlinks.rule.engine.api.executor.Output;
+import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
 import org.jetlinks.rule.engine.api.model.RuleEngineModelParser;
 import org.jetlinks.rule.engine.api.persistent.RulePersistent;
 import org.jetlinks.rule.engine.api.persistent.repository.RuleRepository;
-import org.jetlinks.rule.engine.api.executor.Output;
-import org.jetlinks.rule.engine.api.cluster.ClusterManager;
-import org.jetlinks.rule.engine.api.cluster.Queue;
-import org.jetlinks.rule.engine.cluster.logger.ClusterLogger;
-import org.jetlinks.rule.engine.cluster.logger.LogInfo;
-import org.jetlinks.rule.engine.cluster.message.*;
 import org.jetlinks.rule.engine.cluster.executor.DefaultContext;
 import org.jetlinks.rule.engine.cluster.executor.QueueInput;
 import org.jetlinks.rule.engine.cluster.executor.QueueOutput;
+import org.jetlinks.rule.engine.cluster.logger.ClusterLogger;
+import org.jetlinks.rule.engine.cluster.logger.LogInfo;
+import org.jetlinks.rule.engine.cluster.message.*;
 import org.jetlinks.rule.engine.standalone.StandaloneRuleEngine;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
@@ -69,6 +71,10 @@ public class RuleEngineWorker {
 
     @Getter
     @Setter
+    private EventPublisher eventPublisher;
+
+    @Getter
+    @Setter
     private Consumer<NodeExecuteEvent> executeEventConsumer;
 
     @Getter
@@ -101,7 +107,7 @@ public class RuleEngineWorker {
         //初始化
         clusterManager
                 .getHaManager()
-                .onNotify("rule:node:init", this::createRuleNode);
+                .onNotify("rule:node:init", this::createDistributedRuleNode);
 
         clusterManager
                 .getHaManager()
@@ -111,9 +117,9 @@ public class RuleEngineWorker {
         clusterManager
                 .getHaManager()
                 .<String, Boolean>onNotify("rule:stop", instanceId -> {
-                    for (RunningRule value : getRunningRuleNode(instanceId).values()) {
-                        value.stop();
-                    }
+                    Optional.ofNullable(allRule.get(instanceId))
+                            .map(Map::values)
+                            .ifPresent(runningRules -> runningRules.forEach(RunningRule::stop));
                     return true;
                 });
 
@@ -121,19 +127,18 @@ public class RuleEngineWorker {
         clusterManager
                 .getHaManager()
                 .<String, Boolean>onNotify("rule:down", instanceId -> {
-                    for (RunningRule value : getRunningRuleNode(instanceId).values()) {
-                        value.stop();
-                    }
-                    allRule.remove(instanceId);
+                    Optional.ofNullable(allRule.remove(instanceId))
+                            .map(Map::values)
+                            .ifPresent(runningRules -> runningRules.forEach(RunningRule::stop));
                     return true;
                 });
         // 启动
         clusterManager
                 .getHaManager()
                 .<String, Boolean>onNotify("rule:start", instanceId -> {
-                    for (RunningRule value : getRunningRuleNode(instanceId).values()) {
-                        value.start();
-                    }
+                    Optional.ofNullable(allRule.get(instanceId))
+                            .map(Map::values)
+                            .ifPresent(runningRules -> runningRules.forEach(RunningRule::start));
                     return true;
                 });
     }
@@ -208,13 +213,12 @@ public class RuleEngineWorker {
             running = true;
             AtomicReference<Function<RuleData, CompletionStage<RuleData>>> reference = new AtomicReference<>();
             context.execute(reference::set);
-            input.acceptOnce(data -> {
+            input.accept(data -> {
                 if (RuleDataHelper.isSync(data)) {
                     context.execute(data)
                             .whenComplete((ruleData, throwable) -> syncReturn(request.getInstanceId(), ruleData, throwable));
                 } else {
-                    reference.get()
-                            .apply(data);
+                    reference.get().apply(data);
                 }
             });
             context.start();
@@ -231,11 +235,11 @@ public class RuleEngineWorker {
     }
 
 
-    protected synchronized boolean createClusterRule(StartRuleRequest request) {
+    protected boolean createClusterRule(StartRuleRequest request) {
         Map<String, RunningRule> map = getRunningRuleNode(request.getInstanceId());
         synchronized (map) {
             if (map.containsKey(request.getRuleId())) {
-                log.info("rule node worker {} already exists", request.getRuleId());
+                log.debug("rule node worker {} already exists", request.getRuleId());
                 return true;
             }
             String ruleId = request.getRuleId();
@@ -253,9 +257,14 @@ public class RuleEngineWorker {
             logger.setParent(new Slf4jLogger("rule.engine.cluster." + request.getRuleId()));
             logger.setLogInfoConsumer(this::acceptLog);
 
-            StandaloneRuleEngine.StandaloneRuleInstanceContext context = (StandaloneRuleEngine.StandaloneRuleInstanceContext) standaloneRuleEngine.startRule(rule);
-            //添加监听器
-            context.addEventListener(executeEvent -> handleEvent(executeEvent.getEvent(), executeEvent.getNodeId(), executeEvent.getInstanceId(), executeEvent.getRuleData()));
+            RuleInstanceContext context = standaloneRuleEngine.startRule(rule);
+            if (context instanceof EventSupportRuleInstanceContext) {
+                EventSupportRuleInstanceContext instanceContext = ((EventSupportRuleInstanceContext) context);
+                //添加监听器
+                instanceContext.addEventListener(executeEvent -> handleEvent(executeEvent.getEvent(), executeEvent.getNodeId(), executeEvent.getInstanceId(), executeEvent.getRuleData()));
+            } else {
+                logger.warn("context [{}] not support event!", context);
+            }
 
             StandaloneRunningRule runningRule = new StandaloneRunningRule(input, context, logger, request);
 
@@ -266,14 +275,20 @@ public class RuleEngineWorker {
 
 
     protected void acceptLog(LogInfo logInfo) {
-        if (null != executeLogEventConsumer && !"info".equals(logInfo.getLevel())) {
-            executeLogEventConsumer.accept(new NodeExecuteLogEvent(logInfo));
+        if (null != executeLogEventConsumer) {
+            executeLogEventConsumer.accept(NodeExecuteLogEvent.of(logInfo));
+        }
+        if (null != eventPublisher) {
+            eventPublisher.publishEvent(NodeExecuteLogEvent.of(logInfo));
         }
     }
 
     protected void handleEvent(String event, String nodeId, String instanceId, RuleData ruleData) {
         if (null != executeEventConsumer) {
-            executeEventConsumer.accept(new NodeExecuteEvent(event, instanceId, nodeId, ruleData));
+            executeEventConsumer.accept(NodeExecuteEvent.of(event, instanceId, nodeId, ruleData));
+        }
+        if (null != eventPublisher) {
+            eventPublisher.publishEvent(NodeExecuteEvent.of(event, instanceId, nodeId, ruleData));
         }
     }
 
@@ -290,21 +305,13 @@ public class RuleEngineWorker {
             clusterManager.getHaManager()
                     .sendNotifyNoReply(server, "sync-return", data);
         }
-//        else {
-//            clusterManager
-//                    .getObject(data.getId())
-//                    .setData(data);
-//            clusterManager
-//                    .getSemaphore(data.getId(), 0)
-//                    .release();
-//        }
         if (log.isInfoEnabled()) {
             log.info("sync return:{}", data);
         }
     }
 
-    //分布式流式规则
-    protected boolean createRuleNode(StartRuleNodeRequest request) {
+    //分布式规则
+    protected boolean createDistributedRuleNode(StartRuleNodeRequest request) {
         Map<String, RunningRule> map = getRunningRuleNode(request.getInstanceId());
         synchronized (map) {
             //已经存在了
@@ -330,6 +337,7 @@ public class RuleEngineWorker {
             List<QueueOutput.ConditionQueue> outputQueue = request.getOutputQueue()
                     .stream()
                     .map(this::createConditionQueue)
+                    .distinct()
                     .collect(Collectors.toList());
 
             //输入队列
@@ -337,6 +345,7 @@ public class RuleEngineWorker {
                     .stream()
                     .map(InputConfig::getQueue)
                     .map(queueName -> clusterManager.<RuleData>getQueue(queueName))
+                    .distinct()
                     .collect(Collectors.toList());
 
             QueueInput input = new QueueInput(inputsQueue);
@@ -358,7 +367,6 @@ public class RuleEngineWorker {
                 if (RuleEvent.NODE_EXECUTE_DONE.equals(event) || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) {
                     //同步返回结果
                     if (configuration.getNodeId().equals(RuleDataHelper.getEndWithNodeId(data).orElse(null))) {
-
                         syncReturn(request.getInstanceId(), data, null);
                     }
                 }
@@ -371,7 +379,6 @@ public class RuleEngineWorker {
             context.setInput(input);
             context.setOutput(output);
             context.setErrorHandler((ruleData, throwable) -> {
-                context.getLogger().error(throwable.getMessage(), throwable);
                 RuleDataHelper.putError(ruleData, throwable);
                 context.fireEvent(RuleEvent.NODE_EXECUTE_FAIL, ruleData);
             });
@@ -389,6 +396,6 @@ public class RuleEngineWorker {
     }
 
     private Map<String, RunningRule> getRunningRuleNode(String instanceId) {
-        return allRule.computeIfAbsent(instanceId, x -> new HashMap<>());
+        return allRule.computeIfAbsent(instanceId, x -> new ConcurrentHashMap<>());
     }
 }

@@ -1,10 +1,9 @@
-package org.jetlinks.rule.engine.cluster.worker;
+package org.jetlinks.rule.engine.cluster.events;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.jetlinks.rule.engine.cluster.logger.LogInfo;
 
 import java.io.Serializable;
 
@@ -12,6 +11,8 @@ import java.io.Serializable;
 @Setter
 @AllArgsConstructor(staticName = "of")
 @NoArgsConstructor
-public class NodeExecuteLogEvent implements Serializable {
-    private LogInfo logInfo;
+public class RuleStopEvent implements Serializable {
+    private String instanceId;
+
+    private String ruleId;
 }

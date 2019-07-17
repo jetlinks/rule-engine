@@ -3,13 +3,15 @@ package org.jetlinks.rule.engine.cluster.lettuce;
 import lombok.Getter;
 import lombok.Setter;
 import org.jetlinks.lettuce.LettucePlus;
-import org.jetlinks.rule.engine.api.cluster.*;
+import org.jetlinks.rule.engine.api.cluster.ClusterManager;
+import org.jetlinks.rule.engine.api.cluster.NodeInfo;
+import org.jetlinks.rule.engine.api.cluster.Queue;
+import org.jetlinks.rule.engine.api.cluster.Topic;
 import org.jetlinks.rule.engine.api.cluster.ha.HaManager;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("all")
 public class LettuceClusterManager implements ClusterManager {
@@ -53,16 +55,6 @@ public class LettuceClusterManager implements ClusterManager {
     }
 
     @Override
-    public ClusterLock getLock(String lockName, long timeout, TimeUnit timeUnit) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public <K, V> ClusterMap<K, V> getMap(String name) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public <T> Queue<T> getQueue(String name) {
         return queueMap.computeIfAbsent(name, _id -> new LettuceQueue<>(plus.getQueue(_id)));
     }
@@ -71,16 +63,5 @@ public class LettuceClusterManager implements ClusterManager {
     public <T> Topic<T> getTopic(Class<T> type, String name) {
         return topicMap.computeIfAbsent(name, _id -> new LettuceTopic<>(type, plus.getTopic(_id)));
     }
-
-    @Override
-    public ClusterSemaphore getSemaphore(String name, int permits) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public <T> ClusterObject<T> getObject(String name) {
-        throw new UnsupportedOperationException();
-    }
-
 
 }

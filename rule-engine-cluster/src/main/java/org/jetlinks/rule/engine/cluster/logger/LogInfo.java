@@ -22,7 +22,7 @@ public class LogInfo implements Serializable {
 
     private long timestamp;
 
-    private List<String> args;
+    private List<Object> args;
 
     private Map<String, String> context;
 

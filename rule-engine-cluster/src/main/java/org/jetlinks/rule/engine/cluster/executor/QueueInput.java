@@ -16,8 +16,8 @@ public class QueueInput implements Input {
     private List<Queue<RuleData>> queues;
 
     @Override
-    public boolean acceptOnce(Consumer<RuleData> accept) {
-        queues.forEach(queue -> queue.acceptOnce(accept));
+    public boolean accept(Consumer<RuleData> accept) {
+        queues.forEach(queue -> queue.poll(accept));
         return true;
     }
 

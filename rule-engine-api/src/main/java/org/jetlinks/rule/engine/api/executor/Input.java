@@ -10,7 +10,7 @@ import java.util.function.Consumer;
  */
 public interface Input {
 
-    boolean acceptOnce(Consumer<RuleData> accept);
+    boolean accept(Consumer<RuleData> accept);
 
     void close();
 }

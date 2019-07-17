@@ -11,7 +11,7 @@ import org.jetlinks.rule.engine.api.RuleData;
 @Setter
 @Builder
 @NoArgsConstructor
-@AllArgsConstructor
+@AllArgsConstructor(staticName = "of")
 @ToString
 public class NodeExecuteEvent implements RuleEvent {
 

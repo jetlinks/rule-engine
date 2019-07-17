@@ -31,7 +31,7 @@ public abstract class AbstractExecutableRuleNodeFactoryStrategy<C extends RuleNo
         return context -> {
             Function<RuleData, CompletionStage<Object>> executor = createExecutor(context, config);
             context.getInput()
-                    .acceptOnce(data -> {
+                    .accept(data -> {
                         context.fireEvent(RuleEvent.NODE_EXECUTE_BEFORE, data.newData(data));
 
                         RuleDataHelper.setExecuteTimeNow(data);
@@ -42,7 +42,7 @@ public abstract class AbstractExecutableRuleNodeFactoryStrategy<C extends RuleNo
                                             context.onError(data, error);
                                         } else {
                                             RuleData newData;
-                                            if (config.getNodeType().isReturnNewValue()) {
+                                            if (config.getNodeType().isReturnNewValue() && result != SkipNextValue.INSTANCE) {
                                                 newData = data.newData(result);
                                             } else {
                                                 newData = data.copy();

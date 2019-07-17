@@ -1,4 +1,4 @@
-package org.jetlinks.rule.engine.model.antd;
+package org.jetlinks.rule.engine.model.antv;
 
 import lombok.SneakyThrows;
 import org.jetlinks.rule.engine.api.model.RuleModel;
@@ -10,12 +10,10 @@ import org.springframework.util.StreamUtils;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.Assert.*;
-
-public class AntDesignRuleModelParserStrategyTest {
+public class AntVG6RuleModelParserStrategyTest {
 
 
-    private AntDesignRuleModelParserStrategy strategy=new AntDesignRuleModelParserStrategy();
+    private AntVG6RuleModelParserStrategy strategy=new AntVG6RuleModelParserStrategy();
 
     @Test
     @SneakyThrows

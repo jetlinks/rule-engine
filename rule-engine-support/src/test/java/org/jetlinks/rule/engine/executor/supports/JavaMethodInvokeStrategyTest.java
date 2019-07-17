@@ -43,7 +43,7 @@ public class JavaMethodInvokeStrategyTest {
                 return new Input() {
 
                     @Override
-                    public boolean acceptOnce(Consumer<RuleData> accept) {
+                    public boolean accept(Consumer<RuleData> accept) {
                         accept.accept(RuleData.create("test"));
                         return false;
                     }

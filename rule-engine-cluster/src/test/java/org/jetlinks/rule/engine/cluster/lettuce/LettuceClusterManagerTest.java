@@ -51,7 +51,7 @@ public class LettuceClusterManagerTest {
         CountDownLatch latch = new CountDownLatch(1000);
 
         clusterManager.getQueue("test")
-                .acceptOnce(data -> {
+                .poll(data -> {
                     latch.countDown();
                 });
         for (int i = 0; i < 1000; i++) {

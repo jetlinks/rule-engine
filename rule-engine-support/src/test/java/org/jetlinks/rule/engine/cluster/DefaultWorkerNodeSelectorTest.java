@@ -30,7 +30,7 @@ public class DefaultWorkerNodeSelectorTest {
         NodeInfo node2 = new NodeInfo();
         node2.setId("node2");
         node2.setName("node2");
-        node2.setRules(new NodeRole[]{NodeRole.SCHEDULER});
+        node2.setRoles(new NodeRole[]{NodeRole.SCHEDULER});
         nodeInfos.add(node1);
         nodeInfos.add(node2);
 

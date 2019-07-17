@@ -57,7 +57,6 @@ public class RedissonHaManager implements HaManager {
         if (nodeInfo.getId().equals(currentNode.getId())) {
             return;
         }
-        nodeInfo.setLastKeepAliveTime(System.currentTimeMillis());
         localAllNode.put(nodeInfo.getId(), nodeInfo);
         allNodeInfo.put(nodeInfo.getId(), nodeInfo);
         joinConsumer.accept(nodeInfo);
@@ -138,8 +137,6 @@ public class RedissonHaManager implements HaManager {
                 NodeInfo nodeInfo = localAllNode.get(msg.getId());
                 if (nodeInfo == null) {
                     doNodeJoin(msg);
-                } else {
-                    nodeInfo.setLastKeepAliveTime(System.currentTimeMillis());
                 }
             } else {
                 log.info("unknown channel:{} {}", operation, msg);
@@ -147,8 +144,6 @@ public class RedissonHaManager implements HaManager {
         });
 
         executorService.scheduleAtFixedRate(() -> {
-            //保活
-            currentNode.setLastKeepAliveTime(System.currentTimeMillis());
             //注册自己
             allNodeInfo.put(currentNode.getId(), currentNode);
             keepAlive.publish(currentNode);

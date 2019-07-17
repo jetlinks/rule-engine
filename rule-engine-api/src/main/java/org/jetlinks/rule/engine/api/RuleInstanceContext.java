@@ -20,6 +20,12 @@ public interface RuleInstanceContext {
     String getId();
 
     /**
+     *
+     * @return 当前状态
+     */
+    RuleInstanceState getState();
+
+    /**
      * @return 启动时间
      * @see System#currentTimeMillis()
      */

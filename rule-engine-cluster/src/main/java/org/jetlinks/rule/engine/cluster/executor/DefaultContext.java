@@ -38,13 +38,13 @@ public class DefaultContext implements ExecutionContext {
 
     @Override
     public void fireEvent(String event, RuleData data) {
-        eventHandler.accept(event,data);
+        eventHandler.accept(event,data.copy());
     }
 
     @Override
     public void onError(RuleData data, Throwable e) {
         if (null != errorHandler) {
-            errorHandler.accept(data, e);
+            errorHandler.accept(data.copy(), e);
         } else {
             logger.error("unhandled error", e);
         }

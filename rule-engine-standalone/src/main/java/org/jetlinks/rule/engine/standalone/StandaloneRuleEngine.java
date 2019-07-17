@@ -96,15 +96,22 @@ public class StandaloneRuleEngine implements RuleEngine {
     @Override
     public RuleInstanceContext startRule(Rule rule) {
         String id = IDGenerator.MD5.generate();
-        RuleNodeModel nodeModel = rule.getModel().getStartNode()
-                .orElseThrow(() -> new UnsupportedOperationException("无法获取启动节点"));
+        RuleNodeModel rootModel = rule.getModel()
+                .getStartNode()
+                .orElseGet(() -> rule.getModel()
+                        .getNodes()
+                        .stream()
+                        .filter(model -> model.getInputs().isEmpty())
+                        .findFirst()
+                        .orElseThrow(() -> new UnsupportedOperationException("无法获取启动节点")));
+
         RuleExecutorBuilder builder = new RuleExecutorBuilder();
 
         StandaloneRuleInstanceContext context = new StandaloneRuleInstanceContext();
         context.id = id;
         context.startTime = System.currentTimeMillis();
 
-        context.rootExecutor = builder.createRuleExecutor(id, null, nodeModel, null);
+        context.rootExecutor = builder.createRuleExecutor(id, null, rootModel, null);
 
         //处理所有没有指定输入的节点
         rule.getModel().getNodes()
@@ -215,6 +222,10 @@ public class StandaloneRuleEngine implements RuleEngine {
             syncMap.clear();
         }
 
+        @Override
+        public RuleInstanceState getState() {
+            return null;
+        }
     }
 
     static class Sync {

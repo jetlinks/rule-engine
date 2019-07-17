@@ -70,7 +70,6 @@ public class RedissonClusterManagerTest {
     public void testHa() {
         NodeInfo nodeInfo = new NodeInfo();
         nodeInfo.setId("test2");
-        nodeInfo.setLastKeepAliveTime(System.currentTimeMillis());
         AtomicLong counter = new AtomicLong();
         clusterManager.getHaManager()
                 .onNodeJoin(node -> {
@@ -104,7 +103,7 @@ public class RedissonClusterManagerTest {
         CountDownLatch downLatch = new CountDownLatch(queueSize * dataSize);
         for (int i = 0; i < queueSize; i++) {
             clusterManager.<String>getQueue("test" + i)
-                    .acceptOnce(data -> {
+                    .poll(data -> {
                         counter.incrementAndGet();
                         downLatch.countDown();
                     });

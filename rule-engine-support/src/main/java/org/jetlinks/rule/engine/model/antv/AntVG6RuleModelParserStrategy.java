@@ -1,4 +1,4 @@
-package org.jetlinks.rule.engine.model.antd;
+package org.jetlinks.rule.engine.model.antv;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
@@ -11,7 +11,6 @@ import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 import org.jetlinks.rule.engine.model.RuleModelParserStrategy;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -20,10 +19,10 @@ import java.util.stream.Collectors;
 /**
  *
  */
-public class AntDesignRuleModelParserStrategy implements RuleModelParserStrategy {
+public class AntVG6RuleModelParserStrategy implements RuleModelParserStrategy {
     @Override
     public String getFormat() {
-        return "antd";
+        return "antv.g6";
     }
 
     @Override
@@ -45,7 +44,7 @@ public class AntDesignRuleModelParserStrategy implements RuleModelParserStrategy
                     model.setName(json.getString("label"));
                     Optional.ofNullable(json.getJSONObject("config"))
                         .ifPresent(model::setConfiguration);
-                    model.setDescription(json.getString("description"));
+                    model.setDescription(json.getString("remark"));
                     model.setEnd(json.getBooleanValue("isEnd"));
                     model.setStart(json.getBooleanValue("isStart"));
                     model.setExecutor(json.getString("executor"));
@@ -80,7 +79,7 @@ public class AntDesignRuleModelParserStrategy implements RuleModelParserStrategy
             link.setType(edgeJson.getString("type"));
             link.setSource(sourceModel);
             link.setName(edgeJson.getString("label"));
-            link.setDescription(edgeJson.getString("description"));
+            link.setDescription(edgeJson.getString("remark"));
             link.setTarget(targetModel);
             if(isEvent) {
                 sourceModel.getEvents().add(link);
@@ -91,7 +90,7 @@ public class AntDesignRuleModelParserStrategy implements RuleModelParserStrategy
         }
         ruleModel.setNodes(new ArrayList<>(allNodesMap.values()));
         ruleModel.setId(jsonObject.getString("id"));
-        ruleModel.setDescription(jsonObject.getString("description"));
+        ruleModel.setDescription(jsonObject.getString("remark"));
         ruleModel.setName(jsonObject.getString("name"));
         ruleModel.setRunMode(Optional.ofNullable(jsonObject.getString("runMode")).map(RunMode::valueOf).orElse(RunMode.CLUSTER));
         ruleModel.setSchedulingRule(Optional.ofNullable(jsonObject.getJSONObject("schedulingRule"))

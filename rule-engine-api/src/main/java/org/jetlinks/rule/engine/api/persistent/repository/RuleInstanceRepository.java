@@ -1,5 +1,6 @@
 package org.jetlinks.rule.engine.api.persistent.repository;
 
+import org.jetlinks.rule.engine.api.RuleInstanceState;
 import org.jetlinks.rule.engine.api.persistent.RuleInstancePersistent;
 
 import java.util.List;
@@ -11,10 +12,11 @@ public interface RuleInstanceRepository {
 
     List<RuleInstancePersistent> findInstanceByRuleId(String ruleId);
 
+    List<RuleInstancePersistent> findAll();
+
+    List<RuleInstancePersistent> findBySchedulerId(String schedulerId);
+
     void saveInstance(RuleInstancePersistent instancePersistent);
 
-    void stopInstance(String instanceId);
-
-    void startInstance(String instanceId);
-
+    void changeState(String instanceId, RuleInstanceState state);
 }

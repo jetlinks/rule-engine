@@ -4,7 +4,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 
 public interface Queue<T> {
-    boolean acceptOnce(Consumer<T> consumer);
+    boolean poll(Consumer<T> consumer);
 
     CompletionStage<Boolean> putAsync(T data);
 

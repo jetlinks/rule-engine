@@ -2,6 +2,7 @@ package org.jetlinks.rule.engine.api.persistent;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.jetlinks.rule.engine.api.RuleInstanceState;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -17,12 +18,16 @@ public class RuleInstancePersistent implements Serializable {
 
     private String ruleId;
 
-    private String schedulerNodeId;
+    private String currentSchedulerId;
+
+    private String schedulerId;
 
     private Date createTime;
 
-    private Boolean running;
+    private Boolean enabled;
 
     private String instanceDetailJson;
+
+    private RuleInstanceState state;
 
 }

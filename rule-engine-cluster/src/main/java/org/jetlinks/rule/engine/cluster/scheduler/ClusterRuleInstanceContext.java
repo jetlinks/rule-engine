@@ -6,17 +6,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleDataHelper;
 import org.jetlinks.rule.engine.api.RuleInstanceContext;
+import org.jetlinks.rule.engine.api.RuleInstanceState;
 import org.jetlinks.rule.engine.api.cluster.ClusterManager;
 import org.jetlinks.rule.engine.api.cluster.Queue;
-import org.jetlinks.rule.engine.api.events.GlobalNodeEventListener;
 
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 @Getter
 @Setter
@@ -35,18 +37,22 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
 
     private ClusterManager clusterManager;
 
+    private Supplier<RuleInstanceState>  stateSupplier;
+
     private Runnable onStop;
     private Runnable onStart;
 
     private long syncTimeout = 30_000;
-
-    private Consumer<GlobalNodeEventListener> onListener;
 
     private Map<String, Sync> syncFutures = new ConcurrentHashMap<>();
 
     class Sync {
         CompletableFuture<RuleData> future = new CompletableFuture<>();
         long createTime = System.currentTimeMillis();
+
+        boolean isTimeout() {
+            return System.currentTimeMillis() - createTime > syncTimeout;
+        }
     }
 
     public RuleData wrapClusterRuleData(RuleData ruleData) {
@@ -59,7 +65,6 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
                         .getStartWithNodeId(ruleData)
                         .map(getter))
                 .orElse(inputQueue);
-
     }
 
     @Override
@@ -80,21 +85,6 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
 
         queue.put(data);
         return sync.future;
-//        //执行完成的信号，规则执行完成后会由对应的节点去触发。
-//        ClusterSemaphore semaphore = clusterManager.getSemaphore(dataId, 0);
-//        //发送数据到规则入口队列
-//        return queue
-//                .putAsync(data)
-//                .thenCompose(nil -> semaphore.tryAcquireAsync(syncTimeout, TimeUnit.MILLISECONDS))
-//                .thenComposeAsync(isSuccess -> {
-//                    if (isSuccess) {
-//                        //如果成功，删除此信号量，因为是一次性的。
-//                        semaphore.delete();
-//                    }
-//                    return clusterManager
-//                            .<RuleData>getObject(dataId)
-//                            .getAndDeleteAsync();
-//                });
     }
 
     @Override
@@ -119,7 +109,7 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
         }
     }
 
-    public void syncReturn(RuleData data) {
+    protected void syncReturn(RuleData data) {
         Optional.ofNullable(syncFutures.remove(data.getId()))
                 .map(sync -> sync.future)
                 .ifPresent(future -> future.complete(data));
@@ -130,5 +120,20 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
         if (null != onStop) {
             onStop.run();
         }
+    }
+
+    @Override
+    public RuleInstanceState getState() {
+        return stateSupplier.get();
+    }
+
+    void checkTimeout() {
+        syncFutures.entrySet()
+                .stream()
+                .filter(e -> e.getValue().isTimeout())
+                .forEach(e -> {
+                    syncFutures.remove(e.getKey());
+                    e.getValue().future.completeExceptionally(new TimeoutException("同步返回结果超时"));
+                });
     }
 }

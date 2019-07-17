@@ -1,12 +1,10 @@
 package org.jetlinks.rule.engine.cluster.repository;
 
+import org.jetlinks.rule.engine.api.RuleInstanceState;
 import org.jetlinks.rule.engine.api.persistent.RuleInstancePersistent;
 import org.jetlinks.rule.engine.api.persistent.repository.RuleInstanceRepository;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -36,14 +34,26 @@ public class MockRuleInstanceRepository implements RuleInstanceRepository {
     }
 
     @Override
-    public void stopInstance(String instanceId) {
-        findInstanceById(instanceId)
-                .ifPresent(persistent -> persistent.setRunning(false));
+    public List<RuleInstancePersistent> findAll() {
+        return new ArrayList<>(repository.values());
+    }
+
+
+    @Override
+    public List<RuleInstancePersistent> findBySchedulerId(String schedulerId) {
+        return findAll()
+                .stream()
+                .filter(persistent->schedulerId.equals(persistent.getCurrentSchedulerId())||schedulerId.equals(persistent.getSchedulerId()))
+                .collect(Collectors.toList());
     }
 
     @Override
-    public void startInstance(String instanceId) {
+    public void changeState(String instanceId, RuleInstanceState state) {
         findInstanceById(instanceId)
-                .ifPresent(persistent -> persistent.setRunning(true));
+                .map(r -> {
+                    r.setState(state);
+                    return r;
+                })
+                .ifPresent(this::saveInstance);
     }
 }

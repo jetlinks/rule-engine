@@ -54,7 +54,7 @@ public class RedissonQueue<T> implements Queue<T> {
     }
 
     @Override
-    public boolean acceptOnce(Consumer<T> consumer) {
+    public boolean poll(Consumer<T> consumer) {
         this.consumer.set(consumer);
         if (!accepted) {
             start();

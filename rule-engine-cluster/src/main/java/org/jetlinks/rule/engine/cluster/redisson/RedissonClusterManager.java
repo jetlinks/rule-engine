@@ -2,15 +2,20 @@ package org.jetlinks.rule.engine.cluster.redisson;
 
 import lombok.Getter;
 import lombok.Setter;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.rule.engine.api.cluster.*;
-import org.jetlinks.rule.engine.api.cluster.Queue;
 import org.jetlinks.rule.engine.api.cluster.ha.HaManager;
-import org.redisson.api.*;
+import org.redisson.api.RSemaphore;
+import org.redisson.api.RTopic;
+import org.redisson.api.RedissonClient;
 
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("all")
 @Slf4j
@@ -82,23 +87,6 @@ public class RedissonClusterManager implements ClusterManager {
     }
 
     @Override
-    @SneakyThrows
-    public ClusterLock getLock(String lockName, long timeout, TimeUnit timeUnit) {
-
-        RSemaphore rSemaphore = getRSemaphore(getRedisKey("lock", lockName), 1);
-        boolean success = rSemaphore.tryAcquire(timeout, timeUnit);
-        if (!success) {
-            throw new TimeoutException("get lock timeout");
-        }
-        return new RedissonLock(rSemaphore);
-    }
-
-    @Override
-    public <K, V> ClusterMap<K, V> getMap(String name) {
-        return new RedissonClusterMap<>(redissonClient.getMap(getRedisKey("map", name)));
-    }
-
-    @Override
     public <T> Queue<T> getQueue(String name) {
         return queueMap.computeIfAbsent(name, n -> {
             RedissonQueue<T> queue = new RedissonQueue<T>(redissonClient.getQueue(getRedisKey("queue", n))) {
@@ -142,21 +130,4 @@ public class RedissonClusterManager implements ClusterManager {
         return rSemaphore;
     }
 
-    @Override
-    public ClusterSemaphore getSemaphore(String name, int permits) {
-        String key = getRedisKey("semaphore", name);
-
-        return new RedissonSemaphore(getRSemaphore(key, permits)) {
-            @Override
-            public boolean delete() {
-                semaphoreMap.remove(key);
-                return super.delete();
-            }
-        };
-    }
-
-    @Override
-    public <T> ClusterObject<T> getObject(String name) {
-        return new RedissonClusterObject<>(redissonClient.getBucket(getRedisKey("object", name)));
-    }
 }

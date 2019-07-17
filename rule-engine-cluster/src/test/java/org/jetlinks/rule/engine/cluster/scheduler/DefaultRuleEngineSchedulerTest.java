@@ -32,6 +32,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.StreamUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -45,11 +46,11 @@ import static org.jetlinks.rule.engine.api.RuleDataHelper.newHelper;
  * @author zhouhao
  * @since 1.0.0
  */
-public class RuleEngineSchedulerTest {
+public class DefaultRuleEngineSchedulerTest {
     private RedissonClusterManager clusterManager;
     private RedissonClient         redissonClient = RedissonHelper.newRedissonClient();
     private RedissonHaManager      haManager;
-    private RuleEngineScheduler ruleEngine;
+    private DefaultRuleEngineScheduler ruleEngine;
 
     private DefaultRuleModelParser modelParser;
     private Rule                   rule;
@@ -92,7 +93,7 @@ public class RuleEngineSchedulerTest {
         clusterManager.start();
         haManager.start();
 
-        ruleEngine = new RuleEngineScheduler();
+        ruleEngine = new DefaultRuleEngineScheduler();
 
         ruleEngine.setClusterManager(clusterManager);
         ruleEngine.setNodeSelector((model, allNode) -> allNode);
@@ -117,6 +118,13 @@ public class RuleEngineSchedulerTest {
                 persistent.setModel(modelString);
                 persistent.setId(IDGenerator.MD5.generate());
                 return Optional.of(persistent);
+            }
+
+            @Override
+            public List<RulePersistent> findRuleByIdList(Collection<String> ruleIdList) {
+                return findRuleById("")
+                        .map(Collections::singletonList)
+                        .orElse(Collections.emptyList());
             }
 
             @Override
@@ -181,7 +189,7 @@ public class RuleEngineSchedulerTest {
                 consumer.apply(RuleData.create("aaaa" + i));
             }
         });
-        Thread.sleep(10000);
+        Thread.sleep(2000);
         Assert.assertEquals(100, TestExecutor.counter.intValue());
         TestExecutor.counter.set(0);
 
@@ -235,7 +243,7 @@ public class RuleEngineSchedulerTest {
                 consumer.apply(RuleData.create("aaaa" + i));
             }
         });
-        Thread.sleep(5000);
+        Thread.sleep(2000);
         Assert.assertEquals(10, TestExecutor.counter.intValue());
         TestExecutor.counter.set(0);
 
