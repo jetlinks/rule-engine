@@ -18,9 +18,9 @@ import java.util.stream.Collectors;
 
 public class LettuceHaManager implements HaManager {
 
-    private RedisHaManager haManager;
+    protected RedisHaManager haManager;
 
-    private NodeInfo current;
+    protected NodeInfo current;
 
     public LettuceHaManager(NodeInfo current, RedisHaManager haManager) {
         this.current = current;
@@ -85,7 +85,7 @@ public class LettuceHaManager implements HaManager {
         return info;
     }
 
-    private ServerNodeInfo convert(NodeInfo nodeInfo) {
+    protected ServerNodeInfo convert(NodeInfo nodeInfo) {
         ServerNodeInfo info = new ServerNodeInfo();
         info.setId(nodeInfo.getId());
 

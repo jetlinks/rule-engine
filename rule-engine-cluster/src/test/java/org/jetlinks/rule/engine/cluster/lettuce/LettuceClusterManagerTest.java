@@ -29,7 +29,12 @@ public class LettuceClusterManagerTest {
 
         NodeInfo nodeInfo = new NodeInfo();
         nodeInfo.setId("test");
-        haManager = new LettuceHaManager(nodeInfo, plus.getHaManager("test"));
+        haManager = new LettuceHaManager(nodeInfo, plus.getHaManager("test")){
+            @Override
+            public void startup() {
+                haManager.startup(convert(getCurrentNode()));
+            }
+        };
         haManager.startup();
     }
 
