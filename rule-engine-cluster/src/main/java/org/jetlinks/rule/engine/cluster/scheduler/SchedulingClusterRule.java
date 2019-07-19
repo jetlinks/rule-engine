@@ -141,7 +141,7 @@ class SchedulingClusterRule extends AbstractSchedulingRule {
                     if (error != null) {
                         changeState(RuleInstanceState.stopFailed);
                     } else {
-                        changeState(RuleInstanceState.started);
+                        changeState(RuleInstanceState.stopped);
                     }
                 });
     }
