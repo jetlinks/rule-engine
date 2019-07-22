@@ -3,6 +3,7 @@ package org.jetlinks.rule.engine.condition.supports;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.hswebframework.expands.script.engine.DynamicScriptEngine;
 import org.hswebframework.expands.script.engine.DynamicScriptEngineFactory;
+import org.springframework.util.StringUtils;
 
 import java.util.Map;
 
@@ -13,6 +14,9 @@ import java.util.Map;
 public class DefaultScriptEvaluator implements ScriptEvaluator {
     @Override
     public Object evaluate(String lang, String script, Map<String, Object> context) throws Exception {
+        if(StringUtils.isEmpty(script)){
+            return true;
+        }
         DynamicScriptEngine engine = DynamicScriptEngineFactory.getEngine(lang);
         if (engine == null) {
             throw new UnsupportedOperationException("不支持的脚本语言:" + lang);
