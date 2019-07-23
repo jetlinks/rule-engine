@@ -8,10 +8,9 @@ import org.hswebframework.web.bean.Converter;
 import org.hswebframework.web.bean.FastBeanCopier;
 import org.jetlinks.rule.engine.api.Logger;
 import org.jetlinks.rule.engine.api.RuleData;
-import org.jetlinks.rule.engine.api.TypeConverter;
 import org.jetlinks.rule.engine.api.executor.ExecutionContext;
 import org.jetlinks.rule.engine.api.model.NodeType;
-import org.jetlinks.rule.engine.executor.AbstractExecutableRuleNodeFactoryStrategy;
+import org.jetlinks.rule.engine.executor.CommonExecutableRuleNodeFactoryStrategy;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -29,9 +28,7 @@ import java.util.stream.Stream;
  */
 @SuppressWarnings("all")
 @Slf4j
-public class JavaMethodInvokeStrategy extends AbstractExecutableRuleNodeFactoryStrategy<JavaMethodInvokeStrategy.JavaMethodInvokeStrategyConfiguration> {
-
-    private TypeConverter typeConverter;
+public class JavaMethodInvokeStrategy extends CommonExecutableRuleNodeFactoryStrategy<JavaMethodInvokeStrategy.JavaMethodInvokeStrategyConfiguration> {
 
     @Getter
     @Setter
@@ -40,7 +37,7 @@ public class JavaMethodInvokeStrategy extends AbstractExecutableRuleNodeFactoryS
     private static Object[] emptyArgs = new Object[0];
 
     @Override
-    public JavaMethodInvokeStrategyConfiguration newConfig() {
+    public JavaMethodInvokeStrategyConfiguration newConfigInstance() {
         return new JavaMethodInvokeStrategyConfiguration();
     }
 

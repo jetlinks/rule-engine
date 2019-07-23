@@ -9,6 +9,7 @@ import org.jetlinks.rule.engine.api.model.RuleLink;
 import org.jetlinks.rule.engine.api.model.RuleModel;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 import org.jetlinks.rule.engine.model.RuleModelParserStrategy;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -31,6 +32,19 @@ public class AntVG6RuleModelParserStrategy implements RuleModelParserStrategy {
         JSONObject jsonObject = JSONObject.parseObject(modelDefineString);
         RuleModel ruleModel = new RuleModel();
 
+        ruleModel.setId(jsonObject.getString("id"));
+        ruleModel.setDescription(jsonObject.getString("remark"));
+        ruleModel.setName(jsonObject.getString("name"));
+
+        ruleModel.setRunMode(Optional.ofNullable(jsonObject.getString("runMode"))
+                .filter(StringUtils::hasText)
+                .map(RunMode::valueOf)
+                .orElse(RunMode.CLUSTER));
+
+        ruleModel.setSchedulingRule(Optional.ofNullable(jsonObject.getJSONObject("schedulingRule"))
+                .map(json -> json.toJavaObject(SchedulingRule.class))
+                .orElse(null));
+
         //所有节点
         JSONArray nodes = jsonObject.getJSONArray("nodes");
         //连线
@@ -42,9 +56,9 @@ public class AntVG6RuleModelParserStrategy implements RuleModelParserStrategy {
                     RuleNodeModel model = new RuleNodeModel();
                     model.setId(Optional.ofNullable(json.getString("nodeId")).orElse(json.getString("id")));
                     model.setName(json.getString("label"));
-                    Optional.ofNullable(json.getJSONObject("config"))
-                            .ifPresent(model::setConfiguration);
-                    model.setDescription(json.getString("remark"));
+                    Optional.ofNullable(json.getJSONObject("config")).ifPresent(model::setConfiguration);
+                    model.setRuleId(ruleModel.getId());
+                    model.setDescription(json.getString("description"));
                     model.setEnd(json.getBooleanValue("isEnd"));
                     model.setStart(json.getBooleanValue("isStart"));
                     model.setExecutor(json.getString("executor"));
@@ -89,12 +103,8 @@ public class AntVG6RuleModelParserStrategy implements RuleModelParserStrategy {
             }
         }
         ruleModel.setNodes(new ArrayList<>(allNodesMap.values()));
-        ruleModel.setId(jsonObject.getString("id"));
-        ruleModel.setDescription(jsonObject.getString("remark"));
-        ruleModel.setName(jsonObject.getString("name"));
-        ruleModel.setRunMode(Optional.ofNullable(jsonObject.getString("runMode")).map(RunMode::valueOf).orElse(RunMode.CLUSTER));
-        ruleModel.setSchedulingRule(Optional.ofNullable(jsonObject.getJSONObject("schedulingRule"))
-                .map(json -> json.toJavaObject(SchedulingRule.class)).orElse(null));
+
+
         return ruleModel;
     }
 }

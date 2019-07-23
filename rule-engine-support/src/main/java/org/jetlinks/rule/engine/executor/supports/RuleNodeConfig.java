@@ -10,4 +10,8 @@ public interface RuleNodeConfig {
     NodeType getNodeType();
 
     void setNodeType(NodeType nodeType);
+
+    default void validate(){
+
+    }
 }

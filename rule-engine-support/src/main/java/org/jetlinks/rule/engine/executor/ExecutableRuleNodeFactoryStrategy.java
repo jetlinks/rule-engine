@@ -10,7 +10,5 @@ import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
 public interface ExecutableRuleNodeFactoryStrategy {
     String getSupportType();
 
-//    ExecutableRuleNode create(RuleNodeConfiguration configuration);
-
     ExecutableRuleNode create(RuleNodeConfiguration configuration);
 }
