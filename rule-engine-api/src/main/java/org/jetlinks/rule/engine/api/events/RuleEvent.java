@@ -14,6 +14,9 @@ public interface RuleEvent extends Serializable {
 
     String NODE_EXECUTE_DONE = "NODE_EXECUTE_DONE";
 
+    String NODE_STARTED = "NODE_STARTED";
+
+
     String getEvent();
 
 }

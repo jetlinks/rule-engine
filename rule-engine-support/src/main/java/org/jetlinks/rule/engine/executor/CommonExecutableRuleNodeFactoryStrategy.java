@@ -54,6 +54,9 @@ public abstract class CommonExecutableRuleNodeFactoryStrategy<C extends RuleNode
                             context.onError(data, e);
                         }
                     });
+
+            context.fireEvent(RuleEvent.NODE_STARTED, RuleData.create(config));
+
         };
     }
 
