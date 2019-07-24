@@ -1,5 +1,6 @@
 package org.jetlinks.rule.engine.cluster.lettuce;
 
+import org.apache.commons.collections.MapUtils;
 import org.hswebframework.web.bean.FastBeanCopier;
 import org.jetlinks.lettuce.RedisHaManager;
 import org.jetlinks.lettuce.ServerNodeInfo;
@@ -78,9 +79,9 @@ public class LettuceHaManager implements HaManager {
         NodeInfo info = new NodeInfo();
         info.setId(nodeInfo.getId());
 
-//        if (MapUtils.isNotEmpty(nodeInfo.getProperties())) {
-//            FastBeanCopier.copy(nodeInfo.getProperties(), info);
-//        }
+        if (MapUtils.isNotEmpty(nodeInfo.getProperties())) {
+            FastBeanCopier.copy(nodeInfo.getProperties(), info);
+        }
 
         return info;
     }
@@ -94,7 +95,7 @@ public class LettuceHaManager implements HaManager {
         return info;
     }
 
-    public void shutdown(){
+    public void shutdown() {
         haManager.shutdown();
     }
 }

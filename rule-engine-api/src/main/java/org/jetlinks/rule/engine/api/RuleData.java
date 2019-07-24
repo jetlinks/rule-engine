@@ -8,6 +8,8 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
+ * 规则数据
+ *
  * @author zhouhao
  * @since 1.0.0
  */
@@ -16,7 +18,7 @@ public interface RuleData extends Serializable {
 
     Object getData();
 
-    void acceptMap(Consumer<Map<String,Object>> consumer);
+    void acceptMap(Consumer<Map<String, Object>> consumer);
 
     RuleData newData(Object data);
 

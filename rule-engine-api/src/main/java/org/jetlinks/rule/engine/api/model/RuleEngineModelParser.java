@@ -3,7 +3,7 @@ package org.jetlinks.rule.engine.api.model;
 import java.util.List;
 
 /**
- * 规则引起模型解析器
+ * 规则引擎模型解析器
  *
  * @author zhouhao
  * @since 1.0.0

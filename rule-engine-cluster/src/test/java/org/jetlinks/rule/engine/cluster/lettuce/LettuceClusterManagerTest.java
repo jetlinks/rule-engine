@@ -36,6 +36,9 @@ public class LettuceClusterManagerTest {
             }
         };
         haManager.startup();
+
+        Assert.assertFalse(haManager.getAllAliveNode().isEmpty());
+
     }
 
     @Test

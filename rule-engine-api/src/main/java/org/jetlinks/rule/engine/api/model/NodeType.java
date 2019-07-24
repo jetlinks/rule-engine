@@ -11,10 +11,13 @@ import org.hswebframework.web.dict.EnumDict;
 @Getter
 @AllArgsConstructor
 public enum NodeType implements EnumDict<String> {
+
+    //转换新的数据
     MAP("MAP", true),
+    //仅消费数据
     PEEK("PEEK", false);
 
-    private String  text;
+    private String text;
     private boolean returnNewValue;
 
     @Override

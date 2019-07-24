@@ -46,7 +46,7 @@ public interface HaManager {
      * @param consumer 消息消费者
      * @param <T>      消息类型
      */
-    <T,R> void onNotify(String address, Function<T,R> consumer);
+    <T, R> void onNotify(String address, Function<T, R> consumer);
 
     /**
      * 向其他服务节点发送通知
@@ -57,6 +57,13 @@ public interface HaManager {
      */
     <V> CompletionStage<V> sendNotify(String nodeId, String address, Object message);
 
-     void sendNotifyNoReply(String nodeId, String address, Object message);
+    /**
+     * 发送无需回复的通知
+     *
+     * @param nodeId  节点ID
+     * @param address 通知地址
+     * @param message 消息
+     */
+    void sendNotifyNoReply(String nodeId, String address, Object message);
 
 }
