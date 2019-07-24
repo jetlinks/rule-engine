@@ -117,8 +117,6 @@ public class DefaultRuleData implements RuleData {
         ruleData.attributes = new HashMap<>(attributes);
         ruleData.data = data;
 
-        RuleDataHelper.clearError(ruleData);
-
         return ruleData;
     }
 
