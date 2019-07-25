@@ -11,15 +11,10 @@ import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 import org.jetlinks.rule.engine.model.RuleModelParserStrategy;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- *
- */
 public class AntVG6RuleModelParserStrategy implements RuleModelParserStrategy {
     @Override
     public String getFormat() {
@@ -50,6 +45,8 @@ public class AntVG6RuleModelParserStrategy implements RuleModelParserStrategy {
         //连线
         JSONArray edges = jsonObject.getJSONArray("edges");
 
+        Map<String, RuleNodeModel> eventNode = new HashMap<>();
+
         Map<String, RuleNodeModel> allNodesMap = nodes.stream()
                 .map(JSONObject.class::cast)
                 .map(json -> {
@@ -57,6 +54,10 @@ public class AntVG6RuleModelParserStrategy implements RuleModelParserStrategy {
                     model.setId(Optional.ofNullable(json.getString("nodeId")).orElse(json.getString("id")));
                     model.setName(json.getString("label"));
                     Optional.ofNullable(json.getJSONObject("config")).ifPresent(model::setConfiguration);
+
+                    Optional.ofNullable(Optional.ofNullable(json.getJSONObject("config")).orElseGet(()->json.getJSONObject("configuration")))
+                            .ifPresent(model::setConfiguration);
+
                     model.setRuleId(ruleModel.getId());
                     model.setDescription(json.getString("description"));
                     model.setEnd(json.getBooleanValue("isEnd"));
@@ -65,9 +66,15 @@ public class AntVG6RuleModelParserStrategy implements RuleModelParserStrategy {
                     model.setSchedulingRule(Optional.ofNullable(json.getJSONObject("schedulingRule"))
                             .map(ruleJson -> ruleJson.toJavaObject(SchedulingRule.class)).orElse(null));
 
+                    if (json.getBooleanValue("isRuleEvent")) {
+                        eventNode.put(model.getId(), model);
+                    }
+
                     return model;
                 })
                 .collect(Collectors.toMap(RuleNodeModel::getId, Function.identity()));
+
+        List<RuleLink> ruleEvents = new ArrayList<>();
 
         for (Object edge : edges) {
             JSONObject edgeJson = ((JSONObject) edge);
@@ -79,15 +86,17 @@ public class AntVG6RuleModelParserStrategy implements RuleModelParserStrategy {
             if (sourceModel == null || targetModel == null) {
                 continue;
             }
+
             RuleLink link = new RuleLink();
-            link.setId(Optional.ofNullable(edgeJson.getString("nodeId")).orElse(edgeJson.getString("id")));
-            Optional.ofNullable(edgeJson.getJSONObject("config"))
-                    .ifPresent(link::setConfiguration);
+            link.setId(Optional.ofNullable(edgeJson.getString("id")).orElse(source.concat("-to-").concat(target)));
+
+            Optional.ofNullable(edgeJson.getJSONObject("config")).ifPresent(link::setConfiguration);
+
             JSONObject conditionJson = edgeJson.getJSONObject("condition");
             if (null != conditionJson) {
                 Condition condition = new Condition();
                 condition.setType(conditionJson.getString("type"));
-                condition.setConfiguration(conditionJson.getJSONObject("config"));
+                condition.setConfiguration(conditionJson.getJSONObject("configuration"));
                 link.setCondition(condition);
             }
             link.setType(edgeJson.getString("type"));
@@ -101,9 +110,15 @@ public class AntVG6RuleModelParserStrategy implements RuleModelParserStrategy {
                 sourceModel.getOutputs().add(link);
                 targetModel.getInputs().add(link);
             }
+            //规则事件节点
+            if (eventNode.containsKey(source)) {
+                ruleEvents.add(link);
+            }
         }
+
         ruleModel.setNodes(new ArrayList<>(allNodesMap.values()));
 
+        ruleModel.setEvents(ruleEvents);
 
         return ruleModel;
     }

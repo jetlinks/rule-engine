@@ -22,6 +22,8 @@ public class StartRuleNodeRequest implements Serializable {
 
     private String ruleId;
 
+    private boolean distributed = false;
+
     private RuleNodeConfiguration nodeConfig;
 
     private List<InputConfig> inputQueue = new ArrayList<>();

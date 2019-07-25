@@ -10,6 +10,7 @@ import org.jetlinks.rule.engine.api.cluster.ha.ClusterNotifyReply;
 import org.jetlinks.rule.engine.api.cluster.ha.HaManager;
 import org.redisson.api.*;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -95,7 +96,12 @@ public class RedissonHaManager implements HaManager {
         } catch (Throwable error) {
             log.error("execute notify error : " + error.getMessage(), error);
             reply.setErrorType(error.getClass().getName());
-            reply.setErrorMessage(error.getMessage());
+            if(StringUtils.isEmpty(error.getMessage())){
+                reply.setErrorMessage(org.hswebframework.utils.StringUtils.throwable2String(error));
+            }else{
+                reply.setErrorMessage(error.getMessage());
+            }
+
         }
         redissonClient.getBucket("notify:result:" + replyId).set(reply, 1, TimeUnit.MINUTES);
         RSemaphore rSemaphore = redissonClient.getSemaphore("notify:" + replyId);

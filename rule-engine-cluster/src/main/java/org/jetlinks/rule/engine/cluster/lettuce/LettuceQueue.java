@@ -46,6 +46,12 @@ public class LettuceQueue<T> implements Queue<T> {
 
     @Override
     public void stop() {
+        redisQueue.removeListener(listener);
 
+    }
+
+    @Override
+    public void setLocalConsumerPoint(float point) {
+        redisQueue.setLocalConsumerPoint(point);
     }
 }

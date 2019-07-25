@@ -203,11 +203,7 @@ public class DefaultRuleEngineScheduler implements RuleEngineScheduler, RuleEngi
     }
 
     private AbstractSchedulingRule createRunningRule(Rule rule, String instanceId) {
-        if (rule.getModel().getRunMode() == RunMode.DISTRIBUTED) {
-            return new SchedulingDistributedRule(rule, instanceId, clusterManager, eventPublisher, nodeSelector);
-        } else {
-            return new SchedulingClusterRule(rule, instanceId, clusterManager, eventPublisher, nodeSelector);
-        }
+        return new SchedulingDistributedRule(rule, instanceId, clusterManager, eventPublisher, nodeSelector);
     }
 
     @Override

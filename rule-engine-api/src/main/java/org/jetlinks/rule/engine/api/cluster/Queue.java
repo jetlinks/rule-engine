@@ -13,4 +13,7 @@ public interface Queue<T> {
     void start();
 
     void stop();
+
+    void setLocalConsumerPoint(float point);
+
 }

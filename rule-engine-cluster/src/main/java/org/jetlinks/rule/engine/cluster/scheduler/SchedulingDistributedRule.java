@@ -10,9 +10,7 @@ import org.hswebframework.web.NotFoundException;
 import org.jetlinks.rule.engine.api.Rule;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleInstanceState;
-import org.jetlinks.rule.engine.api.cluster.ClusterManager;
-import org.jetlinks.rule.engine.api.cluster.NodeInfo;
-import org.jetlinks.rule.engine.api.cluster.WorkerNodeSelector;
+import org.jetlinks.rule.engine.api.cluster.*;
 import org.jetlinks.rule.engine.api.events.EventPublisher;
 import org.jetlinks.rule.engine.api.events.RuleInstanceStateChangedEvent;
 import org.jetlinks.rule.engine.api.model.RuleLink;
@@ -133,8 +131,12 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
                 context.setSyncReturnNodeId(node.getId());
             }
             prepare(node);
+
+            SchedulingRule schedulingRule = Optional.ofNullable(node.getSchedulingRule())
+                    .orElseGet(rule.getModel()::getSchedulingRule);
+
             //选择执行节点
-            List<NodeInfo> nodes = nodeSelector.select(node.getSchedulingRule(), clusterManager.getAllAliveNode());
+            List<NodeInfo> nodes = nodeSelector.select(schedulingRule, clusterManager.getAllAliveNode());
             if (CollectionUtils.isEmpty(nodes)) {
                 throw new NotFoundException("没有可以执行任务[" + node.getName() + "]的节点");
             }
@@ -219,6 +221,7 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
                 .toArray(CompletableFuture[]::new))
                 .whenComplete((nil, error) -> {
                     if (error != null) {
+                        log.error("启动规则失败", error);
                         changeState(RuleInstanceState.startFailed);
                         stop(); //启动失败,停止任务
                     } else {
@@ -235,6 +238,9 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
         request.setNodeId(model.getId());
         request.setRuleId(rule.getId());
         request.setNodeConfig(model.createConfiguration());
+        //分布式
+        request.setDistributed(rule.getModel().getRunMode() == RunMode.DISTRIBUTED);
+
         request.getLogContext().put("ruleId", rule.getId());
         request.getLogContext().put("instanceId", context.getId());
         request.getLogContext().put("nodeId", model.getId());
@@ -276,7 +282,6 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
         this.state.set(state);
         eventPublisher.publishEvent(RuleInstanceStateChangedEvent.of(clusterManager.getCurrentNode().getId(), getContext().getId(), old, state));
     }
-
 
     @AllArgsConstructor
     enum NotifyType {

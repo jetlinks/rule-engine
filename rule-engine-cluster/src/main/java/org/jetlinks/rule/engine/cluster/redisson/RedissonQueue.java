@@ -79,4 +79,9 @@ public class RedissonQueue<T> implements Queue<T> {
     public void stop() {
         consumer.set(null);
     }
+
+    @Override
+    public void setLocalConsumerPoint(float point) {
+
+    }
 }
