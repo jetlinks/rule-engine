@@ -163,6 +163,9 @@ public class DefaultRuleEngineSchedulerTest {
         rule.getModel().setRunMode(RunMode.CLUSTER);
         //start
         RuleInstanceContext context = ruleEngine.startRule(rule);
+
+
+
         //test get running instance
         context = ruleEngine.getInstance(context.getId());
         Assert.assertNotNull(context);

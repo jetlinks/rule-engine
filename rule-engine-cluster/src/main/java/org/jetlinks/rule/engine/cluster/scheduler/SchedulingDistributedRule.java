@@ -113,15 +113,14 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
                         .orElseThrow(() -> new NotFoundException("节点[" + nodeId + "]不存在")));
 
         this.rule = rule;
-
+        prepare(false);
     }
 
     private String getDataQueueName(String id, RuleNodeModel model) {
         return "data:" + id + ":node:" + model.getId();
     }
 
-
-    private void prepare() {
+    private void prepare(boolean checkWorker) {
         requests.clear();
         allRunningNode.clear();
 
@@ -137,12 +136,16 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
 
             //选择执行节点
             List<NodeInfo> nodes = nodeSelector.select(schedulingRule, clusterManager.getAllAliveNode());
-            if (CollectionUtils.isEmpty(nodes)) {
+            if (checkWorker && CollectionUtils.isEmpty(nodes)) {
                 log.warn("没有可以执行任务[{}-{}]的worker", getContext().getId(), node.getName());
             }
             allRunningNode.addAll(nodes);
             nodeRunnerInfo.put(node.getId(), nodes);
         }
+    }
+
+    private void prepare() {
+        prepare(true);
     }
 
     private List<NodeInfo> getNodeRunnerWorker(String nodeId) {
