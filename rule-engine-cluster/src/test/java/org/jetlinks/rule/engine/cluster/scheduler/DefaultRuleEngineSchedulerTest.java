@@ -141,7 +141,6 @@ public class DefaultRuleEngineSchedulerTest {
         evaluator.register(new ScriptConditionEvaluatorStrategy(new DefaultScriptEvaluator()));
 
         RuleEngineWorker worker = new RuleEngineWorker();
-        worker.setRuleRepository(ruleEngine.getRuleRepository());
         worker.setModelParser(ruleEngine.getModelParser());
 
         worker.setClusterManager(clusterManager);

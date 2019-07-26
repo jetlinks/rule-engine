@@ -22,6 +22,9 @@ public class RedissonQueue<T> implements Queue<T> {
 
     private volatile boolean accepted;
 
+    private float localConsumerPoint = Float.parseFloat(System.getProperty("redisson.queue.local.consumer.point", "0.5"));
+    ;
+
     public RedissonQueue(RQueue<T> queue) {
         this.queue = queue;
     }
@@ -64,12 +67,22 @@ public class RedissonQueue<T> implements Queue<T> {
 
     @Override
     public CompletionStage<Boolean> putAsync(T data) {
+
+        if (consumer.get() != null && Math.random() < localConsumerPoint) {
+            consumer.get().accept(data);
+           return CompletableFuture.completedFuture(true);
+        }
+
         return CompletableFuture.supplyAsync(() -> queue.add(data));
     }
 
     @Override
     @SneakyThrows
     public void put(T data) {
+        if (consumer.get() != null && Math.random() < localConsumerPoint) {
+            consumer.get().accept(data);
+            return;
+        }
         if (!queue.add(data)) {
             throw new RuntimeException("add data to queue fail: " + data);
         }
@@ -82,6 +95,6 @@ public class RedissonQueue<T> implements Queue<T> {
 
     @Override
     public void setLocalConsumerPoint(float point) {
-
+        this.localConsumerPoint = point;
     }
 }

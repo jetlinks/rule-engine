@@ -3,12 +3,13 @@ package org.jetlinks.rule.engine.cluster.worker;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.hswebframework.web.NotFoundException;
-import org.jetlinks.rule.engine.api.*;
+import org.jetlinks.rule.engine.api.ConditionEvaluator;
+import org.jetlinks.rule.engine.api.RuleData;
+import org.jetlinks.rule.engine.api.RuleDataHelper;
+import org.jetlinks.rule.engine.api.Slf4jLogger;
 import org.jetlinks.rule.engine.api.cluster.ClusterManager;
 import org.jetlinks.rule.engine.api.cluster.Queue;
 import org.jetlinks.rule.engine.api.events.EventPublisher;
-import org.jetlinks.rule.engine.api.events.EventSupportRuleInstanceContext;
 import org.jetlinks.rule.engine.api.events.NodeExecuteEvent;
 import org.jetlinks.rule.engine.api.events.RuleEvent;
 import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
@@ -16,24 +17,21 @@ import org.jetlinks.rule.engine.api.executor.ExecutableRuleNodeFactory;
 import org.jetlinks.rule.engine.api.executor.Output;
 import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
 import org.jetlinks.rule.engine.api.model.RuleEngineModelParser;
-import org.jetlinks.rule.engine.api.persistent.RulePersistent;
-import org.jetlinks.rule.engine.api.persistent.repository.RuleRepository;
 import org.jetlinks.rule.engine.cluster.executor.DefaultContext;
 import org.jetlinks.rule.engine.cluster.executor.QueueInput;
 import org.jetlinks.rule.engine.cluster.executor.QueueOutput;
 import org.jetlinks.rule.engine.cluster.logger.ClusterLogger;
 import org.jetlinks.rule.engine.cluster.logger.LogInfo;
-import org.jetlinks.rule.engine.cluster.message.*;
-import org.jetlinks.rule.engine.standalone.StandaloneRuleEngine;
+import org.jetlinks.rule.engine.cluster.message.EventConfig;
+import org.jetlinks.rule.engine.cluster.message.InputConfig;
+import org.jetlinks.rule.engine.cluster.message.OutputConfig;
+import org.jetlinks.rule.engine.cluster.message.StartRuleNodeRequest;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -59,15 +57,7 @@ public class RuleEngineWorker {
 
     @Getter
     @Setter
-    private RuleRepository ruleRepository;
-
-    @Getter
-    @Setter
     private RuleEngineModelParser modelParser;
-
-    @Getter
-    @Setter
-    private RuleEngine standaloneRuleEngine;
 
     @Getter
     @Setter
@@ -90,28 +80,10 @@ public class RuleEngineWorker {
             return;
         }
         running = true;
-        if (standaloneRuleEngine == null) {
-            StandaloneRuleEngine ruleEngine = new StandaloneRuleEngine();
-            ruleEngine.setEvaluator(conditionEvaluator);
-            ruleEngine.setNodeFactory(nodeFactory);
-            ruleEngine.setLoggerSupplier((contextId, ruleNodeModel) -> {
-                ClusterLogger logger = new ClusterLogger();
-                logger.setLogInfoConsumer(this::acceptLog);
-                logger.setInstanceId(contextId);
-                logger.setNodeId(ruleNodeModel.getId());
-                logger.setParent(new Slf4jLogger("rule.engine.cluster." + ruleNodeModel.getId()));
-                return logger;
-            });
-            this.standaloneRuleEngine = ruleEngine;
-        }
         //初始化
         clusterManager
                 .getHaManager()
                 .onNotify("rule:node:init", this::createDistributedRuleNode);
-
-        clusterManager
-                .getHaManager()
-                .onNotify("rule:cluster:init", this::createClusterRule);
 
         //停止
         clusterManager
@@ -189,52 +161,6 @@ public class RuleEngineWorker {
         }
     }
 
-
-    private class StandaloneRunningRule implements RunningRule {
-        private QueueInput input;
-        private RuleInstanceContext context;
-        private Logger logger;
-        private StartRuleRequest request;
-
-        volatile boolean running = false;
-
-        public StandaloneRunningRule(QueueInput input, RuleInstanceContext context, Logger logger, StartRuleRequest request) {
-            this.input = input;
-            this.context = context;
-            this.logger = logger;
-            this.request = request;
-        }
-
-        @Override
-        public synchronized void start() {
-            if (running) {
-                return;
-            }
-            running = true;
-            AtomicReference<Function<RuleData, CompletionStage<RuleData>>> reference = new AtomicReference<>();
-            context.execute(reference::set);
-            input.accept(data -> {
-                if (RuleDataHelper.isSync(data)) {
-                    context.execute(data)
-                            .whenComplete((ruleData, throwable) -> syncReturn(request.getInstanceId(), ruleData, throwable));
-                } else {
-                    reference.get().apply(data);
-                }
-            });
-            context.start();
-            log.debug("start rule {}", request.getRuleId());
-        }
-
-        @Override
-        public void stop() {
-            log.debug("stop rule {}", request.getRuleId());
-            input.close();
-            context.stop();
-            running = false;
-        }
-    }
-
-
     protected void acceptLog(LogInfo logInfo) {
         if (null != executeLogEventConsumer) {
             executeLogEventConsumer.accept(NodeExecuteLogEvent.of(logInfo));
@@ -271,48 +197,7 @@ public class RuleEngineWorker {
         }
     }
 
-
-    @Deprecated
-    protected boolean createClusterRule(StartRuleRequest request) {
-        Map<String, RunningRule> map = getRunningRuleNode(request.getInstanceId());
-        synchronized (map) {
-            if (map.containsKey(request.getRuleId())) {
-                log.debug("rule node worker {} already exists", request.getRuleId());
-                return true;
-            }
-            String ruleId = request.getRuleId();
-            RulePersistent persistent = ruleRepository.findRuleById(ruleId)
-                    .orElseThrow(() -> new NotFoundException("规则[" + ruleId + "]不存在"));
-            Rule rule = persistent.toRule(modelParser);
-            //输入队列
-            List<Queue<RuleData>> inputsQueue = request.getInputQueue()
-                    .stream()
-                    .map(queueName -> clusterManager.<RuleData>getQueue(queueName))
-                    .collect(Collectors.toList());
-
-            QueueInput input = new QueueInput(inputsQueue);
-            ClusterLogger logger = new ClusterLogger();
-            logger.setParent(new Slf4jLogger("rule.engine.cluster." + request.getRuleId()));
-            logger.setLogInfoConsumer(this::acceptLog);
-
-            RuleInstanceContext context = standaloneRuleEngine.startRule(rule);
-            if (context instanceof EventSupportRuleInstanceContext) {
-                EventSupportRuleInstanceContext instanceContext = ((EventSupportRuleInstanceContext) context);
-                //添加监听器
-                instanceContext.addEventListener(executeEvent -> handleEvent(executeEvent.getEvent(), executeEvent.getNodeId(), executeEvent.getInstanceId(), executeEvent.getRuleData()));
-            } else {
-                logger.warn("context [{}] not support event!", context);
-            }
-
-            StandaloneRunningRule runningRule = new StandaloneRunningRule(input, context, logger, request);
-
-            map.put(request.getRuleId(), runningRule);
-        }
-        return true;
-    }
-
-    //分布式规则
-    protected boolean createDistributedRuleNode(StartRuleNodeRequest request) {
+    private boolean createDistributedRuleNode(StartRuleNodeRequest request) {
         try {
             Map<String, RunningRule> map = getRunningRuleNode(request.getInstanceId());
             synchronized (map) {
