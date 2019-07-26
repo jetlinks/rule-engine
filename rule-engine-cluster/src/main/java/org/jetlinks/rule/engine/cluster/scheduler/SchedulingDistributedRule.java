@@ -31,7 +31,8 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static java.util.concurrent.CompletableFuture.*;
+import static java.util.concurrent.CompletableFuture.allOf;
+import static java.util.concurrent.CompletableFuture.completedFuture;
 
 //分布式规则
 @Slf4j
@@ -112,7 +113,6 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
                         .orElseThrow(() -> new NotFoundException("节点[" + nodeId + "]不存在")));
 
         this.rule = rule;
-        this.prepare();
 
     }
 
@@ -138,9 +138,8 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
             //选择执行节点
             List<NodeInfo> nodes = nodeSelector.select(schedulingRule, clusterManager.getAllAliveNode());
             if (CollectionUtils.isEmpty(nodes)) {
-                throw new NotFoundException("没有可以执行任务[" + node.getName() + "]的节点");
+                log.warn("没有可以执行任务[{}-{}]的worker", getContext().getId(), node.getName());
             }
-
             allRunningNode.addAll(nodes);
             nodeRunnerInfo.put(node.getId(), nodes);
         }
@@ -151,6 +150,8 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
     }
 
     public CompletionStage<Void> init() {
+        prepare();
+
         return allOf(requests
                 .stream()
                 .flatMap(request -> getNodeRunnerWorker(request.getNodeId())
