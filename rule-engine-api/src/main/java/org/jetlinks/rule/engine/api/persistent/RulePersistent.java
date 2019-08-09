@@ -30,7 +30,7 @@ public class RulePersistent implements Serializable {
 
     public Rule toRule(RuleEngineModelParser parser) {
         Rule rule = new Rule();
-        rule.setId(ruleId);
+        rule.setId(id);
         rule.setVersion(version == null ? 1 : version);
         rule.setModel(parser.parse(modelFormat, model));
         return rule;

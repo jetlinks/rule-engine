@@ -3,7 +3,6 @@ package org.jetlinks.rule.engine.standalone;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.hswebframework.web.id.IDGenerator;
 import org.jetlinks.rule.engine.api.*;
 import org.jetlinks.rule.engine.api.events.EventSupportRuleInstanceContext;
 import org.jetlinks.rule.engine.api.events.GlobalNodeEventListener;
@@ -95,7 +94,11 @@ public class StandaloneRuleEngine implements RuleEngine {
 
     @Override
     public RuleInstanceContext startRule(Rule rule) {
-        String id = IDGenerator.MD5.generate();
+        String id = rule.getId();
+        RuleInstanceContext old = getInstance(id);
+        if (old != null) {
+            old.stop();
+        }
         RuleNodeModel rootModel = rule.getModel()
                 .getStartNode()
                 .orElseGet(() -> rule.getModel()

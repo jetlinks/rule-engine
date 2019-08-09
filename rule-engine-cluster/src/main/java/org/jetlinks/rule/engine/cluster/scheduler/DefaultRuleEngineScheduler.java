@@ -5,12 +5,14 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.hswebframework.web.NotFoundException;
 import org.hswebframework.web.dict.EnumDict;
-import org.hswebframework.web.id.IDGenerator;
 import org.jetlinks.rule.engine.api.Rule;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleEngine;
 import org.jetlinks.rule.engine.api.RuleInstanceContext;
-import org.jetlinks.rule.engine.api.cluster.*;
+import org.jetlinks.rule.engine.api.cluster.ClusterManager;
+import org.jetlinks.rule.engine.api.cluster.NodeInfo;
+import org.jetlinks.rule.engine.api.cluster.Topic;
+import org.jetlinks.rule.engine.api.cluster.WorkerNodeSelector;
 import org.jetlinks.rule.engine.api.cluster.scheduler.RuleEngineScheduler;
 import org.jetlinks.rule.engine.api.cluster.scheduler.SchedulingRule;
 import org.jetlinks.rule.engine.api.events.DefaultEventPubSub;
@@ -170,7 +172,7 @@ public class DefaultRuleEngineScheduler implements RuleEngineScheduler, RuleEngi
 
     @Override
     public RuleInstanceContext startRule(Rule rule) {
-        AbstractSchedulingRule schedulingRule = createRunningRule(rule, IDGenerator.MD5.generate());
+        AbstractSchedulingRule schedulingRule = createRunningRule(rule, rule.getId());
 
         instanceRepository.saveInstance(schedulingRule.toPersistent());
 
