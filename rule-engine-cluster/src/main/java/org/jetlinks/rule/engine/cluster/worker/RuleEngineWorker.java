@@ -207,7 +207,8 @@ public class RuleEngineWorker {
                     return true;
                 }
                 DefaultContext context = new DefaultContext();
-
+                context.setInstanceId(request.getInstanceId());
+                context.setNodeId(request.getNodeId());
                 RuleNodeConfiguration configuration = request.getNodeConfig();
                 log.info("create executor rule worker :{}.{}", request.getInstanceId(), configuration.getNodeId());
                 ExecutableRuleNode ruleNode = nodeFactory.create(configuration);
@@ -234,7 +235,7 @@ public class RuleEngineWorker {
                         .map(queueName -> clusterManager.<RuleData>getQueue(queueName))
                         .peek(queue -> {
                             if (request.isDistributed()) {
-                                //分布式的时候,如果尝试50%本地消费
+                                //分布式的时候,尝试50%本地消费
                                 queue.setLocalConsumerPoint(0.5F);
                             } else {
                                 //如果不是分布式,则全部本地消费
@@ -289,9 +290,9 @@ public class RuleEngineWorker {
                 map.put(request.getNodeId(), rule);
                 return true;
             }
-        }catch (Exception e){
-            log.error("启动规则[{}]失败",request.getInstanceId(), e);
-            throw  e;
+        } catch (Exception e) {
+            log.error("启动规则[{}]失败", request.getInstanceId(), e);
+            throw e;
         }
     }
 

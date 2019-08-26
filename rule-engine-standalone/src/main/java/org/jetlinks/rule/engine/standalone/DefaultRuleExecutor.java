@@ -189,6 +189,16 @@ public class DefaultRuleExecutor implements RuleExecutor {
         }
 
         @Override
+        public String getInstanceId() {
+            return instanceId;
+        }
+
+        @Override
+        public String getNodeId() {
+            return nodeId;
+        }
+
+        @Override
         public Logger logger() {
             return logger;
         }

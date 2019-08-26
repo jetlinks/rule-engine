@@ -4,13 +4,10 @@ import org.jetlinks.rule.engine.api.Logger;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.Slf4jLogger;
 import org.jetlinks.rule.engine.api.executor.*;
-import org.jetlinks.rule.engine.executor.supports.JavaMethodInvokeStrategy;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicLong;
-
-import static org.junit.Assert.*;
 
 /**
  * @author zhouhao
@@ -47,6 +44,16 @@ public class DefaultExecutableRuleNodeFactoryTest {
             Assert.assertNotNull(ruleNode);
             AtomicLong counter = new AtomicLong();
             ruleNode.start(new ExecutionContext() {
+                @Override
+                public String getInstanceId() {
+                    return "test";
+                }
+
+                @Override
+                public String getNodeId() {
+                    return "test";
+                }
+
                 @Override
                 public Logger logger() {
                     return new Slf4jLogger("test");

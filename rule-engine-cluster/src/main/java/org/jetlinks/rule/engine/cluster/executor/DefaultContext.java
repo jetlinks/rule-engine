@@ -16,6 +16,14 @@ public class DefaultContext implements ExecutionContext {
 
     @Getter
     @Setter
+    private String instanceId;
+
+    @Getter
+    @Setter
+    private String nodeId;
+
+    @Getter
+    @Setter
     private Input input;
 
     @Getter
@@ -56,6 +64,7 @@ public class DefaultContext implements ExecutionContext {
         stopListener.forEach(Runnable::run);
         stopListener.clear();
     }
+
 
     @Override
     public Logger logger() {

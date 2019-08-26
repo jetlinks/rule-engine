@@ -34,6 +34,16 @@ public class JavaMethodInvokeStrategyTest {
 
         node.start(new ExecutionContext() {
             @Override
+            public String getInstanceId() {
+                return "test";
+            }
+
+            @Override
+            public String getNodeId() {
+                return "test";
+            }
+
+            @Override
             public Logger logger() {
                 return new Slf4jLogger("test");
             }

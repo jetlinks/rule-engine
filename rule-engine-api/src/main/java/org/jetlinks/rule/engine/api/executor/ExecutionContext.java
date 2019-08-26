@@ -13,6 +13,16 @@ import org.jetlinks.rule.engine.api.RuleData;
 public interface ExecutionContext {
 
     /**
+     * @return 规则实例ID
+     */
+    String getInstanceId();
+
+    /**
+     * @return 规则节点ID
+     */
+    String getNodeId();
+
+    /**
      * @return 日志
      */
     Logger logger();
