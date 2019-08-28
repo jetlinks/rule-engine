@@ -40,7 +40,11 @@ public abstract class CommonExecutableRuleNodeFactoryStrategy<C extends RuleNode
                                         } else {
                                             RuleData newData;
                                             if (returnNewValue(config) && result != SkipNextValue.INSTANCE) {
-                                                newData = data.newData(result);
+                                                if (result instanceof RuleData) {
+                                                    newData = ((RuleData) result);
+                                                } else {
+                                                    newData = data.newData(result);
+                                                }
                                             } else {
                                                 newData = data.copy();
                                             }
