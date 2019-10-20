@@ -179,9 +179,8 @@ public class RuleEngineWorker {
         }
     }
 
-    private void syncReturn(String instanceId, RuleData data, Throwable error) {
+    private void syncReturn(String instanceId, RuleData data) {
         if (data == null) {
-            log.error("sync return [{}] error", instanceId, error);
             return;
         }
         String server = data.getAttribute("fromServer").map(String.class::cast).orElse(null);
@@ -264,7 +263,7 @@ public class RuleEngineWorker {
                     if (RuleEvent.NODE_EXECUTE_DONE.equals(event) || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) {
                         //同步返回结果
                         if (configuration.getNodeId().equals(RuleDataHelper.getEndWithNodeId(data).orElse(null))) {
-                            syncReturn(request.getInstanceId(), data, null);
+                            syncReturn(request.getInstanceId(), data);
                         }
                     }
                     Output eventOutput = events.get(event);
@@ -277,6 +276,7 @@ public class RuleEngineWorker {
                 context.setOutput(output);
                 context.setErrorHandler((ruleData, throwable) -> {
                     RuleDataHelper.putError(ruleData, throwable);
+                    context.logger().error(throwable.getMessage(), throwable);
                     context.fireEvent(RuleEvent.NODE_EXECUTE_FAIL, ruleData);
                 });
                 context.setLogger(logger);
