@@ -2,8 +2,8 @@ package org.jetlinks.rule.engine.cluster.lettuce;
 
 import org.jetlinks.lettuce.RedisTopic;
 import org.jetlinks.rule.engine.api.cluster.Topic;
-
-import java.util.function.Consumer;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public class LettuceTopic<T> implements Topic<T> {
 
@@ -11,24 +11,25 @@ public class LettuceTopic<T> implements Topic<T> {
 
     private Class<T> type;
 
+
     public LettuceTopic(Class<T> type, RedisTopic<T> topic) {
         this.topic = topic;
         this.type = type;
     }
 
     @Override
-    public void addListener(Consumer<T> consumer) {
-        topic.addListener((channel, data) -> consumer.accept(convert(data)));
+    public reactor.core.publisher.Flux<T> subscribe() {
+        return Flux.create(sink -> {
+            topic.addListener((topic, data) -> {
+                sink.next(data);
+            });
+        });
     }
 
     @Override
-    public void publish(T data) {
-        topic.publish(data);
-    }
+    public reactor.core.publisher.Mono<Boolean> publish(T data) {
 
-    @SuppressWarnings("all")
-    protected T convert(Object data) {
-        // TODO: 2019-07-05
-        return ((T) data);
+        return Mono.fromCompletionStage(topic.publish(data))
+                .map(i -> i > 0);
     }
 }

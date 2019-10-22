@@ -6,7 +6,6 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
-import org.hswebframework.web.NotFoundException;
 import org.jetlinks.rule.engine.api.Rule;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleInstanceState;
@@ -110,7 +109,7 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
                         .getNode(nodeId)
                         .map(model -> getDataQueueName(id, model))
                         .map(clusterManager::<RuleData>getQueue)
-                        .orElseThrow(() -> new NotFoundException("节点[" + nodeId + "]不存在")));
+                        .orElseThrow(() -> new NullPointerException("节点[" + nodeId + "]不存在")));
 
         this.rule = rule;
         prepare(false);

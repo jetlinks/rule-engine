@@ -9,13 +9,14 @@ import java.util.function.Consumer;
 public class RuleDataHelper {
 
     //同步返回执行结果
-    public final static String SYNC_RETURN   = "sync_return";
+    public final static String SYNC_RETURN = "sync_return";
     public final static String END_WITH_NODE = "end_with";
+    public final static String SYNC_CONTEXT_ID = "sync_context_id";
 
     //错误信息
-    public final static String ERROR_TYPE    = "error_type";
+    public final static String ERROR_TYPE = "error_type";
     public final static String ERROR_MESSAGE = "error_message";
-    public final static String ERROR_STACK   = "error_stack";
+    public final static String ERROR_STACK = "error_stack";
 
     //指定启动节点
     public final static String START_WITH_NODE = "start_with";
@@ -113,9 +114,9 @@ public class RuleDataHelper {
         return data;
     }
 
-    public static RuleData markSyncReturn(RuleData data, String nodeId) {
+    public static RuleData markSyncReturn(RuleData data, String endWithId) {
         data.setAttribute(SYNC_RETURN, true);
-        data.setAttribute(END_WITH_NODE, nodeId);
+        data.setAttribute(END_WITH_NODE, endWithId);
         return data;
     }
 }

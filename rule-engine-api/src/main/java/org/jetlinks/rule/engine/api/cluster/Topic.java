@@ -1,12 +1,13 @@
 package org.jetlinks.rule.engine.api.cluster;
 
-import java.util.function.Consumer;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public interface Topic<T> {
 
-    void addListener(Consumer<T> consumer);
+    Flux<T> subscribe();
 
-    void publish(T data);
+    Mono<Boolean> publish(T data);
 
 
 }

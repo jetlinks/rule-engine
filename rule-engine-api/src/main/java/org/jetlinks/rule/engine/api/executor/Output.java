@@ -1,9 +1,11 @@
 package org.jetlinks.rule.engine.api.executor;
 
 import org.jetlinks.rule.engine.api.RuleData;
+import org.reactivestreams.Publisher;
+import reactor.core.publisher.Mono;
 
 /**
- * 数据输出接口,用于在数据吹了完成之后输出结果
+ * 数据输出接口,用于在数据处理完成之后输出结果
  *
  * @author zhouhao
  * @since 1.0.0
@@ -15,5 +17,6 @@ public interface Output {
      *
      * @param data 规则数据
      */
-    void write(RuleData data);
+    Mono<Boolean> write(Publisher<RuleData> data);
+
 }

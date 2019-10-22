@@ -11,12 +11,14 @@ import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.executor.ExecutionContext;
 import org.jetlinks.rule.engine.api.model.NodeType;
 import org.jetlinks.rule.engine.executor.CommonExecutableRuleNodeFactoryStrategy;
+import org.reactivestreams.Publisher;
+import reactor.core.publisher.Mono;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -52,7 +54,7 @@ public class JavaMethodInvokeStrategy extends CommonExecutableRuleNodeFactoryStr
     }
 
     @SneakyThrows
-    public Function<RuleData, CompletionStage<Object>> createExecutor(ExecutionContext context, JavaMethodInvokeStrategyConfiguration config) {
+    public Function<RuleData, Publisher<Object>> createExecutor(ExecutionContext context, JavaMethodInvokeStrategyConfiguration config) {
         String className = config.getClassName();
         String methodName = config.getMethodName();
         Class clazz = getType(className);
@@ -78,7 +80,6 @@ public class JavaMethodInvokeStrategy extends CommonExecutableRuleNodeFactoryStr
         Class[] methodTypes = method.getParameterTypes();
         log.debug("create java method invoke executor:{}.{}", className, methodName);
         return (data) -> {
-            CompletableFuture future = new CompletableFuture();
             try {
                 Object[] invokeParameter = parameterCount > 0 ? new Object[parameterCount] : emptyArgs;
                 for (int i = 0; i < parameterCount; i++) {
@@ -86,14 +87,20 @@ public class JavaMethodInvokeStrategy extends CommonExecutableRuleNodeFactoryStr
                 }
                 context.logger().debug("invoke {}.{}", className, methodName);
                 Object result = finaleMethod.invoke(instance, (Object[]) invokeParameter);
-                if (result instanceof CompletionStage) {
-                    return ((CompletionStage) result);
+                if (result instanceof Publisher) {
+                    return ((Publisher) result);
                 }
-                future.complete(result);
+                if (result instanceof CompletionStage) {
+                    return Mono.fromCompletionStage(((CompletionStage) result));
+                }
+                if (result instanceof Callable) {
+                    return Mono.fromCallable(((Callable) result));
+                }
+                return Mono.justOrEmpty(result);
             } catch (Throwable e) {
-                future.completeExceptionally(e);
+                return Mono.error(e);
             }
-            return future;
+
         };
     }
 
@@ -119,7 +126,7 @@ public class JavaMethodInvokeStrategy extends CommonExecutableRuleNodeFactoryStr
         AtomicReference<Object> reference = new AtomicReference<>();
 
         data.acceptMap(map -> {
-            reference.set(converter.convert(convertParameter(parameter, map),type,null));
+            reference.set(converter.convert(convertParameter(parameter, map), type, null));
         });
 
         return reference.get();

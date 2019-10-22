@@ -1,18 +1,17 @@
 package org.jetlinks.rule.engine.api.cluster;
 
-import java.util.concurrent.CompletionStage;
-import java.util.function.Consumer;
+import org.reactivestreams.Publisher;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public interface Queue<T> {
-    boolean poll(Consumer<T> consumer);
+    Flux<T> poll();
 
-    CompletionStage<Boolean> putAsync(T data);
+    Mono<Boolean> put(Publisher<T> data);
 
-    void put(T data);
+    Mono<Boolean> start();
 
-    void start();
-
-    void stop();
+    Mono<Boolean> stop();
 
     void setLocalConsumerPoint(float point);
 

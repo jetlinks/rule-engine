@@ -26,6 +26,7 @@ import org.jetlinks.rule.engine.cluster.message.EventConfig;
 import org.jetlinks.rule.engine.cluster.message.InputConfig;
 import org.jetlinks.rule.engine.cluster.message.OutputConfig;
 import org.jetlinks.rule.engine.cluster.message.StartRuleNodeRequest;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Map;
@@ -179,7 +180,7 @@ public class RuleEngineWorker {
         }
     }
 
-    private void syncReturn(String instanceId, RuleData data) {
+    private void syncReturn(String instanceId, RuleData data, boolean complete) {
         if (data == null) {
             return;
         }
@@ -189,12 +190,13 @@ public class RuleEngineWorker {
             data.setAttribute("endServer", clusterManager.getHaManager().getCurrentNode().getId());
             data.setAttribute("instanceId", instanceId);
             clusterManager.getHaManager()
-                    .sendNotifyNoReply(server, "sync-return", data);
+                    .sendNotifyNoReply(server, complete ? "execute-complete" : "execute-result", data);
         }
         if (log.isInfoEnabled()) {
             log.info("sync return:{}", data);
         }
     }
+
 
     private boolean createDistributedRuleNode(StartRuleNodeRequest request) {
         try {
@@ -260,15 +262,19 @@ public class RuleEngineWorker {
                     }
                     log.debug("fire event {}.{}:{}", configuration.getNodeId(), event, data);
                     data.setAttribute("event", event);
-                    if (RuleEvent.NODE_EXECUTE_DONE.equals(event) || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) {
+                    if (RuleEvent.NODE_EXECUTE_DONE.equals(event)
+                            || RuleEvent.NODE_EXECUTE_RESULT.equals(event)
+                            || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) {
                         //同步返回结果
                         if (configuration.getNodeId().equals(RuleDataHelper.getEndWithNodeId(data).orElse(null))) {
-                            syncReturn(request.getInstanceId(), data);
+                            syncReturn(request.getInstanceId(), data, !RuleEvent.NODE_EXECUTE_RESULT.equals(event));
                         }
                     }
                     Output eventOutput = events.get(event);
                     if (eventOutput != null) {
-                        eventOutput.write(data);
+                        eventOutput
+                                .write(Mono.just(data))
+                                .subscribe();
                     }
                     handleEvent(event, request.getNodeId(), request.getInstanceId(), data);
                 });

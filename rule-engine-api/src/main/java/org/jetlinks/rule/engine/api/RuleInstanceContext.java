@@ -1,10 +1,11 @@
 package org.jetlinks.rule.engine.api;
 
 
+import org.reactivestreams.Publisher;
+import reactor.core.publisher.Flux;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * 规则实例上下文,一个上下文对应一个运行中的规则
@@ -40,27 +41,7 @@ public interface RuleInstanceContext {
      * @see CompletionStage
      * @see java.util.concurrent.CompletableFuture
      */
-    CompletionStage<RuleData> execute(RuleData data);
-
-    /**
-     * 不断的向规则传递数据,如果将
-     * <pre>
-     *     context.execute(consumer->{
-     *
-     *        for(int i=0;i<100;i++){
-     *           consumer.invoke(RuleData.create("data"+i))
-     *           .thenComplete((result,error)->{
-     *               //
-     *           });
-     *        }
-     *
-     *     });
-     * </pre>
-     *
-     * @param dataSource 数据源
-     * @see RuleDataHelper#markSyncReturn(RuleData)
-     */
-    void execute(Consumer<Function<RuleData, CompletionStage<RuleData>>> dataSource);
+    Flux<RuleData> execute(Publisher<RuleData> data);
 
     /**
      * 启动规则

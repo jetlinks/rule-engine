@@ -27,11 +27,6 @@
         </dependency>
 
         <dependency>
-            <groupId>org.jetlinks</groupId>
-            <artifactId>rule-engine-standalone</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.hswebframework</groupId>
             <artifactId>hsweb-expands-script</artifactId>
             <version>${hsweb.expands.version}</version>
@@ -45,16 +40,8 @@
         </dependency>
 
         <dependency>
-            <groupId>org.redisson</groupId>
-            <artifactId>redisson</artifactId>
-            <optional>true</optional>
-        </dependency>
-
-        <dependency>
             <groupId>io.projectreactor</groupId>
             <artifactId>reactor-core</artifactId>
-            <!--<optional>true</optional>-->
-            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

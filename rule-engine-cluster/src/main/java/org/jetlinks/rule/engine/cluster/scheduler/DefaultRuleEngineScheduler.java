@@ -3,7 +3,6 @@ package org.jetlinks.rule.engine.cluster.scheduler;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.hswebframework.web.NotFoundException;
 import org.hswebframework.web.dict.EnumDict;
 import org.jetlinks.rule.engine.api.Rule;
 import org.jetlinks.rule.engine.api.RuleData;
@@ -95,16 +94,17 @@ public class DefaultRuleEngineScheduler implements RuleEngineScheduler, RuleEngi
 
         Topic<RuleInstanceStateChangedEvent> topic = clusterManager.getTopic(RuleInstanceStateChangedEvent.class, "rule-instance-state-changed");
 
-        topic.addListener(event -> {
-            if (clusterManager.getCurrentNode().getId().equals(event.getSchedulerId())) {
-                return;
-            }
-            log.debug("rule instance [{}] state changed [{}]=>[{}],scheduler:[{}]"
-                    , event.getInstanceId(), event.getBefore(), event.getAfter(), event.getSchedulerId());
-            //同步其他节点发来的状态信息
-            getOrCreateSchedulingRule(event.getInstanceId()).setState(event.getAfter());
+        topic.subscribe()
+                .subscribe(event -> {
+                    if (clusterManager.getCurrentNode().getId().equals(event.getSchedulerId())) {
+                        return;
+                    }
+                    log.debug("rule instance [{}] state changed [{}]=>[{}],scheduler:[{}]"
+                            , event.getInstanceId(), event.getBefore(), event.getAfter(), event.getSchedulerId());
+                    //同步其他节点发来的状态信息
+                    getOrCreateSchedulingRule(event.getInstanceId()).setState(event.getAfter());
 
-        });
+                });
 
         //当前节点状态发生了变化,通知其他节点
         eventSubscriber
@@ -135,16 +135,26 @@ public class DefaultRuleEngineScheduler implements RuleEngineScheduler, RuleEngi
                     }
                 });
 
-        //需要同步返回的规则
         clusterManager.getHaManager()
-                .<RuleData, Object>onNotify("sync-return", data -> {
+                .<RuleData, Object>onNotify("execute-complete", data -> {
+                    data.getAttribute("instanceId")
+                            .map(String::valueOf)
+                            .map(contextCache::get)
+                            .map(SchedulingRule::getContext)
+                            .map(ClusterRuleInstanceContext.class::cast)
+                            .ifPresent(context -> context.executeComplete(data));
+
+                    return null;
+                });
+        clusterManager.getHaManager()
+                .<RuleData, Object>onNotify("execute-result", data -> {
 
                     data.getAttribute("instanceId")
                             .map(String::valueOf)
                             .map(contextCache::get)
                             .map(SchedulingRule::getContext)
                             .map(ClusterRuleInstanceContext.class::cast)
-                            .ifPresent(context -> context.syncReturn(data));
+                            .ifPresent(context -> context.executeResult(data));
 
                     return null;
                 });
@@ -193,9 +203,9 @@ public class DefaultRuleEngineScheduler implements RuleEngineScheduler, RuleEngi
     private AbstractSchedulingRule createRunningRule(String instanceId) {
         RuleInstancePersistent instance = instanceRepository
                 .findInstanceById(instanceId)
-                .orElseThrow(() -> new NotFoundException("规则实例[" + instanceId + "]不存在"));
+                .orElseThrow(() -> new NullPointerException("规则实例[" + instanceId + "]不存在"));
         RulePersistent rule = ruleRepository.findRuleById(instance.getRuleId())
-                .orElseThrow(() -> new NotFoundException("规则[" + instance.getRuleId() + "]不存在"));
+                .orElseThrow(() -> new NullPointerException("规则[" + instance.getRuleId() + "]不存在"));
         return initRuleInstance(rule, instance);
     }
 

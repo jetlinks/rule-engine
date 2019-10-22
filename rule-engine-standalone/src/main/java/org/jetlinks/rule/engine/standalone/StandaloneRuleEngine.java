@@ -12,13 +12,17 @@ import org.jetlinks.rule.engine.api.executor.ExecutableRuleNodeFactory;
 import org.jetlinks.rule.engine.api.model.Condition;
 import org.jetlinks.rule.engine.api.model.RuleLink;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;
+import org.reactivestreams.Publisher;
+import reactor.core.publisher.EmitterProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.*;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -57,7 +61,6 @@ public class StandaloneRuleEngine implements RuleEngine {
 
             if (tmp == null) {
                 DefaultRuleExecutor executor = new DefaultRuleExecutor();
-                executor.setParallel(nodeModel.isParallel());
                 allExecutor.put(nodeModel.getId(), tmp = executor);
 
                 ExecutableRuleNode ruleNode = nodeFactory.create(nodeModel.createConfiguration());
@@ -117,7 +120,8 @@ public class StandaloneRuleEngine implements RuleEngine {
         context.rootExecutor = builder.createRuleExecutor(id, null, rootModel, null);
 
         //处理所有没有指定输入的节点
-        rule.getModel().getNodes()
+        rule.getModel()
+                .getNodes()
                 .stream()
                 .filter(node -> node.getInputs().isEmpty())
                 .forEach(node -> builder.createRuleExecutor(id, null, node, null));
@@ -152,7 +156,10 @@ public class StandaloneRuleEngine implements RuleEngine {
 
         private Map<String, RuleExecutor> allExecutor;
 
-        private Map<String, Sync> syncMap = new ConcurrentHashMap<>();
+//        private Map<String, Sync> syncMap = new ConcurrentHashMap<>();
+
+        private Map<String, EmitterProcessor<RuleData>> syncMap = new ConcurrentHashMap<>();
+
 
         private RuleExecutor getExecutor(RuleData data) {
             return RuleDataHelper
@@ -162,22 +169,28 @@ public class StandaloneRuleEngine implements RuleEngine {
         }
 
         @Override
-        public CompletionStage<RuleData> execute(RuleData data) {
-            if (!RuleDataHelper.isSync(data)) {
-                RuleDataHelper.markSyncReturn(data, endNodeId);
-            }
-            Sync sync = new Sync();
-
-            syncMap.put(data.getId(), sync);
-            RuleExecutor ruleExecutor = getExecutor(data);
-            ruleExecutor.execute(data);
-
-            return sync.future;
-        }
-
-        @Override
-        public void execute(Consumer<Function<RuleData, CompletionStage<RuleData>>> dataSource) {
-            dataSource.accept(data -> getExecutor(data).execute(data));
+        public Flux<RuleData> execute(Publisher<RuleData> data) {
+            Set<String> ids = new HashSet<>();
+            return Flux
+                    .from(data)
+                    .concatMap(ruleData -> {
+                        if (!RuleDataHelper.isSync(ruleData)) {
+                            RuleDataHelper.markSyncReturn(ruleData, endNodeId);
+                        }
+                        EmitterProcessor<RuleData> processor = EmitterProcessor.create(true);
+                        syncMap.put(ruleData.getId(), processor);
+                        Flux<RuleData> flux = processor.map(Function.identity());
+                        return getExecutor(ruleData)
+                                .execute(Mono.just(ruleData))
+                                .flatMapMany(s -> {
+                                    if(!s){
+                                        return Flux.empty();
+                                    }
+                                    return flux;
+                                });
+                    })
+                    .timeout(Duration.ofSeconds(30))
+                    .doFinally(s -> ids.forEach(syncMap::remove));
         }
 
         @Override
@@ -203,10 +216,15 @@ public class StandaloneRuleEngine implements RuleEngine {
                 if (RuleEvent.NODE_EXECUTE_DONE.equals(executeEvent.getEvent())) {
                     RuleDataHelper.clearError(data);
                 }
+                if ((RuleEvent.NODE_EXECUTE_RESULT.equals(event)) &&
+                        executeEvent.getNodeId().equals(RuleDataHelper.getEndWithNodeId(data).orElse(null))) {
+                    Optional.ofNullable(syncMap.get(data.getId()))
+                            .ifPresent(sync -> sync.onNext(data));
+                }
                 if ((RuleEvent.NODE_EXECUTE_DONE.equals(event) || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) &&
                         executeEvent.getNodeId().equals(RuleDataHelper.getEndWithNodeId(data).orElse(null))) {
                     Optional.ofNullable(syncMap.remove(data.getId()))
-                            .ifPresent(sync -> sync.future.complete(data));
+                            .ifPresent(EmitterProcessor::onComplete);
                 }
             };
             for (RuleExecutor ruleExecutor : allExecutor.values()) {
@@ -219,8 +237,8 @@ public class StandaloneRuleEngine implements RuleEngine {
             for (RuleExecutor ruleExecutor : allExecutor.values()) {
                 ruleExecutor.stop();
             }
-            for (Sync value : syncMap.values()) {
-                value.future.completeExceptionally(new InterruptedException("rule stop"));
+            for (EmitterProcessor<RuleData> value : syncMap.values()) {
+                value.error(new InterruptedException("rule stop"));
             }
             syncMap.clear();
         }
@@ -229,11 +247,8 @@ public class StandaloneRuleEngine implements RuleEngine {
         public RuleInstanceState getState() {
             return null;
         }
+
+
     }
 
-    static class Sync {
-        CompletableFuture<RuleData> future = new CompletableFuture<>();
-
-        long createTime = System.currentTimeMillis();
-    }
 }

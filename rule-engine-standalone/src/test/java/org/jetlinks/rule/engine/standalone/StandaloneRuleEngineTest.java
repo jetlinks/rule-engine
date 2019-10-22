@@ -1,12 +1,10 @@
 package org.jetlinks.rule.engine.standalone;
 
 import lombok.SneakyThrows;
-import org.jetlinks.rule.engine.api.*;
-import org.jetlinks.rule.engine.api.events.RuleEvent;
-import org.jetlinks.rule.engine.api.model.NodeType;
-import org.jetlinks.rule.engine.api.model.RuleLink;
+import org.jetlinks.rule.engine.api.Rule;
+import org.jetlinks.rule.engine.api.RuleData;
+import org.jetlinks.rule.engine.api.RuleInstanceContext;
 import org.jetlinks.rule.engine.api.model.RuleModel;
-import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 import org.jetlinks.rule.engine.condition.DefaultConditionEvaluator;
 import org.jetlinks.rule.engine.condition.supports.DefaultScriptEvaluator;
 import org.jetlinks.rule.engine.condition.supports.ScriptConditionEvaluatorStrategy;
@@ -18,11 +16,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.StreamUtils;
+import reactor.core.publisher.Flux;
+import reactor.test.StepVerifier;
 
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.TimeUnit;
-
-import static org.jetlinks.rule.engine.api.RuleDataHelper.*;
 
 /**
  * @author zhouhao
@@ -62,29 +59,13 @@ public class StandaloneRuleEngineTest {
         RuleInstanceContext context = engine.startRule(rule);
         Assert.assertNotNull(context);
         Assert.assertNotNull(context.getId());
-        for (int i = 0; i < 100; i++) {
-            RuleData ruleData = context.execute(RuleData.create("abc1234"))
-                    .toCompletableFuture()
-                    .get(10, TimeUnit.SECONDS);
 
-            Assert.assertEquals(ruleData.getData(), "abc1234_");
-            System.out.println(ruleData.getData());
-        }
-        RuleData ruleData = context.execute(newHelper(RuleData.create("abc1234"))
-                .markEndWith("append-underline")
-                .done())
-                .toCompletableFuture()
-                .get(10, TimeUnit.SECONDS);
-        Assert.assertNotNull(ruleData);
-        Assert.assertEquals(ruleData.getData(), "ABC1234_");
-        RuleData ruleData2 = context.execute(newHelper(RuleData.create("ABC1234"))
-                .markStartWith("to-low-case")
-                .markEndWith("event-done")
-                .done())
-                .toCompletableFuture()
-                .get(10, TimeUnit.SECONDS);
-        Assert.assertNotNull(ruleData2);
-        Assert.assertEquals(ruleData2.getData(), "abc1234");
+        Flux.range(0, 5)
+                .map(i -> RuleData.create("abc" + i))
+                .as(context::execute)
+                .as(StepVerifier::create)
+                .expectNextCount(5)
+                .verifyComplete();
 
         context.stop();
     }

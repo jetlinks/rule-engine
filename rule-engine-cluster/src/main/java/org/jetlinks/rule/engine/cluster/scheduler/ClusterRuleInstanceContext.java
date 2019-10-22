@@ -9,14 +9,19 @@ import org.jetlinks.rule.engine.api.RuleInstanceContext;
 import org.jetlinks.rule.engine.api.RuleInstanceState;
 import org.jetlinks.rule.engine.api.cluster.ClusterManager;
 import org.jetlinks.rule.engine.api.cluster.Queue;
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
+import reactor.core.publisher.EmitterProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxProcessor;
+import reactor.core.publisher.Mono;
 
+import java.time.Duration;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -37,27 +42,14 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
 
     private ClusterManager clusterManager;
 
-    private Supplier<RuleInstanceState>  stateSupplier;
+    private Supplier<RuleInstanceState> stateSupplier;
 
     private Runnable onStop;
     private Runnable onStart;
 
     private long syncTimeout = 30_000;
 
-    private Map<String, Sync> syncFutures = new ConcurrentHashMap<>();
-
-    class Sync {
-        CompletableFuture<RuleData> future = new CompletableFuture<>();
-        long createTime = System.currentTimeMillis();
-
-        boolean isTimeout() {
-            return System.currentTimeMillis() - createTime > syncTimeout;
-        }
-    }
-
-    public RuleData wrapClusterRuleData(RuleData ruleData) {
-        return ruleData;
-    }
+    private Map<String, FluxProcessor<RuleData, RuleData>> syncFutures = new ConcurrentHashMap<>();
 
     private Queue<RuleData> getQueue(RuleData ruleData) {
         return Optional.ofNullable(queueGetter)
@@ -68,38 +60,28 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
     }
 
     @Override
-    public CompletionStage<RuleData> execute(RuleData data) {
-
-        if (!RuleDataHelper.isSync(data)) {
-            //标记本条数据需要同步返回结果
-            RuleDataHelper.markSyncReturn(wrapClusterRuleData(data), syncReturnNodeId);
-        }
-        data.setAttribute("fromServer", clusterManager.getHaManager().getCurrentNode().getId());
-
-        Queue<RuleData> queue = getQueue(data);
-
-        String dataId = data.getId();
-        log.info("execute rule:{} data:{}", id, data);
-        Sync sync = new Sync();
-        syncFutures.put(dataId, sync);
-
-        queue.put(data);
-        return sync.future;
-    }
-
-    @Override
-    public void execute(Consumer<Function<RuleData, CompletionStage<RuleData>>> dataSource) {
-        dataSource.accept(data -> {
-            //标记了是同步返回
-            if (RuleDataHelper.isSync(data)) {
-                return execute(data);
-            } else {
-                //没有标记则直接发送到队列然后返回结果null
-                return getQueue(data)
-                        .putAsync(wrapClusterRuleData(data))
-                        .thenApply(nil -> null);
-            }
-        });
+    public Flux<RuleData> execute(Publisher<RuleData> data) {
+        Set<String> ids = new HashSet<>();
+        return Flux
+                .from(data)
+                .concatMap(ruleData -> {
+                    if (!RuleDataHelper.isSync(ruleData)) {
+                        RuleDataHelper.markSyncReturn(ruleData, syncReturnNodeId);
+                    }
+                    EmitterProcessor<RuleData> processor = EmitterProcessor.create(true);
+                    syncFutures.put(ruleData.getId(), processor);
+                    Flux<RuleData> flux = processor.map(Function.identity());
+                    return getQueue(ruleData)
+                            .put(Mono.just(ruleData))
+                            .flatMapMany(s -> {
+                                if (!s) {
+                                    return Flux.empty();
+                                }
+                                return flux;
+                            });
+                })
+                .timeout(Duration.ofMillis(syncTimeout))
+                .doFinally(s -> ids.forEach(syncFutures::remove));
     }
 
     @Override
@@ -109,10 +91,14 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
         }
     }
 
-    protected void syncReturn(RuleData data) {
+    protected void executeResult(RuleData data) {
+        Optional.ofNullable(syncFutures.get(data.getId()))
+                .ifPresent(processor -> processor.onNext(data));
+    }
+
+    protected void executeComplete(RuleData data) {
         Optional.ofNullable(syncFutures.remove(data.getId()))
-                .map(sync -> sync.future)
-                .ifPresent(future -> future.complete(data));
+                .ifPresent(Subscriber::onComplete);
     }
 
     @Override
@@ -127,13 +113,5 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
         return stateSupplier.get();
     }
 
-    void checkTimeout() {
-        syncFutures.entrySet()
-                .stream()
-                .filter(e -> e.getValue().isTimeout())
-                .forEach(e -> {
-                    syncFutures.remove(e.getKey());
-                    e.getValue().future.completeExceptionally(new TimeoutException("同步返回结果超时"));
-                });
-    }
+
 }

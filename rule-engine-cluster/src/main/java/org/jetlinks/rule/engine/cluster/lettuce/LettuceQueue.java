@@ -1,53 +1,49 @@
 package org.jetlinks.rule.engine.cluster.lettuce;
 
-import lombok.SneakyThrows;
 import org.jetlinks.lettuce.RedisQueue;
 import org.jetlinks.rule.engine.api.cluster.Queue;
+import org.reactivestreams.Publisher;
+import reactor.core.publisher.EmitterProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxProcessor;
+import reactor.core.publisher.Mono;
 
-import java.util.concurrent.CompletionStage;
-import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class LettuceQueue<T> implements Queue<T> {
 
     private RedisQueue<T> redisQueue;
 
-    volatile Consumer<T> listener;
+    private FluxProcessor<T,T> processor = EmitterProcessor.create(true);
+
 
     public LettuceQueue(RedisQueue<T> redisQueue) {
         this.redisQueue = redisQueue;
     }
 
     @Override
-    public boolean poll(Consumer<T> consumer) {
-        if (listener != null) {
-            redisQueue.removeListener(listener);
-        }
-        listener = consumer;
-        redisQueue.poll(listener);
-        return true;
+    public Flux<T> poll() {
+        return processor.map(Function.identity());
     }
 
     @Override
-    public CompletionStage<Boolean> putAsync(T data) {
-
-        return redisQueue.addAsync(data);
+    public Mono<Boolean> put(Publisher<T> data) {
+        return Flux.from(data)
+                .flatMap(d->Mono.fromCompletionStage(redisQueue.addAsync(d)))
+                .all(t->t);
     }
 
     @Override
-    @SneakyThrows
-    public void put(T data) {
-        redisQueue.addAsync(data);
+    public Mono<Boolean> start() {
+        redisQueue.poll(processor::onNext);
+
+        return Mono.just(true);
     }
 
     @Override
-    public void start() {
-
-    }
-
-    @Override
-    public void stop() {
-        redisQueue.removeListener(listener);
-
+    public Mono<Boolean> stop() {
+        processor.onComplete();
+        return Mono.just(true);
     }
 
     @Override

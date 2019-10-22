@@ -3,11 +3,11 @@ package org.jetlinks.rule.engine.cluster.executor;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.jetlinks.rule.engine.api.RuleData;
-import org.jetlinks.rule.engine.api.executor.Input;
 import org.jetlinks.rule.engine.api.cluster.Queue;
+import org.jetlinks.rule.engine.api.executor.Input;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
-import java.util.function.Consumer;
 
 @Getter
 @AllArgsConstructor
@@ -16,9 +16,9 @@ public class QueueInput implements Input {
     private List<Queue<RuleData>> queues;
 
     @Override
-    public boolean accept(Consumer<RuleData> accept) {
-        queues.forEach(queue -> queue.poll(accept));
-        return true;
+    public Flux<RuleData> subscribe() {
+        return Flux.fromIterable(queues)
+                .concatMap(Queue::poll);
     }
 
     @Override

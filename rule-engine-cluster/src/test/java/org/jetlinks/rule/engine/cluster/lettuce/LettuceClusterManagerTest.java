@@ -56,17 +56,7 @@ public class LettuceClusterManagerTest {
     @SneakyThrows
     public void testQueue() {
 
-        CountDownLatch latch = new CountDownLatch(1000);
 
-        clusterManager.getQueue("test")
-                .poll(data -> {
-                    latch.countDown();
-                });
-        for (int i = 0; i < 1000; i++) {
-            clusterManager.getQueue("test")
-                    .putAsync("test");
-        }
-        Assert.assertTrue(latch.await(10,TimeUnit.SECONDS));
     }
 
     @Test
@@ -74,14 +64,6 @@ public class LettuceClusterManagerTest {
     public void testTopic() {
         AtomicReference<String> data = new AtomicReference<>();
         CountDownLatch latch = new CountDownLatch(1);
-
-        clusterManager.getTopic(String.class, "test")
-                .addListener(str -> {
-                    data.set(str);
-                    latch.countDown();
-                });
-
-        clusterManager.getTopic(String.class, "test").publish("test");
 
         latch.await(10, TimeUnit.SECONDS);
 

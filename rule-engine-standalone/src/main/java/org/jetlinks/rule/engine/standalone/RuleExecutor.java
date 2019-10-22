@@ -3,8 +3,9 @@ package org.jetlinks.rule.engine.standalone;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.events.GlobalNodeEventListener;
 import org.jetlinks.rule.engine.api.model.NodeType;
+import org.reactivestreams.Publisher;
+import reactor.core.publisher.Mono;
 
-import java.util.concurrent.CompletionStage;
 import java.util.function.Predicate;
 
 /**
@@ -15,7 +16,7 @@ public interface RuleExecutor {
 
     NodeType getNodeType();
 
-    CompletionStage<RuleData> execute(RuleData ruleData);
+    Mono<Boolean> execute(Publisher<RuleData> publisher);
 
     void addNext(Predicate<RuleData> condition, RuleExecutor executor);
 

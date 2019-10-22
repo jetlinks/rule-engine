@@ -10,15 +10,19 @@ import org.jetlinks.rule.engine.api.RuleDataHelper;
 import org.jetlinks.rule.engine.api.events.GlobalNodeEventListener;
 import org.jetlinks.rule.engine.api.events.NodeExecuteEvent;
 import org.jetlinks.rule.engine.api.events.RuleEvent;
-import org.jetlinks.rule.engine.api.executor.ExecutionContext;
 import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
-import org.jetlinks.rule.engine.api.model.NodeType;
+import org.jetlinks.rule.engine.api.executor.ExecutionContext;
 import org.jetlinks.rule.engine.api.executor.Input;
 import org.jetlinks.rule.engine.api.executor.Output;
+import org.jetlinks.rule.engine.api.model.NodeType;
+import org.reactivestreams.Publisher;
+import reactor.core.publisher.EmitterProcessor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxProcessor;
+import reactor.core.publisher.Mono;
 
 import java.util.*;
-import java.util.concurrent.*;
-import java.util.function.Consumer;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
 
 /**
@@ -47,9 +51,8 @@ public class DefaultRuleExecutor implements RuleExecutor {
     @Setter
     private String nodeId;
 
-    @Getter
     @Setter
-    private boolean parallel;
+    private FluxProcessor<RuleData, RuleData> processor = EmitterProcessor.create(false);
 
     private volatile ExecutionContext context = new SimpleContext();
 
@@ -63,16 +66,16 @@ public class DefaultRuleExecutor implements RuleExecutor {
 
     private Set<OutRuleExecutor> outputs = new HashSet<>();
 
-
     private Map<String, List<RuleExecutor>> eventHandler = new HashMap<>();
 
-    private Consumer<RuleData> consumer = (data) -> {
-    };
+    private Mono<Boolean> doNext(Publisher<RuleData> dataStream) {
+        return Flux.from(dataStream)
+                .flatMap((data) -> Flux.fromIterable(outputs)
+                        .filter(e -> e.getCondition().test(data))
+                        .flatMap(outRuleExecutor -> outRuleExecutor.getExecutor().execute(Mono.just(data))))
+                .switchIfEmpty(Mono.just(false))
+                .then(Mono.just(false));
 
-    private void doNext(RuleData data) {
-        (parallel ? outputs.parallelStream() : outputs.stream())
-                .filter(e -> e.getCondition().test(data))
-                .forEach(outRuleExecutor -> outRuleExecutor.getExecutor().execute(data));
     }
 
     public void start() {
@@ -107,18 +110,17 @@ public class DefaultRuleExecutor implements RuleExecutor {
         }
         Optional.ofNullable(eventHandler.get(event))
                 .filter(CollectionUtils::isNotEmpty)
-                .ifPresent(executor ->
-                        (parallel ? executor.parallelStream() : executor.stream())
-                                .forEach(ruleExecutor -> ruleExecutor.execute(ruleData)));
+                .ifPresent(executor -> (executor).forEach(ruleExecutor -> ruleExecutor.execute(Mono.just(ruleData))));
     }
 
     @Override
-    @SneakyThrows
-    public CompletionStage<RuleData> execute(RuleData ruleData) {
-
-        consumer.accept(ruleData);
-
-        return CompletableFuture.completedFuture(ruleData);
+    public Mono<Boolean> execute(Publisher<RuleData> publisher) {
+        if (!processor.hasDownstreams()) {
+            return Mono.just(false);
+        }
+        return Flux.from(publisher)
+                .doOnNext(processor::onNext)
+                .then(Mono.just(true));
     }
 
     @Override
@@ -143,16 +145,14 @@ public class DefaultRuleExecutor implements RuleExecutor {
         @Override
         public Input getInput() {
             return new Input() {
-
                 @Override
-                public boolean accept(Consumer<RuleData> accept) {
-                    consumer = accept;
-                    return false;
+                public Flux<RuleData> subscribe() {
+                    return processor;
                 }
 
                 @Override
                 public void close() {
-
+                    processor.onComplete();
                 }
             };
         }
@@ -204,6 +204,5 @@ public class DefaultRuleExecutor implements RuleExecutor {
         }
 
     }
-
 
 }
