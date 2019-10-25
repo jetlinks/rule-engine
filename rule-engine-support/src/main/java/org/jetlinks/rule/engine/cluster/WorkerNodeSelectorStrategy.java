@@ -1,6 +1,6 @@
 package org.jetlinks.rule.engine.cluster;
 
-import org.jetlinks.rule.engine.api.cluster.NodeInfo;
+import org.jetlinks.core.cluster.ServerNode;
 import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
 
 import java.util.List;
@@ -12,5 +12,5 @@ import java.util.List;
 public interface WorkerNodeSelectorStrategy {
     String getType();
 
-    List<NodeInfo> select(SchedulingRule rule, List<NodeInfo> allNode);
+    List<ServerNode> select(SchedulingRule rule, List<ServerNode> allNode);
 }

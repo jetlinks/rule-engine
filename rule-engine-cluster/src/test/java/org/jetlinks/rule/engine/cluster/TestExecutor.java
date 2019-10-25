@@ -17,7 +17,7 @@ public class TestExecutor {
     }
 
     public String upperCase(String data) {
-       return data.toUpperCase();
+        return data.toUpperCase();
     }
 
     public String lowerCase(String data) {
@@ -25,7 +25,6 @@ public class TestExecutor {
     }
 
     public String underline(String data) {
-        counter.incrementAndGet();
         return data.concat("_");
     }
 

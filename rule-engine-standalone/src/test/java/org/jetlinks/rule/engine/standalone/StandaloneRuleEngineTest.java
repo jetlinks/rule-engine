@@ -56,7 +56,7 @@ public class StandaloneRuleEngineTest {
         rule.setVersion(1);
         rule.setModel(model);
 
-        RuleInstanceContext context = engine.startRule(rule);
+        RuleInstanceContext context = engine.startRule(rule).block();
         Assert.assertNotNull(context);
         Assert.assertNotNull(context.getId());
 

@@ -1,20 +1,22 @@
 package org.jetlinks.rule.engine.cluster.scheduler;
 
-import com.alibaba.fastjson.JSON;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
+import org.jetlinks.core.cluster.ServerNode;
 import org.jetlinks.rule.engine.api.Rule;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleInstanceState;
-import org.jetlinks.rule.engine.api.cluster.*;
+import org.jetlinks.rule.engine.api.cluster.RunMode;
+import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
 import org.jetlinks.rule.engine.api.events.EventPublisher;
 import org.jetlinks.rule.engine.api.events.RuleInstanceStateChangedEvent;
 import org.jetlinks.rule.engine.api.model.RuleLink;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;
-import org.jetlinks.rule.engine.api.persistent.RuleInstancePersistent;
+import org.jetlinks.rule.engine.api.cluster.ServerNodeHelper;
+import org.jetlinks.rule.engine.api.cluster.WorkerNodeSelector;
 import org.jetlinks.rule.engine.cluster.events.ClusterRuleErrorEvent;
 import org.jetlinks.rule.engine.cluster.events.ClusterRuleSuccessEvent;
 import org.jetlinks.rule.engine.cluster.events.RuleStartEvent;
@@ -23,40 +25,35 @@ import org.jetlinks.rule.engine.cluster.message.EventConfig;
 import org.jetlinks.rule.engine.cluster.message.InputConfig;
 import org.jetlinks.rule.engine.cluster.message.OutputConfig;
 import org.jetlinks.rule.engine.cluster.message.StartRuleNodeRequest;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-
-import static java.util.concurrent.CompletableFuture.allOf;
-import static java.util.concurrent.CompletableFuture.completedFuture;
 
 //分布式规则
 @Slf4j
 class SchedulingDistributedRule extends AbstractSchedulingRule {
 
-    private ClusterManager clusterManager;
+    private org.jetlinks.core.cluster.ClusterManager clusterManager;
 
     private EventPublisher eventPublisher;
 
     private WorkerNodeSelector nodeSelector;
-
 
     @Getter
     private final ClusterRuleInstanceContext context;
 
     private List<StartRuleNodeRequest> requests;
 
-    private Set<NodeInfo> allRunningNode = new HashSet<>();
+    private Set<ServerNode> allRunningNode = new HashSet<>();
 
     private Rule rule;
 
-    private Map<String, List<NodeInfo>> nodeRunnerInfo = new HashMap<>();
+    private Map<String, List<ServerNode>> nodeRunnerInfo = new HashMap<>();
 
     private AtomicReference<RuleInstanceState> state = new AtomicReference<>(RuleInstanceState.initializing);
-
 
     @Override
     public RuleInstanceState getState() {
@@ -68,18 +65,8 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
         this.state.set(state);
     }
 
-    public RuleInstancePersistent toPersistent() {
-        RuleInstancePersistent persistent = new RuleInstancePersistent();
-        persistent.setId(context.getId());
-        persistent.setCreateTime(new Date());
-        persistent.setSchedulerId(clusterManager.getCurrentNode().getId());
-        persistent.setInstanceDetailJson(JSON.toJSONString(requests));
-        persistent.setRuleId(rule.getId());
-        persistent.setEnabled(false);
-        return persistent;
-    }
 
-    public SchedulingDistributedRule(Rule rule, String id, ClusterManager clusterManager, EventPublisher eventPublisher, WorkerNodeSelector selector) {
+    public SchedulingDistributedRule(Rule rule, String id, org.jetlinks.core.cluster.ClusterManager clusterManager, EventPublisher eventPublisher, WorkerNodeSelector selector) {
         this.clusterManager = clusterManager;
         this.eventPublisher = eventPublisher;
         this.nodeSelector = selector;
@@ -92,16 +79,18 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
         context.setId(id);
         context.setOnStop(() -> {
             //停止规则
-            doStop(clusterManager
-                    .getAllAliveNode()
+            return doStop(clusterManager.getHaManager()
+                    .getAllNode()
                     .stream()
-                    .filter(NodeInfo::isWorker)
+                    .filter(node -> node.hasTag("rule-worker"))
                     .collect(Collectors.toList()))
-                    .thenAccept(nil -> eventPublisher.publishEvent(RuleStopEvent.of(id, rule.getId())));
+                    .doFinally(nil -> eventPublisher.publishEvent(RuleStopEvent.of(id, rule.getId())));
         });
         context.setOnStart(() -> {
             //启动规则
-            start().thenAccept(nil -> eventPublisher.publishEvent(RuleStartEvent.of(id, rule.getId())));
+            return start()
+                    .doFinally(nil -> eventPublisher.publishEvent(RuleStartEvent.of(id, rule.getId())))
+                    .then();
         });
 
         context.setQueueGetter(nodeId ->
@@ -134,7 +123,7 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
                     .orElseGet(rule.getModel()::getSchedulingRule);
 
             //选择执行节点
-            List<NodeInfo> nodes = nodeSelector.select(schedulingRule, clusterManager.getAllAliveNode());
+            List<ServerNode> nodes = nodeSelector.select(schedulingRule, clusterManager.getHaManager().getAllNode());
             if (checkWorker && CollectionUtils.isEmpty(nodes)) {
                 log.warn("没有可以执行任务[{}-{}]的worker", getContext().getId(), node.getName());
             }
@@ -147,96 +136,94 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
         prepare(true);
     }
 
-    private List<NodeInfo> getNodeRunnerWorker(String nodeId) {
+    private List<ServerNode> getNodeRunnerWorker(String nodeId) {
         return nodeRunnerInfo.getOrDefault(nodeId, Collections.emptyList());
     }
 
-    public CompletionStage<Void> init() {
+    public Mono<Boolean> init() {
         prepare();
 
-        return allOf(requests
+        return Flux.concat(requests
                 .stream()
                 .flatMap(request -> getNodeRunnerWorker(request.getNodeId())
                         .stream()
-                        .map(nodeInfo -> sendNotify(NotifyType.init, nodeInfo, request, request)))
-                .map(CompletionStage::toCompletableFuture)
-                .toArray(CompletableFuture[]::new));
+                        .map(nodeInfo -> this.<Boolean>sendNotify(NotifyType.init, nodeInfo, request, request)))
+                .collect(Collectors.toList()))
+                .all(r -> r);
     }
 
     @SneakyThrows
-    public CompletionStage<Void> tryResume(String workerId) {
+    public Mono<Boolean> tryResume(String workerId) {
         //重新处理节点
         prepare();
 
-        return allOf(requests.stream()
+        return Flux.concat(requests
+                .stream()
                 .flatMap(request -> getNodeRunnerWorker(request.getNodeId())
                         .stream()
-                        .filter(workerNode -> workerId.equals(workerNode.getId()))
-                        //init and start
-                        .map(nodeInfo -> sendNotify(NotifyType.init, nodeInfo, request, request).thenCompose(success ->
-                                sendNotify(NotifyType.start, nodeInfo, request, request.getInstanceId()))))
-                .map(CompletionStage::toCompletableFuture)
-                .toArray(CompletableFuture[]::new));
+                        .map(nodeInfo -> this.<Boolean>sendNotify(NotifyType.start, nodeInfo, request, request))).collect(Collectors.toList()))
+                .all(r -> r);
 
     }
 
-    private CompletionStage<Void> doStop(Collection<NodeInfo> nodeList) {
+    private Mono<Void> doStop(Collection<ServerNode> nodeList) {
         changeState(RuleInstanceState.stopping);
 
-        return allOf(nodeList.stream()
+        return Flux.concat(nodeList
+                .stream()
                 .map(node -> clusterManager
-                        .getHaManager()
-                        .sendNotify(node.getId(), "rule:stop", context.getId()))
-                .map(CompletionStage::toCompletableFuture)
-                .toArray(CompletableFuture[]::new))
-                .whenComplete((nil, error) -> {
-                    if (error != null) {
-                        changeState(RuleInstanceState.stopFailed);
-                    } else {
-                        changeState(RuleInstanceState.stopped);
-                    }
-                });
+                        .getNotifier()
+                        .sendNotifyAndReceive(node.getId(), "rule:stop", Mono.just(context.getId()))).collect(Collectors.toList()))
+                .doOnError(err -> {
+                    changeState(RuleInstanceState.stopFailed);
+                })
+                .doOnComplete(() -> {
+                    changeState(RuleInstanceState.stopped);
+                })
+                .then();
+
     }
 
-    private CompletionStage<Void> doStart(NodeInfo node) {
+    private Mono<Boolean> doStart(ServerNode node) {
         return clusterManager
-                .getHaManager()
-                .sendNotify(node.getId(), "rule:start", context.getId());
+                .getNotifier()
+                .sendNotifyAndReceive(node.getId(), "rule:start", Mono.just(context.getId()));
     }
 
-    public CompletionStage<Void> stop() {
-        context.stop();
+    public Mono<Boolean> stop() {
+       ;
 
-        return completedFuture(null);
+        return context.stop().then(Mono.just(true)) ;
     }
 
     @SneakyThrows
-    public CompletionStage<Void> start() {
-        log.info("start rule {}", rule.getId());
-        changeState(RuleInstanceState.starting);
+    public Mono<Boolean> start() {
 
-        return init().thenCompose(__ -> allOf(clusterManager
-                .getAllAliveNode()
-                .stream()
-                .filter(NodeInfo::isWorker)
-                .map(this::doStart)
-                .map(CompletionStage::toCompletableFuture)
-                .toArray(CompletableFuture[]::new))
-                .whenComplete((nil, error) -> {
-                    if (error != null) {
-                        log.error("启动规则失败", error);
-                        changeState(RuleInstanceState.startFailed);
-                        stop(); //启动失败,停止任务
-                    } else {
-                        changeState(RuleInstanceState.started);
-                    }
-                }));
+
+        return init()
+                .flatMapMany(r -> Flux.fromIterable(clusterManager.getHaManager()
+                        .getAllNode())
+                        .filter(ServerNodeHelper::isWorker)
+                        .flatMap(this::doStart))
+                .doOnSubscribe(sb -> {
+                    log.info("start rule {}", rule.getId());
+                    changeState(RuleInstanceState.starting);
+                })
+                .doOnError(error -> {
+                    log.error("启动规则失败", error);
+                    changeState(RuleInstanceState.startFailed);
+                    stop(); //启动失败,停止任务
+                })
+                .all(r -> r)
+                .doOnSuccess((r) -> {
+                    changeState(RuleInstanceState.started);
+                });
     }
 
     private void prepare(RuleNodeModel model) {
         StartRuleNodeRequest request = new StartRuleNodeRequest();
         String id = context.getId();
-        request.setSchedulerNodeId(clusterManager.getCurrentNode().getId());
+        request.setSchedulerNodeId(clusterManager.getCurrentServerId());
         request.setInstanceId(context.getId());
         request.setNodeId(model.getId());
         request.setRuleId(rule.getId());
@@ -283,7 +270,7 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
     void changeState(RuleInstanceState state) {
         RuleInstanceState old = getState();
         this.state.set(state);
-        eventPublisher.publishEvent(RuleInstanceStateChangedEvent.of(clusterManager.getCurrentNode().getId(), getContext().getId(), old, state));
+        eventPublisher.publishEvent(RuleInstanceStateChangedEvent.of(clusterManager.getCurrentServerId(), getContext().getId(), old, state));
     }
 
     @AllArgsConstructor
@@ -298,16 +285,15 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
     }
 
 
-    private <T> CompletionStage<T> sendNotify(NotifyType type, NodeInfo nodeInfo, StartRuleNodeRequest request, Object notifyData) {
-        return clusterManager.getHaManager()
-                .<T>sendNotify(nodeInfo.getId(), type.address, notifyData)
-                .whenComplete((success, error) -> {
-                    if (error != null) {
-                        eventPublisher.publishEvent(ClusterRuleErrorEvent.of(type.type, request.getRuleId(), request.getInstanceId(), nodeInfo.getId()));
-                        log.warn("{} rule node [{}].[{}] error", type.type, request.getRuleId(), request.getNodeId(), error);
-                    } else {
-                        eventPublisher.publishEvent(ClusterRuleSuccessEvent.of(type.type, request.getRuleId(), request.getInstanceId(), nodeInfo.getId()));
-                    }
+    private <T> Mono<T> sendNotify(NotifyType type, ServerNode nodeInfo, StartRuleNodeRequest request, Object notifyData) {
+        return clusterManager.getNotifier()
+                .<T>sendNotifyAndReceive(nodeInfo.getId(), type.address, Mono.just(notifyData))
+                .doOnError((error) -> {
+                    eventPublisher.publishEvent(ClusterRuleErrorEvent.of(type.type, request.getRuleId(), request.getInstanceId(), nodeInfo.getId()));
+                    log.warn("{} rule node [{}].[{}] error", type.type, request.getRuleId(), request.getNodeId(), error);
+
+                }).doOnSuccess(r -> {
+                    eventPublisher.publishEvent(ClusterRuleSuccessEvent.of(type.type, request.getRuleId(), request.getInstanceId(), nodeInfo.getId()));
                 });
     }
 

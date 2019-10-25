@@ -96,52 +96,52 @@ public class StandaloneRuleEngine implements RuleEngine {
     }
 
     @Override
-    public RuleInstanceContext startRule(Rule rule) {
-        String id = rule.getId();
-        RuleInstanceContext old = getInstance(id);
-        if (old != null) {
-            old.stop();
-        }
-        RuleNodeModel rootModel = rule.getModel()
-                .getStartNode()
-                .orElseGet(() -> rule.getModel()
-                        .getNodes()
-                        .stream()
-                        .filter(model -> model.getInputs().isEmpty())
-                        .findFirst()
-                        .orElseThrow(() -> new UnsupportedOperationException("无法获取启动节点")));
+    public Mono<RuleInstanceContext> startRule(Rule rule) {
+        return getInstance(rule.getId())
+                .doOnNext(RuleInstanceContext::stop)
+                .then(Mono.defer(() -> {
+                    String id = rule.getId();
 
-        RuleExecutorBuilder builder = new RuleExecutorBuilder();
+                    RuleNodeModel rootModel = rule.getModel()
+                            .getStartNode()
+                            .orElseGet(() -> rule.getModel()
+                                    .getNodes()
+                                    .stream()
+                                    .filter(model -> model.getInputs().isEmpty())
+                                    .findFirst()
+                                    .orElseThrow(() -> new UnsupportedOperationException("无法获取启动节点")));
 
-        StandaloneRuleInstanceContext context = new StandaloneRuleInstanceContext();
-        context.id = id;
-        context.startTime = System.currentTimeMillis();
+                    RuleExecutorBuilder builder = new RuleExecutorBuilder();
 
-        context.rootExecutor = builder.createRuleExecutor(id, null, rootModel, null);
+                    StandaloneRuleInstanceContext context = new StandaloneRuleInstanceContext();
+                    context.id = id;
+                    context.startTime = System.currentTimeMillis();
 
-        //处理所有没有指定输入的节点
-        rule.getModel()
-                .getNodes()
-                .stream()
-                .filter(node -> node.getInputs().isEmpty())
-                .forEach(node -> builder.createRuleExecutor(id, null, node, null));
+                    context.rootExecutor = builder.createRuleExecutor(id, null, rootModel, null);
 
-        context.allExecutor = new HashMap<>(builder.allExecutor);
+                    //处理所有没有指定输入的节点
+                    rule.getModel()
+                            .getNodes()
+                            .stream()
+                            .filter(node -> node.getInputs().isEmpty())
+                            .forEach(node -> builder.createRuleExecutor(id, null, node, null));
 
-        rule.getModel()
-                .getEndNodes()
-                .stream()
-                .findFirst()
-                .ifPresent(endNode -> context.setEndNodeId(endNode.getId()));
-        context.init();
-        context.start();
-        contextMap.put(id, context);
-        return context;
+                    context.allExecutor = new HashMap<>(builder.allExecutor);
+
+                    rule.getModel()
+                            .getEndNodes()
+                            .stream()
+                            .findFirst()
+                            .ifPresent(endNode -> context.setEndNodeId(endNode.getId()));
+                    context.init();
+                    contextMap.put(id, context);
+                    return context.start().thenReturn(context);
+                }));
     }
 
     @Override
-    public RuleInstanceContext getInstance(String instanceId) {
-        return contextMap.get(instanceId);
+    public Mono<RuleInstanceContext> getInstance(String instanceId) {
+        return Mono.justOrEmpty(contextMap.get(instanceId));
     }
 
     @Getter
@@ -183,7 +183,7 @@ public class StandaloneRuleEngine implements RuleEngine {
                         return getExecutor(ruleData)
                                 .execute(Mono.just(ruleData))
                                 .flatMapMany(s -> {
-                                    if(!s){
+                                    if (!s) {
                                         return Flux.empty();
                                     }
                                     return flux;
@@ -201,10 +201,12 @@ public class StandaloneRuleEngine implements RuleEngine {
         }
 
         @Override
-        public void start() {
-            for (RuleExecutor ruleExecutor : allExecutor.values()) {
-                ruleExecutor.start();
-            }
+        public Mono<Void> start() {
+            return Mono.fromRunnable(() -> {
+                for (RuleExecutor ruleExecutor : allExecutor.values()) {
+                    ruleExecutor.start();
+                }
+            });
         }
 
         public void init() {
@@ -233,14 +235,16 @@ public class StandaloneRuleEngine implements RuleEngine {
         }
 
         @Override
-        public void stop() {
-            for (RuleExecutor ruleExecutor : allExecutor.values()) {
-                ruleExecutor.stop();
-            }
-            for (EmitterProcessor<RuleData> value : syncMap.values()) {
-                value.error(new InterruptedException("rule stop"));
-            }
-            syncMap.clear();
+        public Mono<Void> stop() {
+           return Mono.fromRunnable(()->{
+               for (RuleExecutor ruleExecutor : allExecutor.values()) {
+                   ruleExecutor.stop();
+               }
+               for (EmitterProcessor<RuleData> value : syncMap.values()) {
+                   value.onError(new InterruptedException("rule stop"));
+               }
+               syncMap.clear();
+           });
         }
 
         @Override

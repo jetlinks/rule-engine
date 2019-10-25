@@ -1,7 +1,8 @@
 package org.jetlinks.rule.engine.cluster.supports;
 
-import org.jetlinks.rule.engine.api.cluster.NodeInfo;
+import org.jetlinks.core.cluster.ServerNode;
 import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
+import org.jetlinks.rule.engine.api.cluster.ServerNodeHelper;
 import org.jetlinks.rule.engine.cluster.WorkerNodeSelectorStrategy;
 
 import java.util.List;
@@ -18,9 +19,9 @@ public class DefaultWorkerNodeSelectorStrategy implements WorkerNodeSelectorStra
     }
 
     @Override
-    public List<NodeInfo> select(SchedulingRule rule, List<NodeInfo> allNode) {
+    public List<ServerNode> select(SchedulingRule rule, List<ServerNode> allNode) {
         return allNode.stream()
-                .filter(NodeInfo::isWorker)
+                .filter(ServerNodeHelper::isWorker)
                 .collect(Collectors.toList());
     }
 }

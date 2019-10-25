@@ -4,32 +4,26 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.hswebframework.web.dict.EnumDict;
+import org.jetlinks.core.cluster.ClusterManager;
+import org.jetlinks.core.cluster.ClusterTopic;
 import org.jetlinks.rule.engine.api.Rule;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleEngine;
 import org.jetlinks.rule.engine.api.RuleInstanceContext;
-import org.jetlinks.rule.engine.api.cluster.ClusterManager;
-import org.jetlinks.rule.engine.api.cluster.NodeInfo;
-import org.jetlinks.rule.engine.api.cluster.Topic;
+import org.jetlinks.rule.engine.api.cluster.ServerNodeHelper;
 import org.jetlinks.rule.engine.api.cluster.WorkerNodeSelector;
-import org.jetlinks.rule.engine.api.cluster.scheduler.RuleEngineScheduler;
-import org.jetlinks.rule.engine.api.cluster.scheduler.SchedulingRule;
 import org.jetlinks.rule.engine.api.events.DefaultEventPubSub;
 import org.jetlinks.rule.engine.api.events.EventPublisher;
 import org.jetlinks.rule.engine.api.events.EventSubscriber;
 import org.jetlinks.rule.engine.api.events.RuleInstanceStateChangedEvent;
 import org.jetlinks.rule.engine.api.model.RuleEngineModelParser;
-import org.jetlinks.rule.engine.api.persistent.RuleInstancePersistent;
-import org.jetlinks.rule.engine.api.persistent.RulePersistent;
-import org.jetlinks.rule.engine.api.persistent.repository.RuleInstanceRepository;
-import org.jetlinks.rule.engine.api.persistent.repository.RuleRepository;
+import org.jetlinks.rule.engine.cluster.persistent.RuleInstancePersistent;
+import org.jetlinks.rule.engine.cluster.persistent.repository.RuleInstanceRepository;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static org.jetlinks.rule.engine.api.RuleInstanceState.*;
 
@@ -51,10 +45,6 @@ public class DefaultRuleEngineScheduler implements RuleEngineScheduler, RuleEngi
 
     @Getter
     @Setter
-    private RuleRepository ruleRepository;
-
-    @Getter
-    @Setter
     private RuleEngineModelParser modelParser;
 
     @Setter
@@ -67,151 +57,141 @@ public class DefaultRuleEngineScheduler implements RuleEngineScheduler, RuleEngi
 
     protected Map<String, AbstractSchedulingRule> contextCache = new ConcurrentHashMap<>();
 
-    public void start() {
+    public Mono<Void> start() {
+        return loadAllRule()
+                .doOnSuccess(nil -> {
+                    long schedulerSize = clusterManager.getHaManager().getAllNode()
+                            .stream()
+                            .filter(ServerNodeHelper::isScheduler)
+                            .count();
 
-        long schedulerSize = clusterManager.getAllAliveNode()
-                .stream()
-                .filter(NodeInfo::isScheduler)
-                .count();
-
-        //加载所有任务
-        loadAllRule();
-
-        //集群第一个调度节点恢复?
-        if (schedulerSize <= 1) {
-            contextCache.values()
-                    .stream()
-                    .filter((schedulingRule) -> EnumDict.in(schedulingRule.getState(), starting, started, startFailed))
-                    .forEach(schedulingRule -> {
-                        schedulingRule.start()
-                                .whenComplete((nil, error) -> {
-                                    if (error != null) {
-                                        log.error("start [{}] rule error", schedulingRule.getContext().getId(), error);
-                                    }
-                                });
-                    });
-        }
-
-        Topic<RuleInstanceStateChangedEvent> topic = clusterManager.getTopic(RuleInstanceStateChangedEvent.class, "rule-instance-state-changed");
-
-        topic.subscribe()
-                .subscribe(event -> {
-                    if (clusterManager.getCurrentNode().getId().equals(event.getSchedulerId())) {
-                        return;
-                    }
-                    log.debug("rule instance [{}] state changed [{}]=>[{}],scheduler:[{}]"
-                            , event.getInstanceId(), event.getBefore(), event.getAfter(), event.getSchedulerId());
-                    //同步其他节点发来的状态信息
-                    getOrCreateSchedulingRule(event.getInstanceId()).setState(event.getAfter());
-
-                });
-
-        //当前节点状态发生了变化,通知其他节点
-        eventSubscriber
-                .subscribe(RuleInstanceStateChangedEvent.class, event -> {
-                    topic.publish(event);
-                    instanceRepository.changeState(event.getInstanceId(), event.getAfter());
-                });
-
-        //有节点上线了,如果是worker节点,则要恢复该节点上的任务
-        clusterManager
-                .getHaManager()
-                .onNodeJoin(node -> {
-                    if (node.isWorker()) {
-                        // FIXME: 2019-07-17
-                        //  如果有多个调度器,会同时发送此通知;
-                        //  虽然worker做了幂等,但是任务数量较多时,会不会有问题?
-
-                        contextCache.values().stream()
+                    //集群第一个调度节点恢复?
+                    if (schedulerSize <= 1) {
+                        contextCache.values()
+                                .stream()
                                 .filter((schedulingRule) -> EnumDict.in(schedulingRule.getState(), starting, started, startFailed))
                                 .forEach(schedulingRule -> {
-                                    schedulingRule.tryResume(node.getId())
-                                            .whenComplete((nil, error) -> {
-                                                if (error != null) {
-                                                    log.error("resume [{}] rule error", node.getId(), error);
-                                                }
-                                            });
+                                    schedulingRule.start()
+                                            .doOnError(error -> {
+                                                log.error("start [{}] rule error", schedulingRule.getContext().getId(), error);
+                                            })
+                                            .subscribe();
                                 });
                     }
-                });
 
-        clusterManager.getHaManager()
-                .<RuleData, Object>onNotify("execute-complete", data -> {
-                    data.getAttribute("instanceId")
-                            .map(String::valueOf)
-                            .map(contextCache::get)
-                            .map(SchedulingRule::getContext)
-                            .map(ClusterRuleInstanceContext.class::cast)
-                            .ifPresent(context -> context.executeComplete(data));
+                    ClusterTopic<RuleInstanceStateChangedEvent> topic = clusterManager.getTopic("rule-instance-state-changed");
 
-                    return null;
-                });
-        clusterManager.getHaManager()
-                .<RuleData, Object>onNotify("execute-result", data -> {
+                    topic.subscribe()
+                            .subscribe(event -> {
+                                if (clusterManager.getCurrentServerId().equals(event.getSchedulerId())) {
+                                    return;
+                                }
+                                log.debug("rule instance [{}] state changed [{}]=>[{}],scheduler:[{}]"
+                                        , event.getInstanceId(), event.getBefore(), event.getAfter(), event.getSchedulerId());
+                                //同步其他节点发来的状态信息
+                                getOrCreateSchedulingRule(event.getInstanceId())
+                                        .subscribe(rule -> rule.setState(event.getAfter()));
 
-                    data.getAttribute("instanceId")
-                            .map(String::valueOf)
-                            .map(contextCache::get)
-                            .map(SchedulingRule::getContext)
-                            .map(ClusterRuleInstanceContext.class::cast)
-                            .ifPresent(context -> context.executeResult(data));
+                            });
 
-                    return null;
+                    //当前节点状态发生了变化,通知其他节点
+                    eventSubscriber
+                            .subscribe(RuleInstanceStateChangedEvent.class, event -> {
+                                topic.publish(Mono.just(event)).subscribe();
+                                instanceRepository.changeState(event.getInstanceId(), event.getAfter());
+                            });
+
+                    //有节点上线了,如果是worker节点,则尝试恢复该节点上的任务
+                    clusterManager
+                            .getHaManager()
+                            .subscribeServerOnline()
+                            .subscribe(node -> {
+                                if (ServerNodeHelper.isWorker(node)) {
+                                    contextCache.values()
+                                            .stream()
+                                            .filter((schedulingRule) -> EnumDict.in(schedulingRule.getState(), starting, started, startFailed))
+                                            .forEach(schedulingRule -> {
+                                                schedulingRule.tryResume(node.getId())
+                                                        .doOnError(error -> {
+                                                            log.error("resume [{}] rule error", node.getId(), error);
+                                                        });
+                                            });
+                                }
+                            });
+
+                    clusterManager.getNotifier().<RuleData>handleNotify("execute-complete").subscribe(data -> {
+                        data.getAttribute("instanceId")
+                                .map(String::valueOf)
+                                .map(contextCache::get)
+                                .map(SchedulingRule::getContext)
+                                .map(ClusterRuleInstanceContext.class::cast)
+                                .ifPresent(context -> context.executeComplete(data));
+
+                    });
+                    clusterManager.getNotifier()
+                            .<RuleData>handleNotify("execute-result").subscribe(data -> {
+
+                        data.getAttribute("instanceId")
+                                .map(String::valueOf)
+                                .map(contextCache::get)
+                                .map(SchedulingRule::getContext)
+                                .map(ClusterRuleInstanceContext.class::cast)
+                                .ifPresent(context -> context.executeResult(data));
+
+                    });
                 });
     }
 
-    protected void loadAllRule() {
-        List<RuleInstancePersistent> allInstance = instanceRepository.findAll();
-        Map<String, RulePersistent> allRule = ruleRepository
-                .findRuleByIdList(allInstance.stream().map(RuleInstancePersistent::getRuleId).collect(Collectors.toList()))
-                .stream()
-                .collect(Collectors.toMap(RulePersistent::getId, Function.identity()));
+    protected Mono<Void> loadAllRule() {
+        return instanceRepository.findAll()
+                .doOnNext(instance -> contextCache.put(instance.getId(), initRuleInstance(instance)))
+                .then();
 
-        for (RuleInstancePersistent instance : allInstance) {
-            contextCache.put(instance.getId(), initRuleInstance(allRule.get(instance.getRuleId()), instance));
-        }
     }
 
-    protected AbstractSchedulingRule initRuleInstance(RulePersistent rulePersistent, RuleInstancePersistent instancePersistent) {
-
-        Rule rule = rulePersistent.toRule(modelParser);
-        AbstractSchedulingRule scheduling = createRunningRule(rule, instancePersistent.getId());
-        scheduling.setState(instancePersistent.getState());
+    protected AbstractSchedulingRule initRuleInstance(RuleInstancePersistent persistent) {
+        Rule rule = persistent.toRule(modelParser);
+        AbstractSchedulingRule scheduling = createRunningRule(rule, persistent.getId());
+        scheduling.setState(persistent.getState());
         return scheduling;
     }
 
     @Override
-    public RuleInstanceContext startRule(Rule rule) {
+    public Mono<RuleInstanceContext> startRule(Rule rule) {
         AbstractSchedulingRule schedulingRule = createRunningRule(rule, rule.getId());
 
-        instanceRepository.saveInstance(schedulingRule.toPersistent());
-
-        schedulingRule.init();
 
         RuleInstanceContext context = schedulingRule.getContext();
-        context.start();
-
         contextCache.put(context.getId(), schedulingRule);
-        return context;
+
+        return context.start()
+                .then(Mono.just(context));
     }
 
     @Override
-    public RuleInstanceContext getInstance(String id) {
-        return getOrCreateSchedulingRule(id).getContext();
+    public Mono<RuleInstanceContext> getInstance(String id) {
+        return getOrCreateSchedulingRule(id)
+                .map(AbstractSchedulingRule::getContext);
     }
 
-    private AbstractSchedulingRule createRunningRule(String instanceId) {
-        RuleInstancePersistent instance = instanceRepository
+    private Mono<AbstractSchedulingRule> createRunningRule(String instanceId) {
+
+        return instanceRepository
                 .findInstanceById(instanceId)
-                .orElseThrow(() -> new NullPointerException("规则实例[" + instanceId + "]不存在"));
-        RulePersistent rule = ruleRepository.findRuleById(instance.getRuleId())
-                .orElseThrow(() -> new NullPointerException("规则[" + instance.getRuleId() + "]不存在"));
-        return initRuleInstance(rule, instance);
+                .map(this::initRuleInstance);
     }
 
-    public AbstractSchedulingRule getOrCreateSchedulingRule(String id) {
-        return contextCache
-                .computeIfAbsent(id, this::createRunningRule);
+    public Mono<AbstractSchedulingRule> getOrCreateSchedulingRule(String id) {
+        return Mono.defer(() -> {
+            if (contextCache.containsKey(id)) {
+                return Mono.justOrEmpty(contextCache.get(id));
+            }
+            synchronized (this) {
+                return this.createRunningRule(id)
+                        .doOnNext(r -> contextCache.putIfAbsent(id, r));
+            }
+        });
+
     }
 
     private AbstractSchedulingRule createRunningRule(Rule rule, String instanceId) {

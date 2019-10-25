@@ -1,11 +1,12 @@
-package org.jetlinks.rule.engine.api.persistent;
+package org.jetlinks.rule.engine.cluster.persistent;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.jetlinks.rule.engine.api.Rule;
+import org.jetlinks.rule.engine.api.RuleInstanceState;
 import org.jetlinks.rule.engine.api.model.RuleEngineModelParser;
 
 import java.io.Serializable;
+import java.util.Date;
 
 /**
  * @author zhouhao
@@ -13,25 +14,30 @@ import java.io.Serializable;
  */
 @Getter
 @Setter
-public class RulePersistent implements Serializable {
-
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class RuleInstancePersistent implements Serializable {
     private String id;
 
     private String ruleId;
 
-    private Integer version;
+    private Date createTime;
 
-    private String name;
+    private int version;
 
     private String modelFormat;
 
     private String model;
 
+    private boolean enabled;
+
+    private RuleInstanceState state;
 
     public Rule toRule(RuleEngineModelParser parser) {
         Rule rule = new Rule();
-        rule.setId(id);
-        rule.setVersion(version == null ? 1 : version);
+        rule.setId(ruleId);
+        rule.setVersion(version);
         rule.setModel(parser.parse(modelFormat, model));
         return rule;
     }

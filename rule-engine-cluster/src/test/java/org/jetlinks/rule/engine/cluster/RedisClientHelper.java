@@ -1,4 +1,4 @@
-package org.jetlinks.rule.engine.cluster.lettuce;
+package org.jetlinks.rule.engine.cluster;
 
 import io.lettuce.core.RedisClient;
 

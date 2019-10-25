@@ -1,11 +1,13 @@
 package org.jetlinks.rule.engine.cluster.repository;
 
 import org.jetlinks.rule.engine.api.RuleInstanceState;
-import org.jetlinks.rule.engine.api.persistent.RuleInstancePersistent;
-import org.jetlinks.rule.engine.api.persistent.repository.RuleInstanceRepository;
+import org.jetlinks.rule.engine.cluster.persistent.RuleInstancePersistent;
+import org.jetlinks.rule.engine.cluster.persistent.repository.RuleInstanceRepository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author zhouhao
@@ -16,44 +18,30 @@ public class MockRuleInstanceRepository implements RuleInstanceRepository {
     private Map<String, RuleInstancePersistent> repository = new HashMap<>();
 
     @Override
-    public Optional<RuleInstancePersistent> findInstanceById(String instanceId) {
-        return Optional.ofNullable(repository.get(instanceId));
+    public Mono<RuleInstancePersistent> findInstanceById(String instanceId) {
+        return Mono.justOrEmpty(repository.get(instanceId));
     }
 
     @Override
-    public List<RuleInstancePersistent> findInstanceByRuleId(String ruleId) {
-        return repository.values()
-                .stream()
-                .filter(persistent->persistent.getRuleId().equals(ruleId))
-                .collect(Collectors.toList());
+    public Mono<Void> saveInstance(RuleInstancePersistent instancePersistent) {
+
+        return Mono.fromRunnable(() -> {
+            repository.put(instancePersistent.getId(), instancePersistent);
+        });
     }
 
     @Override
-    public void saveInstance(RuleInstancePersistent instancePersistent) {
-        repository.put(instancePersistent.getId(), instancePersistent);
+    public Flux<RuleInstancePersistent> findAll() {
+        return Flux.fromIterable(repository.values());
     }
 
     @Override
-    public List<RuleInstancePersistent> findAll() {
-        return new ArrayList<>(repository.values());
-    }
-
-
-    @Override
-    public List<RuleInstancePersistent> findBySchedulerId(String schedulerId) {
-        return findAll()
-                .stream()
-                .filter(persistent->schedulerId.equals(persistent.getCurrentSchedulerId())||schedulerId.equals(persistent.getSchedulerId()))
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public void changeState(String instanceId, RuleInstanceState state) {
-        findInstanceById(instanceId)
+    public Mono<Void> changeState(String instanceId, RuleInstanceState state) {
+        return findInstanceById(instanceId)
                 .map(r -> {
                     r.setState(state);
                     return r;
                 })
-                .ifPresent(this::saveInstance);
+                .then();
     }
 }

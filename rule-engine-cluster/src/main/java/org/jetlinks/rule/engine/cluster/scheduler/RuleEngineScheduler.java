@@ -1,4 +1,4 @@
-package org.jetlinks.rule.engine.api.cluster.scheduler;
+package org.jetlinks.rule.engine.cluster.scheduler;
 
 import org.jetlinks.rule.engine.api.Rule;
 

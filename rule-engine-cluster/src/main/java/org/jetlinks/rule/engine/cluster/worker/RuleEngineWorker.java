@@ -3,12 +3,12 @@ package org.jetlinks.rule.engine.cluster.worker;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.jetlinks.core.cluster.ClusterManager;
+import org.jetlinks.core.cluster.ClusterQueue;
 import org.jetlinks.rule.engine.api.ConditionEvaluator;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleDataHelper;
 import org.jetlinks.rule.engine.api.Slf4jLogger;
-import org.jetlinks.rule.engine.api.cluster.ClusterManager;
-import org.jetlinks.rule.engine.api.cluster.Queue;
 import org.jetlinks.rule.engine.api.events.EventPublisher;
 import org.jetlinks.rule.engine.api.events.NodeExecuteEvent;
 import org.jetlinks.rule.engine.api.events.RuleEvent;
@@ -83,41 +83,41 @@ public class RuleEngineWorker {
         running = true;
         //初始化
         clusterManager
-                .getHaManager()
-                .onNotify("rule:node:init", this::createDistributedRuleNode);
+                .getNotifier()
+                .<StartRuleNodeRequest, Boolean>handleNotify("rule:node:init", request -> Mono.just(this.createDistributedRuleNode(request)));
 
         //停止
         clusterManager
-                .getHaManager()
-                .<String, Boolean>onNotify("rule:stop", instanceId -> {
+                .getNotifier()
+                .<String, Boolean>handleNotify("rule:stop", instanceId -> {
                     Optional.ofNullable(allRule.get(instanceId))
                             .map(Map::values)
                             .ifPresent(runningRules -> runningRules.forEach(RunningRule::stop));
-                    return true;
+                    return Mono.just(true);
                 });
 
         //规则下线
         clusterManager
-                .getHaManager()
-                .<String, Boolean>onNotify("rule:down", instanceId -> {
+                .getNotifier()
+                .<String, Boolean>handleNotify("rule:down", instanceId -> {
                     Optional.ofNullable(allRule.remove(instanceId))
                             .map(Map::values)
                             .ifPresent(runningRules -> runningRules.forEach(RunningRule::stop));
-                    return true;
+                    return Mono.just(true);
                 });
         // 启动
         clusterManager
-                .getHaManager()
-                .<String, Boolean>onNotify("rule:start", instanceId -> {
+                .getNotifier()
+                .<String, Boolean>handleNotify("rule:start", instanceId -> {
                     Optional.ofNullable(allRule.get(instanceId))
                             .map(Map::values)
                             .ifPresent(runningRules -> runningRules.forEach(RunningRule::start));
-                    return true;
+                    return Mono.just(true);
                 });
     }
 
     protected QueueOutput.ConditionQueue createConditionQueue(OutputConfig config) {
-        Queue<RuleData> ruleData = clusterManager.getQueue(config.getQueue());
+        ClusterQueue<RuleData> ruleData = clusterManager.getQueue(config.getQueue());
         Predicate<RuleData> ruleDataPredicate = data -> {
             try {
                 return conditionEvaluator.evaluate(config.getCondition(), data);
@@ -180,23 +180,21 @@ public class RuleEngineWorker {
         }
     }
 
-    private void syncReturn(String instanceId, RuleData data, boolean complete) {
+    private void returnResult(String instanceId, RuleData data, boolean complete) {
         if (data == null) {
             return;
         }
         String server = data.getAttribute("fromServer").map(String.class::cast).orElse(null);
 
         if (server != null) {
-            data.setAttribute("endServer", clusterManager.getHaManager().getCurrentNode().getId());
+            data.setAttribute("endServer", clusterManager.getCurrentServerId());
             data.setAttribute("instanceId", instanceId);
-            clusterManager.getHaManager()
-                    .sendNotifyNoReply(server, complete ? "execute-complete" : "execute-result", data);
+            clusterManager.getNotifier()
+                    .sendNotify(server, complete ? "execute-complete" : "execute-result", Mono.just(data))
+                    .subscribe();
         }
-        if (log.isInfoEnabled()) {
-            log.info("sync return:{}", data);
-        }
-    }
 
+    }
 
     private boolean createDistributedRuleNode(StartRuleNodeRequest request) {
         try {
@@ -230,17 +228,17 @@ public class RuleEngineWorker {
                         .collect(Collectors.toList());
 
                 //输入队列
-                List<Queue<RuleData>> inputsQueue = request.getInputQueue()
+                List<ClusterQueue<RuleData>> inputsQueue = request.getInputQueue()
                         .stream()
                         .map(InputConfig::getQueue)
                         .map(queueName -> clusterManager.<RuleData>getQueue(queueName))
                         .peek(queue -> {
                             if (request.isDistributed()) {
                                 //分布式的时候,尝试50%本地消费
-                                queue.setLocalConsumerPoint(0.5F);
+                                queue.setLocalConsumerPercent(0.5F);
                             } else {
                                 //如果不是分布式,则全部本地消费
-                                queue.setLocalConsumerPoint(1F);
+                                queue.setLocalConsumerPercent(1F);
                             }
                         })
                         .distinct()
@@ -267,13 +265,14 @@ public class RuleEngineWorker {
                             || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) {
                         //同步返回结果
                         if (configuration.getNodeId().equals(RuleDataHelper.getEndWithNodeId(data).orElse(null))) {
-                            syncReturn(request.getInstanceId(), data, !RuleEvent.NODE_EXECUTE_RESULT.equals(event));
+                            returnResult(request.getInstanceId(), data, !RuleEvent.NODE_EXECUTE_RESULT.equals(event));
                         }
                     }
                     Output eventOutput = events.get(event);
                     if (eventOutput != null) {
                         eventOutput
                                 .write(Mono.just(data))
+                                .doOnError(err -> logger.error("fire event[{}] error", event, err))
                                 .subscribe();
                     }
                     handleEvent(event, request.getNodeId(), request.getInstanceId(), data);

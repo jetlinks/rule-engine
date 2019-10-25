@@ -1,4 +1,4 @@
-package org.jetlinks.rule.engine.api.persistent;
+package org.jetlinks.rule.engine.cluster.persistent;
 
 import lombok.Getter;
 import lombok.Setter;

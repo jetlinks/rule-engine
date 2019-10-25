@@ -3,8 +3,8 @@ package org.jetlinks.rule.engine.cluster.executor;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import org.jetlinks.core.cluster.ClusterQueue;
 import org.jetlinks.rule.engine.api.RuleData;
-import org.jetlinks.rule.engine.api.cluster.Queue;
 import org.jetlinks.rule.engine.api.executor.Output;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
@@ -26,15 +26,16 @@ public class QueueOutput implements Output {
                 .concatMap(ruleData -> Flux.fromStream(queues.stream()
                         .filter(conditionQueue -> conditionQueue.predicate.test(ruleData))
                         .map(ConditionQueue::getQueue)
-                        .map(queue -> queue.put(Mono.just(ruleData))))
-                        .flatMap(Function.identity())).all(r -> r);
+                        .map(queue -> queue.add(Mono.just(ruleData))))
+                        .flatMap(Function.identity()))
+                .all(r -> r);
     }
 
     @Getter
     @Setter
     @AllArgsConstructor
     public static class ConditionQueue {
-        private Queue<RuleData> queue;
+        private ClusterQueue<RuleData> queue;
         private Predicate<RuleData> predicate;
     }
 }

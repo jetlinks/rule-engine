@@ -1,6 +1,6 @@
 package org.jetlinks.rule.engine.cluster;
 
-import org.jetlinks.rule.engine.api.cluster.NodeInfo;
+import org.jetlinks.core.cluster.ServerNode;
 import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
 import org.jetlinks.rule.engine.api.cluster.WorkerNodeSelector;
 import org.jetlinks.rule.engine.cluster.supports.DefaultWorkerNodeSelectorStrategy;
@@ -24,7 +24,7 @@ public class DefaultWorkerNodeSelector implements WorkerNodeSelector {
     }
 
     @Override
-    public List<NodeInfo> select(SchedulingRule rule, List<NodeInfo> allNode) {
+    public List<ServerNode> select(SchedulingRule rule, List<ServerNode> allNode) {
         return Optional
                 .ofNullable(rule)
                 .map(SchedulingRule::getType)

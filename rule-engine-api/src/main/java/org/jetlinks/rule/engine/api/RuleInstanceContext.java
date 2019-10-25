@@ -3,6 +3,7 @@ package org.jetlinks.rule.engine.api;
 
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -27,12 +28,6 @@ public interface RuleInstanceContext {
     RuleInstanceState getState();
 
     /**
-     * @return 启动时间
-     * @see System#currentTimeMillis()
-     */
-    long getStartTime();
-
-    /**
      * 将数据放入规则中执行，并尝试同步返回结果，当获取超时{@link CompletableFuture#get()}会null
      *
      * @param data 数据
@@ -46,11 +41,11 @@ public interface RuleInstanceContext {
     /**
      * 启动规则
      */
-    void start();
+    Mono<Void> start();
 
     /**
      * 停止规则
      */
-    void stop();
+    Mono<Void> stop();
 
 }

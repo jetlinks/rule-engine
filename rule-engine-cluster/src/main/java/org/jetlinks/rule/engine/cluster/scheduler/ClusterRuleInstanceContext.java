@@ -3,12 +3,11 @@ package org.jetlinks.rule.engine.cluster.scheduler;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.jetlinks.core.cluster.ClusterQueue;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleDataHelper;
 import org.jetlinks.rule.engine.api.RuleInstanceContext;
 import org.jetlinks.rule.engine.api.RuleInstanceState;
-import org.jetlinks.rule.engine.api.cluster.ClusterManager;
-import org.jetlinks.rule.engine.api.cluster.Queue;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import reactor.core.publisher.EmitterProcessor;
@@ -32,26 +31,24 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
 
     private String id;
 
-    private long startTime;
+    private ClusterQueue<RuleData> inputQueue;
 
-    private Queue<RuleData> inputQueue;
-
-    private Function<String, Queue<RuleData>> queueGetter;
+    private Function<String, ClusterQueue<RuleData>> queueGetter;
 
     private String syncReturnNodeId;
 
-    private ClusterManager clusterManager;
+    private org.jetlinks.core.cluster.ClusterManager clusterManager;
 
     private Supplier<RuleInstanceState> stateSupplier;
 
-    private Runnable onStop;
-    private Runnable onStart;
+    private Supplier<Mono<Void>> onStop;
+    private Supplier<Mono<Void>> onStart;
 
     private long syncTimeout = 30_000;
 
     private Map<String, FluxProcessor<RuleData, RuleData>> syncFutures = new ConcurrentHashMap<>();
 
-    private Queue<RuleData> getQueue(RuleData ruleData) {
+    private ClusterQueue<RuleData> getQueue(RuleData ruleData) {
         return Optional.ofNullable(queueGetter)
                 .flatMap(getter -> RuleDataHelper
                         .getStartWithNodeId(ruleData)
@@ -68,11 +65,12 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
                     if (!RuleDataHelper.isSync(ruleData)) {
                         RuleDataHelper.markSyncReturn(ruleData, syncReturnNodeId);
                     }
+                    ruleData.setAttribute("fromServer",clusterManager.getCurrentServerId());
                     EmitterProcessor<RuleData> processor = EmitterProcessor.create(true);
                     syncFutures.put(ruleData.getId(), processor);
                     Flux<RuleData> flux = processor.map(Function.identity());
                     return getQueue(ruleData)
-                            .put(Mono.just(ruleData))
+                            .add(Mono.just(ruleData))
                             .flatMapMany(s -> {
                                 if (!s) {
                                     return Flux.empty();
@@ -85,13 +83,15 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
     }
 
     @Override
-    public void start() {
-        if (null != onStart) {
-            onStart.run();
+    public Mono<Void> start() {
+        if (null == onStart) {
+            return Mono.empty();
         }
+        return onStart.get();
     }
 
     protected void executeResult(RuleData data) {
+
         Optional.ofNullable(syncFutures.get(data.getId()))
                 .ifPresent(processor -> processor.onNext(data));
     }
@@ -102,10 +102,11 @@ public class ClusterRuleInstanceContext implements RuleInstanceContext {
     }
 
     @Override
-    public void stop() {
-        if (null != onStop) {
-            onStop.run();
+    public Mono<Void> stop() {
+        if (null == onStop) {
+            return Mono.empty();
         }
+        return onStop.get();
     }
 
     @Override
