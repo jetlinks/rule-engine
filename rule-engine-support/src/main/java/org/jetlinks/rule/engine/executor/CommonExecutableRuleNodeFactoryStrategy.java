@@ -36,8 +36,8 @@ public abstract class CommonExecutableRuleNodeFactoryStrategy<C extends RuleNode
                     .getInput()
                     .subscribe()
                     .doOnNext(data -> {
-                        context.fireEvent(RuleEvent.NODE_EXECUTE_BEFORE, data.newData(data));
                         RuleDataHelper.setExecuteTimeNow(data);
+                        context.fireEvent(RuleEvent.NODE_EXECUTE_BEFORE, data.newData(data));
                     })
                     .doOnSubscribe(sub -> context.fireEvent(RuleEvent.NODE_STARTED, RuleData.create(config)))
                     .subscribe(ruleData -> {
