@@ -11,6 +11,12 @@
         </test>
     </testCase>
 
+    <node id="timer" executor="timer"  name="定时">
+        <configuration>
+            <cron>0/1 * * * * ?</cron>
+        </configuration>
+    </node>
+
     <node id="start" executor="java-method" start="true" nodeType="MAP" name="启动">
         <configuration>
             <className>org.jetlinks.rule.engine.cluster.TestExecutor</className>

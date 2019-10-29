@@ -79,6 +79,7 @@ public class DefaultRuleExecutor implements RuleExecutor {
     }
 
     public void start() {
+
         synchronized (this) {
             if (running) {
                 return;
@@ -86,6 +87,7 @@ public class DefaultRuleExecutor implements RuleExecutor {
             running = true;
             ruleNode.start(context);
         }
+        context.onStop(() -> running = false);
     }
 
     @Override
@@ -95,7 +97,6 @@ public class DefaultRuleExecutor implements RuleExecutor {
             if (context != null) {
                 context.stop();
             }
-            running = false;
         }
     }
 
@@ -163,18 +164,22 @@ public class DefaultRuleExecutor implements RuleExecutor {
         }
 
         @Override
-        public void fireEvent(String event, RuleData data) {
-            data = data.copy();
-            logger.debug("fire event {}.{}:{}", nodeId, event, data);
-            data.setAttribute("event", event);
-            DefaultRuleExecutor.this.fireEvent(event, data);
+        public Mono<Void> fireEvent(String event, RuleData data) {
+            return Mono.fromRunnable(() -> {
+                RuleData copy = data.copy();
+                logger.debug("fire event {}.{}:{}", nodeId, event, copy);
+                copy.setAttribute("event", event);
+                DefaultRuleExecutor.this.fireEvent(event, copy);
+            });
         }
 
         @Override
-        public void onError(RuleData data, Throwable e) {
-            logger().error(e.getMessage(), e);
-            RuleDataHelper.putError(data, e);
-            fireEvent(RuleEvent.NODE_EXECUTE_FAIL, data);
+        public Mono<Void> onError(RuleData data, Throwable e) {
+            return Mono.fromRunnable(() -> {
+                logger().error(e.getMessage(), e);
+                RuleDataHelper.putError(data, e);
+                fireEvent(RuleEvent.NODE_EXECUTE_FAIL, data);
+            });
         }
 
         @Override

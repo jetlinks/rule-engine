@@ -3,6 +3,7 @@ package org.jetlinks.rule.engine.api.executor;
 
 import org.jetlinks.rule.engine.api.Logger;
 import org.jetlinks.rule.engine.api.RuleData;
+import reactor.core.publisher.Mono;
 
 /**
  * 规则节点执行上下文
@@ -48,7 +49,7 @@ public interface ExecutionContext {
      * @param data  数据
      * @see org.jetlinks.rule.engine.api.events.RuleEvent
      */
-    void fireEvent(String event, RuleData data);
+    Mono<Void> fireEvent(String event, RuleData data);
 
     /**
      * 当执行发生异常时调用
@@ -57,7 +58,7 @@ public interface ExecutionContext {
      * @param e    异常信息
      * @see org.jetlinks.rule.engine.api.events.RuleEvent#NODE_EXECUTE_FAIL
      */
-    void onError(RuleData data, Throwable e);
+    Mono<Void> onError(RuleData data, Throwable e);
 
     /**
      * 停止规则

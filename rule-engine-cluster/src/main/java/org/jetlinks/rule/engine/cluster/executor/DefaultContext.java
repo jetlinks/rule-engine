@@ -7,10 +7,11 @@ import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.executor.ExecutionContext;
 import org.jetlinks.rule.engine.api.executor.Input;
 import org.jetlinks.rule.engine.api.executor.Output;
+import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 
 public class DefaultContext implements ExecutionContext {
 
@@ -36,30 +37,33 @@ public class DefaultContext implements ExecutionContext {
 
     @Getter
     @Setter
-    private BiConsumer<RuleData, Throwable> errorHandler;
+    private BiFunction<RuleData, Throwable, Mono<Void>> errorHandler;
 
     @Getter
     @Setter
-    private BiConsumer<String,RuleData> eventHandler;
+    private BiFunction<String, RuleData, Mono<Void>> eventHandler;
 
     private List<Runnable> stopListener = new ArrayList<>();
 
     @Override
-    public void fireEvent(String event, RuleData data) {
-        eventHandler.accept(event,data.copy());
+    public Mono<Void> fireEvent(String event, RuleData data) {
+        return Mono.defer(() -> eventHandler.apply(event, data.copy()));
     }
 
     @Override
-    public void onError(RuleData data, Throwable e) {
-        if (null != errorHandler) {
-            errorHandler.accept(data.copy(), e);
-        } else {
-            logger.error("unhandled error", e);
-        }
+    public Mono<Void> onError(RuleData data, Throwable e) {
+        return Mono.defer(() -> {
+            if (null != errorHandler) {
+                return errorHandler.apply(data.copy(), e);
+            } else {
+                logger.error("unhandled error", e);
+            }
+            return Mono.empty();
+        });
     }
 
     @Override
-    public void stop() {
+    public synchronized void stop() {
         input.close();
         stopListener.forEach(Runnable::run);
         stopListener.clear();
@@ -72,7 +76,7 @@ public class DefaultContext implements ExecutionContext {
     }
 
     @Override
-    public void onStop(Runnable runnable) {
+    public synchronized void onStop(Runnable runnable) {
         stopListener.add(runnable);
     }
 }

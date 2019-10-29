@@ -1,3 +1,4 @@
 logging:
   level:
-    org.jetlinks: debug
+    org.jetlinks: warn
+    rule.engine: debug

@@ -133,10 +133,14 @@ public class RuleEngineWorker {
         void start();
 
         void stop();
+
+        void doStop();
     }
 
     private class RunningRuleNode implements RunningRule {
         private ExecutableRuleNode executor;
+
+        private String instanceId;
 
         private DefaultContext context;
 
@@ -153,10 +157,27 @@ public class RuleEngineWorker {
             log.info("start rule node {}.{}", ruleId, nodeId);
             executor.start(context);
             running = true;
+            context.onStop(() -> {
+                running = false;
+                Optional.ofNullable(allRule.get(instanceId))
+                        .map(Map::values)
+                        .ifPresent(all -> {
+                            log.info("stop rule node {}.{}", ruleId, nodeId);
+                            for (RunningRule runningRule : all) {
+                                runningRule.doStop();
+                            }
+                        });
+            });
+        }
+
+        @Override
+        public synchronized void doStop() {
+            if (running) {
+                stop();
+            }
         }
 
         public void stop() {
-            log.info("stop rule node {}.{}", ruleId, nodeId);
             running = false;
             context.stop();
         }
@@ -180,20 +201,20 @@ public class RuleEngineWorker {
         }
     }
 
-    private void returnResult(String instanceId, RuleData data, boolean complete) {
+    private Mono<Void> returnResult(String instanceId, RuleData data, boolean complete) {
         if (data == null) {
-            return;
+            return Mono.empty();
         }
         String server = data.getAttribute("fromServer").map(String.class::cast).orElse(null);
 
         if (server != null) {
             data.setAttribute("endServer", clusterManager.getCurrentServerId());
             data.setAttribute("instanceId", instanceId);
-            clusterManager.getNotifier()
+            return clusterManager.getNotifier()
                     .sendNotify(server, complete ? "execute-complete" : "execute-result", Mono.just(data))
-                    .subscribe();
+                    .then();
         }
-
+        return Mono.empty();
     }
 
     private boolean createDistributedRuleNode(StartRuleNodeRequest request) {
@@ -253,42 +274,45 @@ public class RuleEngineWorker {
                 logger.setNodeId(request.getNodeId());
                 logger.setLogInfoConsumer(this::acceptLog);
 
-                context.setEventHandler((event, data) -> {
-                    data = data.copy();
+                context.setEventHandler((event, data) -> Mono.defer(() -> {
+                    Mono<Void> mono = Mono.empty();
+                    RuleData copy = data.copy();
                     if (RuleEvent.NODE_EXECUTE_DONE.equals(event)) {
-                        RuleDataHelper.clearError(data);
+                        RuleDataHelper.clearError(copy);
                     }
-                    log.debug("fire event {}.{}:{}", configuration.getNodeId(), event, data);
-                    data.setAttribute("event", event);
+                    log.debug("fire event {}.{}:{}", configuration.getNodeId(), event, copy);
+                    copy.setAttribute("event", event);
+                    Output eventOutput = events.get(event);
+                    if (eventOutput != null) {
+                        mono = eventOutput
+                                .write(Mono.just(copy))
+                                .doOnError(err -> logger.error("fire event[{}] error", event, err))
+                                .then();
+                    }
                     if (RuleEvent.NODE_EXECUTE_DONE.equals(event)
                             || RuleEvent.NODE_EXECUTE_RESULT.equals(event)
                             || RuleEvent.NODE_EXECUTE_FAIL.equals(event)) {
                         //同步返回结果
                         if (configuration.getNodeId().equals(RuleDataHelper.getEndWithNodeId(data).orElse(null))) {
-                            returnResult(request.getInstanceId(), data, !RuleEvent.NODE_EXECUTE_RESULT.equals(event));
+                            mono = mono.then(returnResult(request.getInstanceId(), data, !RuleEvent.NODE_EXECUTE_RESULT.equals(event)));
                         }
                     }
-                    Output eventOutput = events.get(event);
-                    if (eventOutput != null) {
-                        eventOutput
-                                .write(Mono.just(data))
-                                .doOnError(err -> logger.error("fire event[{}] error", event, err))
-                                .subscribe();
-                    }
                     handleEvent(event, request.getNodeId(), request.getInstanceId(), data);
-                });
+                    return mono;
+                }));
                 context.setInput(input);
                 context.setOutput(output);
                 context.setErrorHandler((ruleData, throwable) -> {
                     RuleDataHelper.putError(ruleData, throwable);
                     context.logger().error(throwable.getMessage(), throwable);
-                    context.fireEvent(RuleEvent.NODE_EXECUTE_FAIL, ruleData);
+                    return context.fireEvent(RuleEvent.NODE_EXECUTE_FAIL, ruleData);
                 });
                 context.setLogger(logger);
 
                 RunningRuleNode rule = new RunningRuleNode();
                 rule.context = context;
                 rule.executor = ruleNode;
+                rule.instanceId = request.getInstanceId();
                 rule.ruleId = request.getRuleId();
                 rule.nodeId = request.getNodeId();
 

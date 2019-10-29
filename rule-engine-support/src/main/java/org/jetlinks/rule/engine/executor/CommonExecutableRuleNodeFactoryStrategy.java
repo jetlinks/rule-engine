@@ -27,7 +27,12 @@ public abstract class CommonExecutableRuleNodeFactoryStrategy<C extends RuleNode
         return config.getNodeType() != null && config.getNodeType().isReturnNewValue();
     }
 
+    protected void onStarted(ExecutionContext context, C config) {
+
+    }
+
     protected ExecutableRuleNode doCreate(C config) {
+        config.validate();
         return context -> {
             Function<RuleData, Publisher<Object>> executor = createExecutor(context, config);
             boolean returnNewValue = returnNewValue(config);
@@ -39,12 +44,10 @@ public abstract class CommonExecutableRuleNodeFactoryStrategy<C extends RuleNode
                         RuleDataHelper.setExecuteTimeNow(data);
                         context.fireEvent(RuleEvent.NODE_EXECUTE_BEFORE, data.newData(data));
                     })
-                    .doOnSubscribe(sub -> context.fireEvent(RuleEvent.NODE_STARTED, RuleData.create(config)))
+                    .flatMap(sub -> context.fireEvent(RuleEvent.NODE_STARTED, RuleData.create(config)).thenReturn(sub))
                     .subscribe(ruleData -> {
-
                         Flux.from(executor.apply(ruleData))
                                 .map(this::convertObject)
-                                .doOnComplete(() -> context.fireEvent(RuleEvent.NODE_EXECUTE_DONE, ruleData.copy()))
                                 .map(data -> {
                                     if (returnNewValue) {
                                         return ruleData.newData(data);
@@ -53,12 +56,13 @@ public abstract class CommonExecutableRuleNodeFactoryStrategy<C extends RuleNode
                                 })
                                 .switchIfEmpty(Mono.just(ruleData))
                                 .cast(RuleData.class)
-                                .doOnNext(result -> context.fireEvent(RuleEvent.NODE_EXECUTE_RESULT, result.copy()))
+                                .flatMap(result -> context.fireEvent(RuleEvent.NODE_EXECUTE_RESULT, result.copy()).thenReturn(result))
                                 .as(context.getOutput()::write)
-                                .doOnError(error -> context.onError(ruleData, error))
+                                .doOnError(error -> context.onError(ruleData, error).subscribe())
+                                .doFinally((result) -> context.fireEvent(RuleEvent.NODE_EXECUTE_DONE, ruleData.copy()).subscribe())
                                 .subscribe();
                     });
-
+            onStarted(context, config);
             context.onStop(disposable::dispose);
         };
     }

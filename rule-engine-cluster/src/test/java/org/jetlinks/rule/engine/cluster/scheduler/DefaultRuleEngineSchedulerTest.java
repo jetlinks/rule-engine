@@ -15,6 +15,7 @@ import org.jetlinks.rule.engine.condition.supports.DefaultScriptEvaluator;
 import org.jetlinks.rule.engine.condition.supports.ScriptConditionEvaluatorStrategy;
 import org.jetlinks.rule.engine.executor.DefaultExecutableRuleNodeFactory;
 import org.jetlinks.rule.engine.executor.supports.JavaMethodInvokeStrategy;
+import org.jetlinks.rule.engine.executor.supports.TimerStrategy;
 import org.jetlinks.rule.engine.model.DefaultRuleModelParser;
 import org.jetlinks.rule.engine.model.xml.XmlRuleModelParserStrategy;
 import org.jetlinks.supports.cluster.redis.RedisClusterManager;
@@ -32,6 +33,7 @@ import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Date;
 import java.util.Map;
 
@@ -66,7 +68,7 @@ public class DefaultRuleEngineSchedulerTest {
         parser.register(new XmlRuleModelParserStrategy());
         DefaultExecutableRuleNodeFactory nodeFactory = new DefaultExecutableRuleNodeFactory();
         nodeFactory.registerStrategy(new JavaMethodInvokeStrategy());
-
+        nodeFactory.registerStrategy(new TimerStrategy(clusterManager));
         scheduler = new DefaultRuleEngineScheduler();
         scheduler.setClusterManager(clusterManager);
         scheduler.setInstanceRepository(new MockRuleInstanceRepository());
@@ -107,14 +109,15 @@ public class DefaultRuleEngineSchedulerTest {
         Assert.assertNotNull(context.getId());
 
         Thread.sleep(2000);
-        Flux.range(0, 1)
+        Flux.range(0, 5)
                 .map(i -> RuleData.create("abc" + i))
+                .delayElements(Duration.ofSeconds(2))
                 .as(context::execute)
                 .as(StepVerifier::create)
-                .expectNextCount(1)
+                .expectNextCount(5)
                 .verifyComplete();
 
-        context.stop();
+        context.stop().block();
     }
 
 }
