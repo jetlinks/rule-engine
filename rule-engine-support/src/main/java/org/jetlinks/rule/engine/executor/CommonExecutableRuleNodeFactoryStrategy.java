@@ -6,7 +6,8 @@ import org.jetlinks.rule.engine.api.RuleDataHelper;
 import org.jetlinks.rule.engine.api.events.RuleEvent;
 import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
 import org.jetlinks.rule.engine.api.executor.ExecutionContext;
-import org.jetlinks.rule.engine.executor.supports.RuleNodeConfig;
+import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
+import org.jetlinks.rule.engine.executor.node.RuleNodeConfig;
 import org.reactivestreams.Publisher;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
@@ -30,6 +31,7 @@ public abstract class CommonExecutableRuleNodeFactoryStrategy<C extends RuleNode
     protected void onStarted(ExecutionContext context, C config) {
 
     }
+
 
     protected ExecutableRuleNode doCreate(C config) {
         config.validate();

@@ -5,7 +5,7 @@ import org.hswebframework.utils.ClassUtils;
 import org.hswebframework.web.bean.FastBeanCopier;
 import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
 import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
-import org.jetlinks.rule.engine.executor.supports.RuleNodeConfig;
+import org.jetlinks.rule.engine.executor.node.RuleNodeConfig;
 
 /**
  * @author zhouhao

@@ -1,4 +1,4 @@
-package org.jetlinks.rule.engine.executor.supports;
+package org.jetlinks.rule.engine.executor.node.timer;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -10,6 +10,7 @@ import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.executor.ExecutionContext;
 import org.jetlinks.rule.engine.api.model.NodeType;
 import org.jetlinks.rule.engine.executor.CommonExecutableRuleNodeFactoryStrategy;
+import org.jetlinks.rule.engine.executor.node.RuleNodeConfig;
 import org.reactivestreams.Publisher;
 import org.springframework.scheduling.support.CronSequenceGenerator;
 import reactor.core.publisher.Mono;
@@ -21,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 @Slf4j
-public class TimerStrategy extends CommonExecutableRuleNodeFactoryStrategy<TimerStrategy.Configuration> {
+public class TimerNode extends CommonExecutableRuleNodeFactoryStrategy<TimerNode.Configuration> {
 
     private ClusterManager clusterManager;
 
@@ -34,7 +35,7 @@ public class TimerStrategy extends CommonExecutableRuleNodeFactoryStrategy<Timer
         return "timer";
     }
 
-    public TimerStrategy(ClusterManager clusterManager) {
+    public TimerNode(ClusterManager clusterManager) {
         this.clusterManager = clusterManager;
         this.workerInfo = clusterManager.getCache("_rule-engine-timer-worker");
 

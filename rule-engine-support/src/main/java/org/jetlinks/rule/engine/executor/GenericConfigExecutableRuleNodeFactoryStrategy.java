@@ -1,7 +1,7 @@
 package org.jetlinks.rule.engine.executor;
 
 import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
-import org.jetlinks.rule.engine.executor.supports.RuleNodeConfig;
+import org.jetlinks.rule.engine.executor.node.RuleNodeConfig;
 
 public interface GenericConfigExecutableRuleNodeFactoryStrategy<C extends RuleNodeConfig> extends ExecutableRuleNodeFactoryStrategy {
 

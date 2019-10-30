@@ -1,4 +1,4 @@
-package org.jetlinks.rule.engine.executor.supports;
+package org.jetlinks.rule.engine.executor.node;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -30,7 +30,7 @@ import java.util.stream.Stream;
  */
 @SuppressWarnings("all")
 @Slf4j
-public class JavaMethodInvokeStrategy extends CommonExecutableRuleNodeFactoryStrategy<JavaMethodInvokeStrategy.JavaMethodInvokeStrategyConfiguration> {
+public class JavaMethodInvokeNode extends CommonExecutableRuleNodeFactoryStrategy<JavaMethodInvokeNode.JavaMethodInvokeStrategyConfiguration> {
 
     @Getter
     @Setter
