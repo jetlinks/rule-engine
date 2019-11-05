@@ -12,4 +12,6 @@ public interface MqttClient {
 
     Mono<Boolean> publish(MqttMessage message);
 
+    boolean isAlive();
+
 }

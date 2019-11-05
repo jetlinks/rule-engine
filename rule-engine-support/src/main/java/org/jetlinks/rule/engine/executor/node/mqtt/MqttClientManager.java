@@ -1,10 +1,10 @@
 package org.jetlinks.rule.engine.executor.node.mqtt;
 
 
+import reactor.core.publisher.Mono;
+
 public interface MqttClientManager {
 
-    MqttClient getMqttClient(String id);
-
-
+    Mono< MqttClient> getMqttClient(String id);
 
 }

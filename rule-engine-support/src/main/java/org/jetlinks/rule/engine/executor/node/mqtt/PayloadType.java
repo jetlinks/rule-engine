@@ -1,5 +1,6 @@
 package org.jetlinks.rule.engine.executor.node.mqtt;
 
+import com.alibaba.fastjson.JSON;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.apache.commons.codec.binary.Hex;
@@ -15,6 +16,9 @@ public enum PayloadType {
         }
 
         public ByteBuf write(Object data) {
+            if (!(data instanceof String)) {
+                data = JSON.toJSONString(data);
+            }
             return Unpooled.wrappedBuffer(String.valueOf(data).getBytes());
         }
     },

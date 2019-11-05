@@ -1,8 +1,8 @@
 package org.jetlinks.rule.engine.executor.node.mqtt;
 
+import lombok.AllArgsConstructor;
 import org.jetlinks.core.message.codec.MqttMessage;
 import org.jetlinks.rule.engine.api.RuleData;
-import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
 import org.jetlinks.rule.engine.api.executor.ExecutionContext;
 import org.jetlinks.rule.engine.executor.CommonExecutableRuleNodeFactoryStrategy;
 import org.reactivestreams.Publisher;
@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+@AllArgsConstructor
 public class MqttConsumerNode extends CommonExecutableRuleNodeFactoryStrategy<MqttClientConfiguration> {
 
     private MqttClientManager clientManager;
@@ -23,18 +24,12 @@ public class MqttConsumerNode extends CommonExecutableRuleNodeFactoryStrategy<Mq
     }
 
     @Override
-    public ExecutableRuleNode doCreate(MqttClientConfiguration config) {
-        clientManager.getMqttClient(config.getClientId());
-        return super.doCreate(config);
-    }
-
-    @Override
     protected void onStarted(ExecutionContext context, MqttClientConfiguration config) {
         super.onStarted(context, config);
 
-        MqttClient client = clientManager.getMqttClient(config.getClientId());
-
-        Disposable disposable = client.subscribe(config.getTopics())
+        Disposable disposable = clientManager
+                .getMqttClient(config.getClientId())
+                .flatMapMany(client -> client.subscribe(config.getTopics()))
                 .doOnNext(message -> context.logger().info("consume mqtt message:{}", message))
                 .flatMap(message -> context.getOutput().write(convertMessage(message, config)))
                 .doOnError(err -> context.logger().error("consume mqtt message error:{}", err))
@@ -45,10 +40,10 @@ public class MqttConsumerNode extends CommonExecutableRuleNodeFactoryStrategy<Mq
     protected Mono<RuleData> convertMessage(MqttMessage message, MqttClientConfiguration config) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("topic", message.getTopic());
-        payload.put("isWill", message.isWill());
+        payload.put("will", message.isWill());
         payload.put("qos", message.getQosLevel());
-        payload.put("isDup", message.isDup());
-        payload.put("isRetain", message.isRetain());
+        payload.put("dup", message.isDup());
+        payload.put("retain", message.isRetain());
         payload.put("payload", config.getPayloadType().read(message.getPayload()));
         return Mono.just(RuleData.create(payload));
     }
