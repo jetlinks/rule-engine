@@ -6,12 +6,10 @@ import org.jetlinks.rule.engine.api.RuleDataHelper;
 import org.jetlinks.rule.engine.api.events.RuleEvent;
 import org.jetlinks.rule.engine.api.executor.ExecutableRuleNode;
 import org.jetlinks.rule.engine.api.executor.ExecutionContext;
-import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
 import org.jetlinks.rule.engine.executor.node.RuleNodeConfig;
 import org.reactivestreams.Publisher;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import java.util.function.Function;
 
@@ -22,7 +20,7 @@ import java.util.function.Function;
 public abstract class CommonExecutableRuleNodeFactoryStrategy<C extends RuleNodeConfig>
         extends AbstractExecutableRuleNodeFactoryStrategy<C> {
 
-    public abstract Function<RuleData, Publisher<Object>> createExecutor(ExecutionContext context, C config);
+    public abstract Function<RuleData,? extends  Publisher<?>> createExecutor(ExecutionContext context, C config);
 
     protected boolean returnNewValue(C config) {
         return config.getNodeType() != null && config.getNodeType().isReturnNewValue();
@@ -36,7 +34,7 @@ public abstract class CommonExecutableRuleNodeFactoryStrategy<C extends RuleNode
     protected ExecutableRuleNode doCreate(C config) {
         config.validate();
         return context -> {
-            Function<RuleData, Publisher<Object>> executor = createExecutor(context, config);
+            Function<RuleData, ? extends Publisher<?>> executor = createExecutor(context, config);
             boolean returnNewValue = returnNewValue(config);
 
             Disposable disposable = context
@@ -56,7 +54,7 @@ public abstract class CommonExecutableRuleNodeFactoryStrategy<C extends RuleNode
                                     }
                                     return ruleData.newData(ruleData);
                                 })
-                                .switchIfEmpty(Mono.just(ruleData))
+//                                .switchIfEmpty(Mono.just(ruleData))
                                 .cast(RuleData.class)
                                 .flatMap(result -> context.fireEvent(RuleEvent.NODE_EXECUTE_RESULT, result.copy()).thenReturn(result))
                                 .as(context.getOutput()::write)
