@@ -5,6 +5,6 @@ import reactor.core.publisher.Mono;
 
 public interface MqttClientManager {
 
-    Mono< MqttClient> getMqttClient(String id);
+    Mono<MqttClient> getMqttClient(String id);
 
 }

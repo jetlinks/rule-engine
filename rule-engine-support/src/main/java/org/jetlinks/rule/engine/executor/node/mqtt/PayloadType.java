@@ -1,14 +1,27 @@
 package org.jetlinks.rule.engine.executor.node.mqtt;
 
-import com.alibaba.fastjson.JSON;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.apache.commons.codec.binary.Hex;
+import org.jetlinks.rule.engine.api.RuleDataCodec;
 
 import java.nio.charset.StandardCharsets;
 
-public enum PayloadType {
+public enum PayloadType implements RuleDataCodec.Feature {
 
+    JSON {
+        @Override
+        public Object read(ByteBuf byteBuf) {
+            return com.alibaba.fastjson.JSON.parse(byteBuf.toString(StandardCharsets.UTF_8));
+        }
+
+        public ByteBuf write(Object data) {
+            if (!(data instanceof String)) {
+                data = com.alibaba.fastjson.JSON.toJSONString(data);
+            }
+            return Unpooled.wrappedBuffer(String.valueOf(data).getBytes());
+        }
+    },
     STRING {
         @Override
         public String read(ByteBuf byteBuf) {
@@ -17,7 +30,7 @@ public enum PayloadType {
 
         public ByteBuf write(Object data) {
             if (!(data instanceof String)) {
-                data = JSON.toJSONString(data);
+                data = com.alibaba.fastjson.JSON.toJSONString(data);
             }
             return Unpooled.wrappedBuffer(String.valueOf(data).getBytes());
         }
@@ -58,4 +71,14 @@ public enum PayloadType {
     public abstract ByteBuf write(Object data);
 
     public abstract Object read(ByteBuf byteBuf);
+
+    @Override
+    public String getName() {
+        return name();
+    }
+
+    @Override
+    public String getId() {
+        return name();
+    }
 }

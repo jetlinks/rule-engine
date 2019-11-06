@@ -11,11 +11,9 @@ import java.util.List;
 @Setter
 public class MqttClientConfiguration implements RuleNodeConfig {
 
-    private String broker;
-
     private String clientId;
 
-    private PayloadType payloadType = PayloadType.STRING;
+    private PayloadType payloadType = PayloadType.JSON;
 
     private List<String> topics;
 

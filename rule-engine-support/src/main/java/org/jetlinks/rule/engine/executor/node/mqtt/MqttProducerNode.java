@@ -2,8 +2,8 @@ package org.jetlinks.rule.engine.executor.node.mqtt;
 
 import lombok.AllArgsConstructor;
 import org.jetlinks.core.message.codec.MqttMessage;
-import org.jetlinks.core.message.codec.SimpleMqttMessage;
 import org.jetlinks.rule.engine.api.RuleData;
+import org.jetlinks.rule.engine.api.RuleDataCodecs;
 import org.jetlinks.rule.engine.api.executor.ExecutionContext;
 import org.jetlinks.rule.engine.executor.CommonExecutableRuleNodeFactoryStrategy;
 import org.reactivestreams.Publisher;
@@ -27,11 +27,10 @@ public class MqttProducerNode extends CommonExecutableRuleNodeFactoryStrategy<Mq
 
 
     protected Flux<MqttMessage> convertMessage(RuleData message, MqttClientConfiguration config) {
-        return Flux.fromIterable(config.getTopics())
-                .map(topic -> SimpleMqttMessage.builder()
-                        .payload(config.getPayloadType().write(message.getData()))
-                        .topic(topic)
-                        .build());
+        return RuleDataCodecs.getCodec(MqttMessage.class)
+                .map(codec -> codec.decode(message, config.getPayloadType()).cast(MqttMessage.class))
+                .orElseThrow(() -> new UnsupportedOperationException("unsupported decode message:{}"+message))
+                ;
     }
 
     @Override
