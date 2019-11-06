@@ -1,8 +1,6 @@
 package org.jetlinks.rule.engine.api;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -15,6 +13,7 @@ public class RuleDataCodecs {
     public static void register(RuleDataCodecSupplier supplier) {
         suppliers.add(supplier);
 
+        suppliers.sort(Comparator.comparing(RuleDataCodecSupplier::getOrder));
     }
 
     public static <T> void register(Class<T> type, RuleDataCodec<T> codec) {

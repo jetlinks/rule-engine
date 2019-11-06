@@ -1,9 +1,14 @@
 package org.jetlinks.rule.engine.api;
 
-public interface RuleDataCodecSupplier {
+public interface RuleDataCodecSupplier{
 
     boolean isSupport(Class type);
 
     RuleDataCodec getCodec();
+
+
+    default int getOrder(){
+        return 0;
+    }
 
 }
