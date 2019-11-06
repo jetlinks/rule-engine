@@ -40,11 +40,11 @@ public abstract class CommonExecutableRuleNodeFactoryStrategy<C extends RuleNode
             Disposable disposable = context
                     .getInput()
                     .subscribe()
+                    .doOnSubscribe(r -> context.fireEvent(RuleEvent.NODE_STARTED, RuleData.create(config)).subscribe())
                     .doOnNext(data -> {
                         RuleDataHelper.setExecuteTimeNow(data);
                         context.fireEvent(RuleEvent.NODE_EXECUTE_BEFORE, data.newData(data));
                     })
-                    .flatMap(sub -> context.fireEvent(RuleEvent.NODE_STARTED, RuleData.create(config)).thenReturn(sub))
                     .subscribe(ruleData -> {
                         Flux.from(executor.apply(ruleData))
                                 .map(this::convertObject)
@@ -54,7 +54,6 @@ public abstract class CommonExecutableRuleNodeFactoryStrategy<C extends RuleNode
                                     }
                                     return ruleData.newData(ruleData);
                                 })
-//                                .switchIfEmpty(Mono.just(ruleData))
                                 .cast(RuleData.class)
                                 .flatMap(result -> context.fireEvent(RuleEvent.NODE_EXECUTE_RESULT, result.copy()).thenReturn(result))
                                 .as(context.getOutput()::write)

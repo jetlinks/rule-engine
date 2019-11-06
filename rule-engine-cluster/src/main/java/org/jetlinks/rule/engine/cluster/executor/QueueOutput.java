@@ -3,6 +3,7 @@ package org.jetlinks.rule.engine.cluster.executor;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.core.cluster.ClusterQueue;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.executor.Output;
@@ -16,6 +17,7 @@ import java.util.function.Predicate;
 
 @Getter
 @AllArgsConstructor
+@Slf4j
 public class QueueOutput implements Output {
 
     private List<ConditionQueue> queues;

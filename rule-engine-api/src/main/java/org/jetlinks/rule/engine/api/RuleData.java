@@ -1,6 +1,7 @@
 package org.jetlinks.rule.engine.api;
 
 import org.hswebframework.web.id.IDGenerator;
+import reactor.core.publisher.Flux;
 
 import java.io.Serializable;
 import java.util.Map;
@@ -19,6 +20,8 @@ public interface RuleData extends Serializable {
     Object getData();
 
     void acceptMap(Consumer<Map<String, Object>> consumer);
+
+    Flux<Map<String,Object>> dataToMap();
 
     RuleData newData(Object data);
 

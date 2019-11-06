@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.hswebframework.web.bean.FastBeanCopier;
+import reactor.core.publisher.Flux;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -57,6 +58,14 @@ public class DefaultRuleData implements RuleData {
     @Override
     public Object getData() {
         return data;
+    }
+
+    @Override
+    public Flux<Map<String, Object>> dataToMap() {
+        return Flux.create(sink -> {
+            acceptMap(sink::next);
+            sink.complete();
+        });
     }
 
     @Override
