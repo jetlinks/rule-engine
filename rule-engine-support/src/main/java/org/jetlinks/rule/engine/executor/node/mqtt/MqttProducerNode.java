@@ -28,7 +28,7 @@ public class MqttProducerNode extends CommonExecutableRuleNodeFactoryStrategy<Mq
 
     protected Flux<MqttMessage> convertMessage(RuleData message, MqttClientConfiguration config) {
         return RuleDataCodecs.getCodec(MqttMessage.class)
-                .map(codec -> codec.decode(message, config.getPayloadType()).cast(MqttMessage.class))
+                .map(codec -> codec.decode(message, config.getPayloadType(),new MqttTopics(config.getTopics())).cast(MqttMessage.class))
                 .orElseThrow(() -> new UnsupportedOperationException("unsupported decode message:{}"+message))
                 ;
     }

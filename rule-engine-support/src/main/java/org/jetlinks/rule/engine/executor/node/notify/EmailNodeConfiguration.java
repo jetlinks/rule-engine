@@ -46,7 +46,7 @@ public class EmailNodeConfiguration implements RuleNodeConfig {
     public void validate() {
         Assert.hasText(senderId, "senderId can not be empty");
         Assert.notEmpty(sendTo, "sendTo can not be empty");
-        Assert.isTrue(StringUtils.isEmpty(templateId) && StringUtils.isEmpty(subject), "templateId or subject can not be empty");
+        Assert.isTrue(!(StringUtils.isEmpty(templateId) && StringUtils.isEmpty(subject)), "templateId or subject can not be empty");
 
     }
 }

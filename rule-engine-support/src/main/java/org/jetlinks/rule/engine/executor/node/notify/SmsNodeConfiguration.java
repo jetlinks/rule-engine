@@ -44,6 +44,6 @@ public class SmsNodeConfiguration implements RuleNodeConfig {
     public void validate() {
         Assert.hasText(senderId, "senderId can not be empty");
         Assert.notEmpty(sendTo, "sendTo can not be empty");
-        Assert.isTrue(StringUtils.isEmpty(templateId) && StringUtils.isEmpty(text), "text or subject can not be empty");
+        Assert.isTrue(!(StringUtils.isEmpty(templateId) && StringUtils.isEmpty(text)), "text or templateId can not be empty");
     }
 }

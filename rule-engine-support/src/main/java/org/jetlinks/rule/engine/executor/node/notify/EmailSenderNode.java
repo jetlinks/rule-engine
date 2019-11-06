@@ -18,15 +18,12 @@ public class EmailSenderNode extends CommonExecutableRuleNodeFactoryStrategy<Ema
 
     @Override
     public Function<RuleData, Publisher<Object>> createExecutor(ExecutionContext context, EmailNodeConfiguration config) {
-
-
         return ruleData -> emailSenderManager
                 .getSender(config.getSenderId())
                 .flatMap(emailSender -> {
                     Map<String, Object> emailContext = new HashMap<>();
                     emailContext.put("data", ruleData.getData());
                     emailContext.put("attr", ruleData.getAttributes());
-
                     return config.send(emailSender, emailContext);
 
                 });

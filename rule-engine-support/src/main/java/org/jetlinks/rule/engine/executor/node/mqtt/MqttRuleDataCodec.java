@@ -9,6 +9,7 @@ import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleDataCodec;
 import org.jetlinks.rule.engine.api.RuleDataCodecs;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -51,9 +52,24 @@ public class MqttRuleDataCodec implements RuleDataCodec<MqttMessage> {
         if (data.getData() instanceof MqttMessage) {
             return Flux.just(((MqttMessage) data.getData()));
         }
+        MqttTopics topics = Feature.find(MqttTopics.class, features).orElse(null);
+
         return data
                 .dataToMap()
-                .filter(map -> map.containsKey("topic") && map.containsKey("payload"))
+                .filter(map ->map.containsKey("payload"))
+                .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("payload not set")))
+                .flatMap(map -> {
+                    if (topics != null && !map.containsKey("topic")) {
+                        return Flux.fromIterable(topics.getTopics())
+                                .flatMap(topic -> {
+                                    Map<String, Object> copy = new HashMap<>();
+                                    copy.put("topic", topic);
+                                    return Mono.just(copy);
+                                })
+                                .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("topic not set")));
+                    }
+                    return Flux.just(map);
+                })
                 .map(map -> {
                     Object payload = map.get("payload");
                     ByteBuf byteBuf = null;
