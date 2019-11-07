@@ -163,7 +163,8 @@ public class DeviceOperationNode extends CommonExecutableRuleNodeFactoryStrategy
                     .doOnNext(ruleData -> context.logger().info("桥接发往设备的消息:{}", ruleData))
                     .flatMap(ruleData -> context.getOutput()
                             .write(Mono.just(ruleData)
-                                    .doOnError(err -> context.onError(ruleData, err))))
+                                    .doOnError(err -> context.onError(ruleData, err).subscribe())))
+                    .onErrorContinue((err, data) -> context.onError(RuleData.create(data), err).subscribe())
                     .subscribe(success -> {
 
                     });
