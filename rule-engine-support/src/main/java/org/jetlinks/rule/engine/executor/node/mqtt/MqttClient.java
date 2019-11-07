@@ -14,4 +14,6 @@ public interface MqttClient {
 
     boolean isAlive();
 
+    Throwable getLastError();
+
 }

@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.jetlinks.rule.engine.api.model.NodeType;
 import org.jetlinks.rule.engine.executor.node.RuleNodeConfig;
+import org.springframework.util.Assert;
 
 import java.util.List;
 
@@ -15,6 +16,8 @@ public class MqttClientConfiguration implements RuleNodeConfig {
 
     private PayloadType payloadType = PayloadType.JSON;
 
+    private ClientType[] clientType;
+
     private List<String> topics;
 
     @Override
@@ -24,6 +27,14 @@ public class MqttClientConfiguration implements RuleNodeConfig {
 
     @Override
     public void setNodeType(NodeType nodeType) {
+
+    }
+
+    @Override
+    public void validate() {
+        Assert.hasText(clientId,"clientId can not be empty");
+        Assert.notNull(clientType,"clientType can not be null");
+        Assert.notEmpty(topics,"topics can not be empty");
 
     }
 }

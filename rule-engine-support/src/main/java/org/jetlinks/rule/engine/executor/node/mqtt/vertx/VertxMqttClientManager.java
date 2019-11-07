@@ -10,6 +10,7 @@ import org.jetlinks.rule.engine.executor.node.mqtt.MqttClient;
 import org.jetlinks.rule.engine.executor.node.mqtt.MqttClientManager;
 import reactor.core.publisher.Mono;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,39 +24,85 @@ public abstract class VertxMqttClientManager implements MqttClientManager {
 
     protected abstract Mono<VertxMqttConfig> getConfig(String id);
 
+    protected void doClientKeepAlive() {
+        for (Map.Entry<String, VertxMqttClient> entry : clients.entrySet()) {
+            VertxMqttClient client = entry.getValue();
+            if (client.isAlive()) {
+                continue;
+            }
+            log.warn("mqtt client [{}] is disconnected", client.getClient().clientId());
+            getConfig(entry.getKey())
+                    .flatMap(this::createMqttClient)
+                    .switchIfEmpty(Mono.fromRunnable(() -> {
+                        log.info("mqtt client [{}] is disabled", entry.getKey());
+                    }))
+                    .doOnError(err -> log.warn("reconnect mqtt client [{}] failed ", entry.getKey(), err))
+                    .doOnSuccess(newClient -> log.info("reconnect mqtt client [{}] success ", entry.getKey()))
+                    .subscribe();
+        }
+    }
+
     protected void stopClient(String id) {
-        Optional.ofNullable(clients.get(id))
-                .ifPresent(client -> client.getClient().disconnect());
+        try {
+            Optional.ofNullable(clients.get(id))
+                    .ifPresent(client -> client.getClient().disconnect());
+        } catch (Exception ignore) {
+
+        }
+    }
+
+    protected void doClose(VertxMqttClient client) {
+        try {
+            client.getClient().disconnect();
+        } catch (Exception ignore) {
+
+        }
     }
 
     protected Mono<VertxMqttClient> createMqttClient(VertxMqttConfig config) {
         return Mono.create((sink) -> {
 
+            io.vertx.mqtt.MqttClient client;
+            VertxMqttClient _mqttClient;
+
             synchronized (clients) {
-                VertxMqttClient old = clients.get(config.getId());
-                if (old != null && old.isAlive()) {
-                    sink.success(old);
-                    return;
+                _mqttClient = clients.get(config.getId());
+                if (_mqttClient != null) {
+                    if (_mqttClient.isAlive() || _mqttClient.connecting) {
+                        sink.success(_mqttClient);
+                        return;
+                    }
                 }
+                client = io.vertx.mqtt.MqttClient.create(getVertx(), config.options);
+                if (_mqttClient == null) {
+                    _mqttClient = new VertxMqttClient();
+                    clients.put(config.getId(), _mqttClient);
+                }
+                _mqttClient.connecting = true;
             }
-            io.vertx.mqtt.MqttClient client = io.vertx.mqtt.MqttClient.create(getVertx(), config.options);
-            client.exceptionHandler(err -> log.error("mqtt client error", err));
+            VertxMqttClient mqttClient = _mqttClient;
+
+            client.exceptionHandler(err -> {
+                mqttClient.setLastError(err);
+                log.error("mqtt client error", err);
+            });
+
+            client.closeHandler(handle -> {
+                mqttClient.setLastError(new IOException("mqtt connection closed"));
+                log.warn("mqtt connection closed");
+            });
 
             client.connect(config.port, config.host, result -> {
-                if (result.succeeded()) {
-                    synchronized (clients) {
-                        VertxMqttClient mqttClient = clients.get(config.getId());
-                        if (mqttClient == null) {
-                            clients.put(config.getId(), mqttClient = new VertxMqttClient(client));
-                        } else {
-                            mqttClient.setClient(client);
-                        }
-                        sink.success(mqttClient);
+                synchronized (clients) {
+                    mqttClient.setClient(client);
+                    mqttClient.connecting = false;
+                    if (result.succeeded()) {
+                        log.info("connect mqtt[{} {}:{}] success", config.getId(), config.getHost(), config.getPort());
+                    } else {
+                        mqttClient.setLastError(result.cause());
+                        log.info("connect mqtt[{} {}:{}] error", config.getId(), config.getHost(), config.getPort(), result.cause());
                     }
-                    log.info("connect mqtt[{} {}:{}] success", config.getId(), config.getHost(), config.getPort());
-                } else {
-                    sink.error(result.cause());
-                    log.info("connect mqtt[{} {}:{}] error", config.getId(), config.getHost(), config.getPort(), result.cause());
+                    sink.success(mqttClient);
                 }
             });
         });
