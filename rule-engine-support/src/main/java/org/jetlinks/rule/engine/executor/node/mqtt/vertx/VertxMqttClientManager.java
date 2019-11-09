@@ -32,10 +32,8 @@ public abstract class VertxMqttClientManager implements MqttClientManager {
             }
             log.warn("mqtt client [{}] is disconnected", client.getClient().clientId());
             getConfig(entry.getKey())
+                    .filter(VertxMqttConfig::isEnabled)
                     .flatMap(this::createMqttClient)
-                    .switchIfEmpty(Mono.fromRunnable(() -> {
-                        log.info("mqtt client [{}] is disabled", entry.getKey());
-                    }))
                     .doOnError(err -> log.warn("reconnect mqtt client [{}] failed ", entry.getKey(), err))
                     .doOnSuccess(newClient -> log.info("reconnect mqtt client [{}] success ", entry.getKey()))
                     .subscribe();
@@ -62,26 +60,30 @@ public abstract class VertxMqttClientManager implements MqttClientManager {
     protected Mono<VertxMqttClient> createMqttClient(VertxMqttConfig config) {
         return Mono.create((sink) -> {
 
-            io.vertx.mqtt.MqttClient client;
             VertxMqttClient _mqttClient;
 
             synchronized (clients) {
                 _mqttClient = clients.get(config.getId());
                 if (_mqttClient != null) {
-                    if (_mqttClient.isAlive() || _mqttClient.connecting) {
+                    if (_mqttClient.isAlive() || _mqttClient.connecting.get()) {
                         sink.success(_mqttClient);
                         return;
                     }
                 }
-                client = io.vertx.mqtt.MqttClient.create(getVertx(), config.options);
+
                 if (_mqttClient == null) {
                     _mqttClient = new VertxMqttClient();
                     clients.put(config.getId(), _mqttClient);
                 }
-                _mqttClient.connecting = true;
+                _mqttClient.connecting.set(true);
+            }
+            if(!config.enabled){
+                _mqttClient.connecting.set(false);
+                sink.success(_mqttClient);
+                return;
             }
             VertxMqttClient mqttClient = _mqttClient;
-
+            io.vertx.mqtt.MqttClient client = io.vertx.mqtt.MqttClient.create(getVertx(), config.options);
             client.exceptionHandler(err -> {
                 mqttClient.setLastError(err);
                 log.error("mqtt client error", err);
@@ -94,8 +96,8 @@ public abstract class VertxMqttClientManager implements MqttClientManager {
 
             client.connect(config.port, config.host, result -> {
                 synchronized (clients) {
+                    mqttClient.connecting.set(false);
                     mqttClient.setClient(client);
-                    mqttClient.connecting = false;
                     if (result.succeeded()) {
                         log.info("connect mqtt[{} {}:{}] success", config.getId(), config.getHost(), config.getPort());
                     } else {
@@ -125,5 +127,6 @@ public abstract class VertxMqttClientManager implements MqttClientManager {
         private String host;
         private int port;
         private MqttClientOptions options;
+        private boolean enabled;
     }
 }

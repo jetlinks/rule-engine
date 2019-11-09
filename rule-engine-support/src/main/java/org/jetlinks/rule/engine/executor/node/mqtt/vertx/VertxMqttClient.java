@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.core.message.codec.MqttMessage;
 import org.jetlinks.core.message.codec.SimpleMqttMessage;
 import org.jetlinks.rule.engine.executor.node.mqtt.MqttClient;
+import org.jetlinks.supports.utils.MqttTopicUtils;
 import reactor.core.publisher.EmitterProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxProcessor;
@@ -17,6 +18,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -33,7 +35,7 @@ public class VertxMqttClient implements MqttClient {
 
     private boolean neverSubscribe = true;
 
-    volatile boolean connecting = false;
+    volatile AtomicBoolean connecting = new AtomicBoolean();
 
     @Getter
     @Setter
@@ -79,31 +81,31 @@ public class VertxMqttClient implements MqttClient {
 
     public VertxMqttClient() {
         messageProcessor = EmitterProcessor.create(false);
-
     }
+
 
     @Override
     public Flux<MqttMessage> subscribe(List<String> topics) {
         neverSubscribe = false;
+        AtomicBoolean canceled = new AtomicBoolean();
         return Flux.defer(() -> {
+            Map<String, Integer> subscribeTopic = topics.stream()
+                    .filter(r -> getTopicCounter(r).getAndIncrement() == 0)
+                    .collect(Collectors.toMap(Function.identity(), (r) -> 0));
             if (isAlive()) {
-                Map<String, Integer> subscribeTopic = topics.stream()
-                        .filter(r -> getTopicCounter(r).getAndIncrement() == 0)
-                        .collect(Collectors.toMap(Function.identity(), (r) -> 0));
                 if (!subscribeTopic.isEmpty()) {
                     log.info("subscribe mqtt [{}] topic : {}", client.clientId(), subscribeTopic);
                     client.subscribe(subscribeTopic);
                 }
             }
             return messageProcessor
-                    .filter(msg -> {
-                        // TODO: 2019-11-05 topic 匹配
-                        return true;
-                    });
-        }).doFinally(r -> {
-            if (isAlive()) {
+                    .filter(msg -> topics
+                            .stream()
+                            .anyMatch(topic -> MqttTopicUtils.match(topic, msg.getTopic())));
+        }).doOnCancel(() -> {
+            if (!canceled.getAndSet(true)) {
                 for (String topic : topics) {
-                    if (getTopicCounter(topic).decrementAndGet() <= 0) {
+                    if (getTopicCounter(topic).decrementAndGet() <= 0 && isAlive()) {
                         log.info("unsubscribe mqtt [{}] topic : {}", client.clientId(), topic);
                         client.unsubscribe(topic);
                     }
