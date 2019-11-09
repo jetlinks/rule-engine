@@ -4,10 +4,9 @@ import lombok.Setter;
 import org.jetlinks.core.cluster.ClusterManager;
 import org.jetlinks.core.device.DeviceOperator;
 import org.jetlinks.core.device.DeviceRegistry;
+import org.jetlinks.core.message.DeviceMessageReply;
 import org.jetlinks.core.message.Message;
 import org.jetlinks.core.message.codec.EncodedMessage;
-import org.jetlinks.core.message.codec.MessageDecodeContext;
-import org.jetlinks.core.message.codec.MessageEncodeContext;
 import org.jetlinks.core.server.MessageHandler;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleDataCodecs;
@@ -15,6 +14,7 @@ import org.jetlinks.rule.engine.api.executor.ExecutionContext;
 import org.jetlinks.rule.engine.executor.CommonExecutableRuleNodeFactoryStrategy;
 import org.reactivestreams.Publisher;
 import reactor.core.Disposable;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.function.Consumer;
@@ -35,6 +35,10 @@ public class DeviceOperationNode extends CommonExecutableRuleNodeFactoryStrategy
 
     @Setter
     private Consumer<DeviceOperator> onOffline;
+
+    static {
+        RuleDeviceMessageCodec.load();
+    }
 
     public DeviceOperationNode(MessageHandler messageHandler, ClusterManager clusterManager, DeviceRegistry deviceRegistry) {
         this.messageHandler = messageHandler;
@@ -97,38 +101,21 @@ public class DeviceOperationNode extends CommonExecutableRuleNodeFactoryStrategy
                             }
                         });
             case DECODE:
-                return operator.getProtocol()
-                        .flatMap(protocol -> protocol.getMessageCodec(configuration.getTransport()))
-                        .flatMapMany(codec -> configuration
-                                .createEncodedMessage(ruleData)
-                                .flatMap(msg -> codec.decode(new MessageDecodeContext() {
-                                    @Override
-                                    public EncodedMessage getMessage() {
-                                        return msg;
-                                    }
-
-                                    @Override
-                                    public DeviceOperator getDevice() {
-                                        return operator;
-                                    }
-                                })))
+                return configuration
+                        .decode(operator, ruleData)
+                        .switchIfEmpty(Flux.error(() -> new UnsupportedOperationException("unsupported data:" + ruleData)))
                         .map(this::convertRuleSafe);
+            case REPLY_MESSAGE:
+                return configuration
+                        .decode(operator, ruleData)
+                        .switchIfEmpty(Flux.error(() -> new UnsupportedOperationException("unsupported data:" + ruleData)))
+                        .filter(DeviceMessageReply.class::isInstance)
+                        .cast(DeviceMessageReply.class)
+                        .flatMap(messageHandler::reply);
             case ENCODE:
-                return operator.getProtocol()
-                        .flatMap(protocol -> protocol.getMessageCodec(configuration.getTransport()))
-                        .flatMapMany(codec -> configuration
-                                .createDecodedMessage(ruleData)
-                                .flatMap(msg -> codec.encode(new MessageEncodeContext() {
-                                    @Override
-                                    public Message getMessage() {
-                                        return msg;
-                                    }
-
-                                    @Override
-                                    public DeviceOperator getDevice() {
-                                        return operator;
-                                    }
-                                }))).map(this::convertRuleSafe);
+                return configuration.encode(operator, ruleData)
+                        .switchIfEmpty(Flux.error(() -> new UnsupportedOperationException("unsupported data:" + ruleData)))
+                        .map(this::convertRuleSafe);
             case SEND_MESSAGE:
                 return configuration.doSendMessage(operator, ruleData);
             default:

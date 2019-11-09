@@ -7,9 +7,7 @@ import org.hswebframework.web.utils.ExpressionUtils;
 import org.jetlinks.core.device.DeviceOperator;
 import org.jetlinks.core.message.DeviceMessage;
 import org.jetlinks.core.message.Message;
-import org.jetlinks.core.message.codec.DefaultTransport;
-import org.jetlinks.core.message.codec.EncodedMessage;
-import org.jetlinks.core.message.codec.MqttMessage;
+import org.jetlinks.core.message.codec.*;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleDataCodecs;
 import org.jetlinks.rule.engine.api.model.NodeType;
@@ -35,6 +33,8 @@ public class DeviceOperationConfiguration implements RuleNodeConfig {
 
     private boolean async = false;
 
+    private boolean decodeAndReply = false;
+
     @Override
     public NodeType getNodeType() {
         return NodeType.MAP;
@@ -49,20 +49,60 @@ public class DeviceOperationConfiguration implements RuleNodeConfig {
 
         if (transport == DefaultTransport.MQTT
                 || transport == DefaultTransport.MQTTS) {
-            return RuleDataCodecs.<MqttMessage, MqttMessage>getCodec(MqttMessage.class)
+            return RuleDataCodecs.<MqttMessage>getCodec(MqttMessage.class)
                     .map(codec -> codec.decode(ruleData))
                     .orElseGet(Flux::empty);
         }
 
-        return Flux.error(() -> new UnsupportedOperationException("unsupported data:" + ruleData));
+        return Flux.empty();
     }
 
 
-    public Flux<? extends Message> createDecodedMessage(RuleData ruleData) {
+    public Flux<? extends Message> createDecodedMessage(RuleData ruleData, DeviceOperator deviceOperator) {
 
-        return RuleDataCodecs.<Message, Message>getCodec(Message.class)
-                .map(codec -> codec.decode(ruleData))
-                .orElseGet(() -> Flux.error(new UnsupportedOperationException("unsupported data:" + ruleData)));
+        return RuleDataCodecs.<Message>getCodec(Message.class)
+                .map(codec -> codec.decode(ruleData, new DeviceOperatorFeature(deviceOperator)))
+                .orElseGet(Flux::empty);
+
+    }
+
+    public Flux<? extends Message> decode(DeviceOperator operator, RuleData ruleData) {
+        return this.createDecodedMessage(ruleData, operator)
+                .cast(Message.class)
+                .switchIfEmpty(Flux.defer(() -> operator.getProtocol()
+                        .flatMap(protocol -> protocol.getMessageCodec(this.getTransport()))
+                        .flatMapMany(codec -> this
+                                .createEncodedMessage(ruleData)
+                                .flatMap(msg -> codec.decode(new MessageDecodeContext() {
+                                    @Override
+                                    public EncodedMessage getMessage() {
+                                        return msg;
+                                    }
+
+                                    @Override
+                                    public DeviceOperator getDevice() {
+                                        return operator;
+                                    }
+                                })))));
+    }
+
+    public Flux<? extends EncodedMessage> encode(DeviceOperator operator, RuleData ruleData) {
+
+        return operator.getProtocol()
+                .flatMap(protocol -> protocol.getMessageCodec(this.getTransport()))
+                .flatMapMany(codec -> this
+                        .createDecodedMessage(ruleData, operator)
+                        .flatMap(msg -> codec.encode(new MessageEncodeContext() {
+                            @Override
+                            public Message getMessage() {
+                                return msg;
+                            }
+
+                            @Override
+                            public DeviceOperator getDevice() {
+                                return operator;
+                            }
+                        })));
 
     }
 

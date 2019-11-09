@@ -18,6 +18,8 @@ public enum DeviceOperation implements EnumDict<String> {
 
     SEND_MESSAGE("发送消息"),
 
+    REPLY_MESSAGE("回复平台消息"),
+
     HANDLE_MESSAGE("处理平台发往设备的消息");
 
     private String text;
