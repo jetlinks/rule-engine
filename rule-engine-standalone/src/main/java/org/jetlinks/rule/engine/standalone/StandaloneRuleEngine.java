@@ -48,6 +48,10 @@ public class StandaloneRuleEngine implements RuleEngine {
 
     @Getter
     @Setter
+    private GlobalNodeEventListener eventListener;
+
+    @Getter
+    @Setter
     private BiFunction<String, RuleNodeModel, Logger> loggerSupplier = (contextId, ruleNodeModel) -> new Slf4jLogger("rule.engine.cluster." + ruleNodeModel.getId());
 
 
@@ -156,8 +160,6 @@ public class StandaloneRuleEngine implements RuleEngine {
 
         private Map<String, RuleExecutor> allExecutor;
 
-//        private Map<String, Sync> syncMap = new ConcurrentHashMap<>();
-
         private Map<String, EmitterProcessor<RuleData>> syncMap = new ConcurrentHashMap<>();
 
 
@@ -231,6 +233,9 @@ public class StandaloneRuleEngine implements RuleEngine {
             };
             for (RuleExecutor ruleExecutor : allExecutor.values()) {
                 ruleExecutor.addEventListener(listener);
+                if(eventListener!=null){
+                    ruleExecutor.addEventListener(eventListener);
+                }
             }
         }
 
@@ -249,7 +254,7 @@ public class StandaloneRuleEngine implements RuleEngine {
 
         @Override
         public RuleInstanceState getState() {
-            return null;
+            return RuleInstanceState.started;
         }
 
 

@@ -21,7 +21,7 @@ public class RuleDataCodecs {
     }
 
     @SuppressWarnings("all")
-    public static <T, R> Optional<RuleDataCodec<R>> getCodec(Class<T> type) {
+    public static <T> Optional<RuleDataCodec<T>> getCodec(Class type) {
 
         RuleDataCodec codec = (RuleDataCodec) codecs.get(type);
         if (null != codec) {

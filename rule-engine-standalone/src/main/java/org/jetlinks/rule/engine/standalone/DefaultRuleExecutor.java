@@ -3,7 +3,7 @@ package org.jetlinks.rule.engine.standalone;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
-import org.apache.commons.collections.CollectionUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.rule.engine.api.Logger;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleDataHelper;
@@ -23,12 +23,14 @@ import reactor.core.publisher.Mono;
 
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
  * @author zhouhao
  * @since 1.0.0
  */
+@Slf4j
 public class DefaultRuleExecutor implements RuleExecutor {
 
     @Getter
@@ -100,7 +102,7 @@ public class DefaultRuleExecutor implements RuleExecutor {
         }
     }
 
-    protected void fireEvent(String event, RuleData ruleData) {
+    protected Mono<Void> fireEvent(String event, RuleData ruleData) {
         for (GlobalNodeEventListener listener : listeners) {
             listener.onEvent(NodeExecuteEvent.builder()
                     .event(event)
@@ -109,9 +111,15 @@ public class DefaultRuleExecutor implements RuleExecutor {
                     .nodeId(nodeId)
                     .build());
         }
-        Optional.ofNullable(eventHandler.get(event))
-                .filter(CollectionUtils::isNotEmpty)
-                .ifPresent(executor -> (executor).forEach(ruleExecutor -> ruleExecutor.execute(Mono.just(ruleData))));
+        return Mono.justOrEmpty(eventHandler.get(event))
+                .flatMapIterable(Function.identity())
+                .concatMap(ruleExecutor -> ruleExecutor
+                        .execute(Mono.just(ruleData))
+                        .onErrorContinue((error, obj) -> {
+                            log.error("handle event [{}] error : {}", event, ruleData, error);
+                        }))
+                .then();
+
     }
 
     @Override
@@ -165,20 +173,20 @@ public class DefaultRuleExecutor implements RuleExecutor {
 
         @Override
         public Mono<Void> fireEvent(String event, RuleData data) {
-            return Mono.fromRunnable(() -> {
+            return Mono.defer(() -> {
                 RuleData copy = data.copy();
-                logger.debug("fire event {}.{}:{}", nodeId, event, copy);
+                log.debug("fire event {}.{}:{}", nodeId, event, copy);
                 copy.setAttribute("event", event);
-                DefaultRuleExecutor.this.fireEvent(event, copy);
+                return DefaultRuleExecutor.this.fireEvent(event, copy);
             });
         }
 
         @Override
         public Mono<Void> onError(RuleData data, Throwable e) {
-            return Mono.fromRunnable(() -> {
+            return Mono.defer(() -> {
                 logger().error(e.getMessage(), e);
                 RuleDataHelper.putError(data, e);
-                fireEvent(RuleEvent.NODE_EXECUTE_FAIL, data);
+                return fireEvent(RuleEvent.NODE_EXECUTE_FAIL, data);
             });
         }
 

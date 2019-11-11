@@ -12,16 +12,20 @@ public interface RuleDataCodec<T> {
     Flux<T> decode(RuleData data, Feature... features);
 
     interface Feature {
-        String getId();
+        default String getId() {
+            return this.getClass().getSimpleName();
+        }
 
-        String getName();
+        default String getName() {
+            return getId();
+        }
 
         default boolean has(Feature... features) {
             return Arrays.stream(features)
                     .anyMatch(feature -> feature.getId().equals(this.getId()));
         }
 
-        static <T extends Feature> Optional<T> find(Class<T> type,Feature... features){
+        static <T extends Feature> Optional<T> find(Class<T> type, Feature... features) {
             return Arrays.stream(features)
                     .filter(type::isInstance)
                     .map(type::cast)

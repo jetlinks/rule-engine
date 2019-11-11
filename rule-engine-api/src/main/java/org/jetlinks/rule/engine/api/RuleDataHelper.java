@@ -3,6 +3,8 @@ package org.jetlinks.rule.engine.api;
 
 import org.hswebframework.utils.StringUtils;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -118,5 +120,18 @@ public class RuleDataHelper {
         data.setAttribute(SYNC_RETURN, true);
         data.setAttribute(END_WITH_NODE, endWithId);
         return data;
+    }
+
+    @SuppressWarnings("all")
+    public static Map<String,Object> toContextMap(RuleData ruleData){
+        Map<String,Object> map = new HashMap<>();
+        if(ruleData.getData() instanceof Map){
+            map.putAll((Map<? extends String, ?>) ruleData.getData());
+        }
+        map.put("data",ruleData.getData());
+        map.put("ruleData",ruleData);
+        map.put("attr",ruleData.getAttributes());
+
+        return map;
     }
 }

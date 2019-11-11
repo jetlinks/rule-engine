@@ -37,9 +37,20 @@ public class VertxMqttClient implements MqttClient {
 
     volatile AtomicBoolean connecting = new AtomicBoolean();
 
+    long connectTimeout;
+
+    long connectTime = System.currentTimeMillis();
     @Getter
     @Setter
     private volatile Throwable lastError;
+
+    public boolean isConnecting() {
+        if (System.currentTimeMillis() - connectTime >= connectTimeout) {
+            connecting.set(false);
+        }
+
+        return connecting.get();
+    }
 
     public void setClient(io.vertx.mqtt.MqttClient client) {
         this.client = client;
@@ -82,7 +93,6 @@ public class VertxMqttClient implements MqttClient {
     public VertxMqttClient() {
         messageProcessor = EmitterProcessor.create(false);
     }
-
 
     @Override
     public Flux<MqttMessage> subscribe(List<String> topics) {
