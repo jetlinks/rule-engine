@@ -18,7 +18,6 @@ public class RouteEventNode extends CommonExecutableRuleNodeFactoryStrategy<Rout
        return Mono::just;
     }
 
-
     @Override
     public String getSupportType() {
         return "route";

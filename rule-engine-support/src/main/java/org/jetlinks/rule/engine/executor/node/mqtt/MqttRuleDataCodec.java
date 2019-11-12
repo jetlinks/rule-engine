@@ -1,9 +1,8 @@
 package org.jetlinks.rule.engine.executor.node.mqtt;
 
-import com.alibaba.fastjson.JSON;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import org.apache.commons.collections.CollectionUtils;
+import org.jetlinks.core.message.codec.MessagePayloadType;
 import org.jetlinks.core.message.codec.MqttMessage;
 import org.jetlinks.core.message.codec.SimpleMqttMessage;
 import org.jetlinks.rule.engine.api.RuleData;
@@ -13,10 +12,9 @@ import org.jetlinks.supports.utils.MqttTopicUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.nio.ByteBuffer;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class MqttRuleDataCodec implements RuleDataCodec<MqttMessage> {
 
@@ -49,7 +47,7 @@ public class MqttRuleDataCodec implements RuleDataCodec<MqttMessage> {
                         }))
                 .ifPresent(vars -> payload.put("vars", vars));
 
-
+        payload.put("payloadType", payloadType.name());
         payload.put("payload", payloadType.read(message.getPayload()));
         payload.put("deviceId", message.getDeviceId());
 
@@ -81,26 +79,15 @@ public class MqttRuleDataCodec implements RuleDataCodec<MqttMessage> {
                     return Flux.just(map);
                 })
                 .map(map -> {
+                    PayloadType payloadType = Feature.find(PayloadType.class, features)
+                            .orElseGet(() -> Optional.ofNullable(map.get("payloadType"))
+                                    .map(String::valueOf)
+                                    .map(PayloadType::valueOf)
+                                    .orElse(PayloadType.JSON));
                     Object payload = map.get("payload");
-                    ByteBuf byteBuf = null;
-                    if (payload instanceof Map || payload instanceof List) {
-                        payload = JSON.toJSONString(payload);
-                    }
-                    if (payload instanceof ByteBuf) {
-                        byteBuf = ((ByteBuf) payload);
-                    } else if (payload instanceof ByteBuffer) {
-                        byteBuf = Unpooled.wrappedBuffer(((ByteBuffer) payload));
-                    }
 
-                    if (payload instanceof String) {
-                        payload = ((String) payload).getBytes();
-                    }
-                    if (payload instanceof byte[]) {
-                        byteBuf = Unpooled.wrappedBuffer(((byte[]) payload));
-                    }
-                    if (byteBuf == null) {
-                        throw new UnsupportedOperationException("unsupported payload :" + payload);
-                    }
+                    ByteBuf byteBuf = payloadType.write(payload);
+
                     Integer qos = (Integer) map.get("qos");
 
                     return SimpleMqttMessage
@@ -111,6 +98,7 @@ public class MqttRuleDataCodec implements RuleDataCodec<MqttMessage> {
                             .will(Boolean.TRUE.equals(map.get("will")))
                             .retain(Boolean.TRUE.equals(map.get("retain")))
                             .qosLevel(qos == null ? 0 : qos)
+                            .payloadType(MessagePayloadType.valueOf(payloadType.name()))
                             .payload(byteBuf)
                             .build();
                 });

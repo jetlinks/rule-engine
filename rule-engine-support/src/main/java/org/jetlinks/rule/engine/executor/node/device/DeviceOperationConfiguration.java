@@ -10,13 +10,13 @@ import org.jetlinks.core.message.Message;
 import org.jetlinks.core.message.codec.*;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleDataCodecs;
+import org.jetlinks.rule.engine.api.RuleDataHelper;
 import org.jetlinks.rule.engine.api.model.NodeType;
 import org.jetlinks.rule.engine.executor.node.RuleNodeConfig;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.HashMap;
 import java.util.Map;
 
 @Getter
@@ -27,13 +27,12 @@ public class DeviceOperationConfiguration implements RuleNodeConfig {
 
     private DeviceOperation operation;
 
-    private ReadPropertyConfig readProperty;
+    private DeviceMessageSendConfig sendConfig;
+
 
     private DefaultTransport transport;
 
     private boolean async = false;
-
-    private boolean decodeAndReply = false;
 
     @Override
     public NodeType getNodeType() {
@@ -108,29 +107,34 @@ public class DeviceOperationConfiguration implements RuleNodeConfig {
 
     public Publisher<DeviceMessage> doSendMessage(DeviceOperator operator, RuleData ruleData) {
 
-        DeviceMessage message = null;
-        if (readProperty != null) {
-            message = readProperty.convert(ruleData, async);
-        }
-        // TODO: 2019-11-06
+        return Flux.defer(() -> {
+            DeviceMessage message = null;
+            if (sendConfig != null) {
+                message = sendConfig.convert(getDeviceId(ruleData), ruleData, async);
+            }
 
-        if (message == null) {
-            return Flux.empty();
-        }
+            if (message == null) {
+                return RuleDataCodecs.<DeviceMessage>getCodec(DeviceMessage.class)
+                        .map(codec -> codec.decode(ruleData, new DeviceOperatorFeature(operator))
+                                .switchIfEmpty(Flux.error(() -> new UnsupportedOperationException("cannot convert device message:" + ruleData))))
+                        .map(msg -> operator
+                                .messageSender()
+                                .send(msg, reply -> (DeviceMessage) reply)
+                                .cast(DeviceMessage.class))
+                        .orElseThrow(() -> new UnsupportedOperationException("cannot convert device message:" + ruleData));
+            } else {
+                return operator
+                        .messageSender()
+                        .send(Mono.just(message), reply -> (DeviceMessage) reply)
+                        .cast(DeviceMessage.class);
+            }
 
-        return operator
-                .messageSender()
-                .send(Mono.just(message), reply -> (DeviceMessage) reply)
-                .cast(DeviceMessage.class);
+        });
     }
 
     @SneakyThrows
     public String getDeviceId(RuleData ruleData) {
-        Map<String, Object> ctx = new HashMap<>();
-        ctx.put("attr", ruleData.getAttributes());
-        ctx.put("data", ruleData.getData());
-        ctx.put("ruleData", ruleData);
-        ruleData.dataToMap().subscribe(ctx::putAll);
+        Map<String, Object> ctx = RuleDataHelper.toContextMap(ruleData);
         if (deviceId.contains("${")) {
             return ExpressionUtils.analytical(deviceId, ctx, "spel");
         }
