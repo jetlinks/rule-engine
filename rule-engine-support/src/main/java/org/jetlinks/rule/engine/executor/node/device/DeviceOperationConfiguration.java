@@ -47,7 +47,7 @@ public class DeviceOperationConfiguration implements RuleNodeConfig {
     public Flux<? extends EncodedMessage> createEncodedMessage(RuleData ruleData) {
 
         if (transport == DefaultTransport.MQTT
-                || transport == DefaultTransport.MQTTS) {
+                || transport == DefaultTransport.MQTT_SSL) {
             return RuleDataCodecs.<MqttMessage>getCodec(MqttMessage.class)
                     .map(codec -> codec.decode(ruleData))
                     .orElseGet(Flux::empty);

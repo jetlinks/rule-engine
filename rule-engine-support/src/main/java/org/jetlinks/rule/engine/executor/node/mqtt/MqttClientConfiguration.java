@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hswebframework.web.utils.ExpressionUtils;
 import org.jetlinks.rule.engine.api.model.NodeType;
+import org.jetlinks.rule.engine.executor.PayloadType;
 import org.jetlinks.rule.engine.executor.node.RuleNodeConfig;
 import org.springframework.util.Assert;
 

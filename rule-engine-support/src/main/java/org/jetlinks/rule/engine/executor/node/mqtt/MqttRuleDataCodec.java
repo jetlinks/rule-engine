@@ -8,6 +8,7 @@ import org.jetlinks.core.message.codec.SimpleMqttMessage;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleDataCodec;
 import org.jetlinks.rule.engine.api.RuleDataCodecs;
+import org.jetlinks.rule.engine.executor.PayloadType;
 import org.jetlinks.supports.utils.MqttTopicUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
