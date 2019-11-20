@@ -17,6 +17,8 @@ import java.util.function.Consumer;
 public interface RuleData extends Serializable {
     String getId();
 
+    String getContextId();
+
     Object getData();
 
     void acceptMap(Consumer<Map<String, Object>> consumer);
@@ -38,8 +40,12 @@ public interface RuleData extends Serializable {
     void clear();
 
     static RuleData create(Object data) {
+        if(data instanceof RuleData){
+            return ((RuleData) data).newData(data);
+        }
         DefaultRuleData ruleData = new DefaultRuleData();
         ruleData.setId(IDGenerator.MD5.generate());
+        ruleData.setContextId(IDGenerator.MD5.generate());
         ruleData.setData(data);
         return ruleData;
     }

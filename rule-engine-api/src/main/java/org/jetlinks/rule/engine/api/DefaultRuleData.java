@@ -25,6 +25,8 @@ public class DefaultRuleData implements RuleData {
 
     private String id;
 
+    private String contextId;
+
     private Object data;
 
     @Getter
@@ -114,7 +116,7 @@ public class DefaultRuleData implements RuleData {
         ruleData.id = id;
         ruleData.attributes = new HashMap<>(attributes);
         ruleData.data = data;
-
+        ruleData.contextId = contextId;
         RuleDataHelper.clearError(ruleData);
         return ruleData;
     }
@@ -123,9 +125,9 @@ public class DefaultRuleData implements RuleData {
     public RuleData copy() {
         DefaultRuleData ruleData = new DefaultRuleData();
         ruleData.id = id;
+        ruleData.contextId = contextId;
         ruleData.attributes = new HashMap<>(attributes);
         ruleData.data = data;
-
         return ruleData;
     }
 
