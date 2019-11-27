@@ -9,7 +9,7 @@ public interface RuleDataCodec<T> {
 
     Object encode(T data, Feature... features);
 
-    Flux<T> decode(RuleData data, Feature... features);
+    Flux<? extends T> decode(RuleData data, Feature... features);
 
     interface Feature {
         default String getId() {

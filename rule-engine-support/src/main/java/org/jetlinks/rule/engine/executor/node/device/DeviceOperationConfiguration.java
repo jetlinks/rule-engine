@@ -29,7 +29,6 @@ public class DeviceOperationConfiguration implements RuleNodeConfig {
 
     private DeviceMessageSendConfig sendConfig;
 
-
     private DefaultTransport transport;
 
     private boolean async = false;
@@ -44,23 +43,17 @@ public class DeviceOperationConfiguration implements RuleNodeConfig {
 
     }
 
-    public Flux<? extends EncodedMessage> createEncodedMessage(RuleData ruleData) {
-
-        if (transport == DefaultTransport.MQTT
-                || transport == DefaultTransport.MQTT_SSL) {
-            return RuleDataCodecs.<MqttMessage>getCodec(MqttMessage.class)
-                    .map(codec -> codec.decode(ruleData))
-                    .orElseGet(Flux::empty);
-        }
-
-        return Flux.empty();
+    public Flux<? extends EncodedMessage> createEncodedMessage(DeviceOperator deviceOperator, RuleData ruleData) {
+        return RuleDataCodecs.<EncodedMessage>getCodec(EncodedMessage.class)
+                .map(codec -> codec.decode(ruleData, new DeviceOperatorFeature(deviceOperator), new TransportFeature(transport)))
+                .orElseGet(Flux::empty);
     }
 
 
     public Flux<? extends Message> createDecodedMessage(RuleData ruleData, DeviceOperator deviceOperator) {
 
         return RuleDataCodecs.<Message>getCodec(Message.class)
-                .map(codec -> codec.decode(ruleData, new DeviceOperatorFeature(deviceOperator)))
+                .map(codec -> codec.decode(ruleData, new DeviceOperatorFeature(deviceOperator), new TransportFeature(transport)))
                 .orElseGet(Flux::empty);
 
     }
@@ -71,7 +64,7 @@ public class DeviceOperationConfiguration implements RuleNodeConfig {
                 .switchIfEmpty(Flux.defer(() -> operator.getProtocol()
                         .flatMap(protocol -> protocol.getMessageCodec(this.getTransport()))
                         .flatMapMany(codec -> this
-                                .createEncodedMessage(ruleData)
+                                .createEncodedMessage(operator, ruleData)
                                 .flatMap(msg -> codec.decode(new MessageDecodeContext() {
                                     @Override
                                     public EncodedMessage getMessage() {

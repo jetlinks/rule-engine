@@ -2,6 +2,7 @@ package org.jetlinks.rule.engine.executor.node.mqtt;
 
 import io.netty.buffer.ByteBuf;
 import org.apache.commons.collections.CollectionUtils;
+import org.jetlinks.core.message.codec.DefaultTransport;
 import org.jetlinks.core.message.codec.MessagePayloadType;
 import org.jetlinks.core.message.codec.MqttMessage;
 import org.jetlinks.core.message.codec.SimpleMqttMessage;
@@ -9,6 +10,7 @@ import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleDataCodec;
 import org.jetlinks.rule.engine.api.RuleDataCodecs;
 import org.jetlinks.rule.engine.executor.PayloadType;
+import org.jetlinks.rule.engine.executor.node.device.EncodedMessageCodec;
 import org.jetlinks.supports.utils.MqttTopicUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -20,7 +22,12 @@ import java.util.Optional;
 public class MqttRuleDataCodec implements RuleDataCodec<MqttMessage> {
 
     static {
-        RuleDataCodecs.register(MqttMessage.class, new MqttRuleDataCodec());
+
+        MqttRuleDataCodec codec = new MqttRuleDataCodec();
+        EncodedMessageCodec.register(DefaultTransport.MQTT, codec);
+        EncodedMessageCodec.register(DefaultTransport.MQTT_TLS, codec);
+        RuleDataCodecs.register(MqttMessage.class, codec);
+
     }
 
     static void load() {
