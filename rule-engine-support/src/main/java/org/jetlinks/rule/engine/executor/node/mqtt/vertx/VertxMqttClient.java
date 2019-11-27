@@ -61,7 +61,7 @@ public class VertxMqttClient implements MqttClient {
                             .onNext(SimpleMqttMessage
                                     .builder()
                                     .topic(msg.topicName())
-                                    .deviceId(client.clientId())
+                                    .clientId(client.clientId())
                                     .qosLevel(msg.qosLevel().value())
                                     .retain(msg.isRetain())
                                     .dup(msg.isDup())

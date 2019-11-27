@@ -57,7 +57,7 @@ public class MqttRuleDataCodec implements RuleDataCodec<MqttMessage> {
 
         payload.put("payloadType", payloadType.name());
         payload.put("payload", payloadType.read(message.getPayload()));
-        payload.put("deviceId", message.getDeviceId());
+        payload.put("clientId", message.getClientId());
 
 
         return payload;
@@ -100,7 +100,7 @@ public class MqttRuleDataCodec implements RuleDataCodec<MqttMessage> {
 
                     return SimpleMqttMessage
                             .builder()
-                            .deviceId((String) map.get("deviceId"))
+                            .clientId((String) map.get("clientId"))
                             .topic((String) map.get("topic"))
                             .dup(Boolean.TRUE.equals(map.get("dup")))
                             .will(Boolean.TRUE.equals(map.get("will")))
