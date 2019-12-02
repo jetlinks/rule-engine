@@ -7,22 +7,6 @@
 [![Build Status](https://travis-ci.com/jetlinks/rule-engine.svg?branch=master)](https://travis-ci.com/jetlinks/rule-engine)
 [![codecov](https://codecov.io/gh/jetlinks/rule-engine/branch/master/graph/badge.svg)](https://codecov.io/gh/jetlinks/rule-engine)
 
-
-# 运行
-规则引擎支持3种模式运行:
-
-1. 单点模式
-
-只能在一个服务器节点上运行规则。
-
-2. 集群模式
-
-规则运行方式与单点模式相同，可以在多台服务节点上运行相同的规则进行负载均衡。
-
-3. 分布式模式
-
-可指定同一个规则的不同规则节点在不同的服务节点上运行。
-
 # 规则模型
 
 ```text
@@ -52,9 +36,3 @@ Condition{
     configuration: { Map }  # 条件配置
 }
 ```
-
-# 流程节点执行器
-TODO
-
-# 规则设计器
-TODO
