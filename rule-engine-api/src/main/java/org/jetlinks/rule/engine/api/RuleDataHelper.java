@@ -123,14 +123,14 @@ public class RuleDataHelper {
     }
 
     @SuppressWarnings("all")
-    public static Map<String,Object> toContextMap(RuleData ruleData){
-        Map<String,Object> map = new HashMap<>();
-        if(ruleData.getData() instanceof Map){
-            map.putAll((Map<? extends String, ?>) ruleData.getData());
-        }
-        map.put("data",ruleData.getData());
-        map.put("ruleData",ruleData);
-        map.put("attr",ruleData.getAttributes());
+    public static Map<String, Object> toContextMap(RuleData ruleData) {
+        Map<String, Object> map = new HashMap<>();
+        ruleData.acceptMap(_map -> {
+            map.putAll(_map);
+        });
+        map.put("data", ruleData.getData());
+        map.put("ruleData", ruleData);
+        map.put("attr", ruleData.getAttributes());
 
         return map;
     }

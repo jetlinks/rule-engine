@@ -1,6 +1,8 @@
 package org.jetlinks.rule.engine.executor;
 
 import com.alibaba.fastjson.JSON;
+import lombok.extern.slf4j.Slf4j;
+import org.hswebframework.web.logger.ReactiveLogger;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.RuleDataHelper;
 import org.jetlinks.rule.engine.api.events.RuleEvent;
@@ -10,6 +12,7 @@ import org.jetlinks.rule.engine.executor.node.RuleNodeConfig;
 import org.reactivestreams.Publisher;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.function.Function;
 
@@ -17,10 +20,11 @@ import java.util.function.Function;
  * @author zhouhao
  * @since 1.0.0
  */
+@Slf4j
 public abstract class CommonExecutableRuleNodeFactoryStrategy<C extends RuleNodeConfig>
         extends AbstractExecutableRuleNodeFactoryStrategy<C> {
 
-    public abstract Function<RuleData,? extends  Publisher<?>> createExecutor(ExecutionContext context, C config);
+    public abstract Function<RuleData, ? extends Publisher<?>> createExecutor(ExecutionContext context, C config);
 
     protected boolean returnNewValue(C config) {
         return config.getNodeType() != null && config.getNodeType().isReturnNewValue();
@@ -41,9 +45,11 @@ public abstract class CommonExecutableRuleNodeFactoryStrategy<C extends RuleNode
                     .getInput()
                     .subscribe()
                     .doOnSubscribe(r -> context.fireEvent(RuleEvent.NODE_STARTED, RuleData.create(config)).subscribe())
-                    .doOnNext(data -> {
+                    .flatMap(data -> {
                         RuleDataHelper.setExecuteTimeNow(data);
-                        context.fireEvent(RuleEvent.NODE_EXECUTE_BEFORE, data.newData(data));
+                        return context.fireEvent(RuleEvent.NODE_EXECUTE_BEFORE, data.newData(data))
+                                .doOnEach(ReactiveLogger.onError(err -> log.error(err.getMessage(), err)))
+                                .onErrorResume(err -> Mono.empty()).thenReturn(data);
                     })
                     .subscribe(ruleData -> {
                         Flux.from(executor.apply(ruleData))

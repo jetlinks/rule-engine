@@ -28,7 +28,11 @@ public class QueueOutput implements Output {
                 .concatMap(ruleData -> Flux.fromStream(queues.stream()
                         .filter(conditionQueue -> conditionQueue.predicate.test(ruleData))
                         .map(ConditionQueue::getQueue)
-                        .map(queue -> queue.add(Mono.just(ruleData))))
+                        .map(queue -> queue
+                                .add(Mono.just(ruleData))
+                                .onErrorResume(err -> {
+                                    return Mono.just(false);
+                                })))
                         .flatMap(Function.identity()))
                 .all(r -> r);
     }

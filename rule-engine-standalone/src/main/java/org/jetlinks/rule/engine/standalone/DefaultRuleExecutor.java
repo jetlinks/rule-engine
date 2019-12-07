@@ -74,9 +74,11 @@ public class DefaultRuleExecutor implements RuleExecutor {
         return Flux.from(dataStream)
                 .flatMap((data) -> Flux.fromIterable(outputs)
                         .filter(e -> e.getCondition().test(data))
-                        .flatMap(outRuleExecutor -> outRuleExecutor.getExecutor().execute(Mono.just(data))))
-                .switchIfEmpty(Mono.just(false))
-                .then(Mono.just(false));
+                        .flatMap(outRuleExecutor -> outRuleExecutor
+                                .getExecutor()
+                                .execute(Mono.just(data)))
+                        .onErrorResume(err -> Mono.empty()))
+                .then(Mono.just(true));
 
     }
 
