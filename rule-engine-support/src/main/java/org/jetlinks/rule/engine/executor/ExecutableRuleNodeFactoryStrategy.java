@@ -11,4 +11,8 @@ public interface ExecutableRuleNodeFactoryStrategy {
     String getSupportType();
 
     ExecutableRuleNode create(RuleNodeConfiguration configuration);
+
+    default ExecutableRuleNodeDescription getDescription() {
+        return null;
+    }
 }
