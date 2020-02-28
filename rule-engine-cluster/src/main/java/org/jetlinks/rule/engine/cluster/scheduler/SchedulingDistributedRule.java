@@ -187,7 +187,8 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
     private Mono<Boolean> doStart(ServerNode node) {
         return clusterManager
                 .getNotifier()
-                .sendNotifyAndReceive(node.getId(), "rule:start", Mono.just(context.getId()));
+                .<Boolean>sendNotifyAndReceive(node.getId(), "rule:start", Mono.just(context.getId()))
+                .last();
     }
 
     public Mono<Boolean> stop() {
@@ -288,11 +289,12 @@ class SchedulingDistributedRule extends AbstractSchedulingRule {
     private <T> Mono<T> sendNotify(NotifyType type, ServerNode nodeInfo, StartRuleNodeRequest request, Object notifyData) {
         return clusterManager.getNotifier()
                 .<T>sendNotifyAndReceive(nodeInfo.getId(), type.address, Mono.just(notifyData))
+                .last()
                 .doOnError((error) -> {
                     eventPublisher.publishEvent(ClusterRuleErrorEvent.of(type.type, request.getRuleId(), request.getInstanceId(), nodeInfo.getId()));
                     log.warn("{} rule node [{}].[{}] error", type.type, request.getRuleId(), request.getNodeId(), error);
-
-                }).doOnSuccess(r -> {
+                })
+                .doOnSuccess(r -> {
                     eventPublisher.publishEvent(ClusterRuleSuccessEvent.of(type.type, request.getRuleId(), request.getInstanceId(), nodeInfo.getId()));
                 });
     }

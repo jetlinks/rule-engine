@@ -84,7 +84,8 @@ public class RuleEngineWorker {
         //初始化
         clusterManager
                 .getNotifier()
-                .<StartRuleNodeRequest, Boolean>handleNotify("rule:node:init", request -> Mono.just(this.createDistributedRuleNode(request)));
+                .<StartRuleNodeRequest, Boolean>handleNotify("rule:node:init", request -> Mono.just(this.createDistributedRuleNode(request)))
+                .subscribe();
 
         //停止
         clusterManager
@@ -94,7 +95,7 @@ public class RuleEngineWorker {
                             .map(Map::values)
                             .ifPresent(runningRules -> runningRules.forEach(RunningRule::stop));
                     return Mono.just(true);
-                });
+                }).subscribe();
 
         //规则下线
         clusterManager
@@ -104,7 +105,7 @@ public class RuleEngineWorker {
                             .map(Map::values)
                             .ifPresent(runningRules -> runningRules.forEach(RunningRule::stop));
                     return Mono.just(true);
-                });
+                }).subscribe();
         // 启动
         clusterManager
                 .getNotifier()
@@ -113,7 +114,7 @@ public class RuleEngineWorker {
                             .map(Map::values)
                             .ifPresent(runningRules -> runningRules.forEach(RunningRule::start));
                     return Mono.just(true);
-                });
+                }).subscribe();
     }
 
     protected QueueOutput.ConditionQueue createConditionQueue(OutputConfig config) {
