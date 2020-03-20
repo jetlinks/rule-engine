@@ -17,6 +17,7 @@ import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import javax.annotation.Nonnull;
 import java.util.Map;
 
 @Getter
@@ -66,6 +67,7 @@ public class DeviceOperationConfiguration implements RuleNodeConfig {
                         .flatMapMany(codec -> this
                                 .createEncodedMessage(operator, ruleData)
                                 .flatMap(msg -> codec.decode(new MessageDecodeContext() {
+                                    @Nonnull
                                     @Override
                                     public EncodedMessage getMessage() {
                                         return msg;
@@ -85,6 +87,7 @@ public class DeviceOperationConfiguration implements RuleNodeConfig {
                 .flatMapMany(codec -> this
                         .createDecodedMessage(ruleData, operator)
                         .flatMap(msg -> codec.encode(new MessageEncodeContext() {
+                            @Nonnull
                             @Override
                             public Message getMessage() {
                                 return msg;
