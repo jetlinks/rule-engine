@@ -2,6 +2,7 @@ package org.jetlinks.rule.engine.executor;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
 import org.jetlinks.rule.engine.api.RuleDataCodec;
 
@@ -57,14 +58,15 @@ public enum PayloadType implements RuleDataCodec.Feature {
             return Hex.encodeHexString((byte[]) BINARY.read(byteBuf));
         }
 
+        @SneakyThrows
         public ByteBuf write(Object data) {
             if (data instanceof byte[]) {
-                return Unpooled.wrappedBuffer(Hex.encodeHexString((byte[]) data).getBytes());
+                return Unpooled.wrappedBuffer(Hex.decodeHex(new String((byte[]) data)));
             }
             if (data instanceof char[]) {
-                return Unpooled.wrappedBuffer(new String(((char[]) data)).getBytes());
+                return Unpooled.wrappedBuffer(Hex.decodeHex((char[]) data));
             }
-            return Unpooled.wrappedBuffer(Hex.encodeHexString(String.valueOf(data).getBytes()).getBytes());
+            return Unpooled.wrappedBuffer(Hex.decodeHex(String.valueOf(data)));
         }
     };
 
