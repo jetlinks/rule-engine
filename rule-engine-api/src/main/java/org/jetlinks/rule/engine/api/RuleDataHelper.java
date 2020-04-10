@@ -128,10 +128,10 @@ public class RuleDataHelper {
         ruleData.acceptMap(_map -> {
             map.putAll(_map);
         });
-        map.put("data", ruleData.getData());
-        map.put("ruleData", ruleData);
+        if(map.isEmpty()){
+            map.put("data", ruleData.getData());
+        }
         map.put("attr", ruleData.getAttributes());
-
         return map;
     }
 }
