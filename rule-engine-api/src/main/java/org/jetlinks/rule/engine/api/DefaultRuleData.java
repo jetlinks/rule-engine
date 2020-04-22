@@ -82,8 +82,6 @@ public class DefaultRuleData implements RuleData {
             String stringData = (String) data;
             if (stringData.startsWith("{") || stringData.startsWith("[")) {
                 data = JSON.parse(stringData);
-            } else {
-                log.warn("data format not a json: {}, arrt:{}", data, attributes);
             }
         }
 
