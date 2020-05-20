@@ -1,9 +1,9 @@
 package org.jetlinks.rule.engine.executor;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import lombok.SneakyThrows;
-import org.apache.commons.codec.binary.Hex;
 import org.jetlinks.rule.engine.api.RuleDataCodec;
 
 import java.nio.charset.StandardCharsets;
@@ -39,10 +39,8 @@ public enum PayloadType implements RuleDataCodec.Feature {
     BINARY {
         @Override
         public byte[] read(ByteBuf byteBuf) {
-            byte[] req = new byte[byteBuf.readableBytes()];
-            byteBuf.readBytes(req);
-            byteBuf.resetReaderIndex();
-            return req;
+
+            return ByteBufUtil.getBytes(byteBuf);
         }
 
         public ByteBuf write(Object data) {
@@ -55,18 +53,22 @@ public enum PayloadType implements RuleDataCodec.Feature {
     HEX {
         @Override
         public String read(ByteBuf byteBuf) {
-            return Hex.encodeHexString((byte[]) BINARY.read(byteBuf));
+            return ByteBufUtil.hexDump((byte[]) BINARY.read(byteBuf));
         }
 
         @SneakyThrows
         public ByteBuf write(Object data) {
+            String hex;
             if (data instanceof byte[]) {
-                return Unpooled.wrappedBuffer(Hex.decodeHex(new String((byte[]) data)));
+                hex = new String((byte[]) data);
+            } else if (data instanceof char[]) {
+                hex = new String(((char[]) data));
+            } else if (data instanceof ByteBuf) {
+                hex = new String(ByteBufUtil.getBytes(((ByteBuf) data)));
+            } else {
+                hex = String.valueOf(data);
             }
-            if (data instanceof char[]) {
-                return Unpooled.wrappedBuffer(Hex.decodeHex((char[]) data));
-            }
-            return Unpooled.wrappedBuffer(Hex.decodeHex(String.valueOf(data)));
+            return Unpooled.wrappedBuffer(ByteBufUtil.decodeHexDump(hex.replace("\n", "").replace(" ", "")));
         }
     };
 
