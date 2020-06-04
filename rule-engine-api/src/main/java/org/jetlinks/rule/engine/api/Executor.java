@@ -1,27 +1,110 @@
 package org.jetlinks.rule.engine.api;
 
-import org.jetlinks.rule.engine.api.executor.ExecutionContext;
+import org.jetlinks.rule.engine.api.executor.ScheduleJob;
 import reactor.core.publisher.Mono;
 
+/**
+ * 执行器,具体执行任务的地方,对应运行中规则的一个节点。
+ *
+ * @author zhouhao
+ * @since 1.0.4
+ */
 public interface Executor {
 
+    /**
+     * 唯一ID
+     *
+     * @return ID
+     */
     String getId();
 
-    String getKey();
-
+    /**
+     * @return 名称
+     */
     String getName();
 
-    Mono<Void> start(ExecutionContext context);
+    /**
+     * @return 工作器ID
+     */
+    String getWorkerId();
 
+    /**
+     * 获取任务信息,请勿修改此任务信息的属性,修改了也没用。
+     *
+     * @return 任务信息
+     */
+    ScheduleJob getJob();
+
+    /**
+     * 设置任务信息,请设置配套的任务信息
+     *
+     * @param job 任务信息
+     * @return empty Mono
+     */
+    Mono<Void> setJob(ScheduleJob job);
+
+    /**
+     * 重新加载任务,如果配置发生变化,将重启任务.
+     *
+     * @return empty Mono
+     */
+    Mono<Void> reload();
+
+    /**
+     * 启动,开始执行任务
+     *
+     * @return empty Mono
+     */
+    Mono<Void> start();
+
+    /**
+     * 暂停执行任务
+     *
+     * @return empty Mono
+     */
     Mono<Void> pause();
 
-    Mono<Void> resume();
+    /**
+     * 停止任务,于暂停不同等的是,停止后将进行清理资源等操作,
+     * 通常在停止规则时或者调度器进行负载均衡时.
+     *
+     * @return empty Mono
+     */
+    Mono<Void> shutdown();
 
+    /**
+     * 获取任务状态
+     *
+     * @return 状态
+     */
     Mono<State> getState();
 
+    /**
+     * 设置debug,开启debug后,不同的执行器可能有不同的操作,通常是打印更多的日志信息等操作。
+     *
+     * @param debug 是否开启debug
+     * @return empty Mono
+     */
+    Mono<Void> debug(boolean debug);
+
+    /**
+     * @return 上一次状态变更时间
+     */
+    long getLastStateTime();
+
+    /**
+     * @return 启动时间
+     */
+    long getStartTime();
 
     enum State {
+        //运行中
         running,
-        paused
+        //已暂停
+        paused,
+        //已停止
+        shutdown,
+        //未知,可能节点挂了,也可能网络问题状态不一致
+        unknown
     }
 }
