@@ -6,6 +6,7 @@ import java.io.Serializable;
  * @author zhouhao
  * @since 1.0.0
  */
+@Deprecated
 public interface RuleEvent extends Serializable {
 
     String NODE_EXECUTE_BEFORE = "NODE_EXECUTE_BEFORE";

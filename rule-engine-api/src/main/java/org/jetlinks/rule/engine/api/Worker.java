@@ -34,7 +34,7 @@ public interface Worker {
      * @param job 任务
      * @return 任务执行器
      */
-    Mono<Executor> createExecutor(ScheduleJob job);
+    Mono<Task> createExecutor(ScheduleJob job);
 
     /**
      * @return 支持的执行器ID

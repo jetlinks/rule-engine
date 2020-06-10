@@ -1,15 +1,16 @@
 package org.jetlinks.rule.engine.api;
 
 import org.jetlinks.rule.engine.api.executor.ScheduleJob;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
 /**
- * 执行器,具体执行任务的地方,对应运行中规则的一个节点。
+ * 任务,对应运行中规则的一个节点。
  *
  * @author zhouhao
  * @since 1.0.4
  */
-public interface Executor {
+public interface Task {
 
     /**
      * 唯一ID
@@ -71,6 +72,12 @@ public interface Executor {
      * @return empty Mono
      */
     Mono<Void> shutdown();
+
+    /**
+     * 执行任务
+     * @return 结果
+     */
+    Mono<Void> execute(Publisher<RuleData> data);
 
     /**
      * 获取任务状态

@@ -39,14 +39,14 @@ public interface Scheduler {
      * @return 返回执行此任务的执行器
      * @see Worker#createExecutor(ScheduleJob)
      */
-    Flux<Executor> schedule(ScheduleJob job);
+    Flux<Task> schedule(ScheduleJob job);
 
     /**
      * 根据规则ID获取全部调度中的任务
      *
-     * @param ruleId 规则ID
+     * @param instanceId 规则ID
      * @return 任务执行信息
      */
-    Flux<Executor> getSchedulingJob(String ruleId);
+    Flux<Task> getSchedulingJob(String instanceId);
 
 }

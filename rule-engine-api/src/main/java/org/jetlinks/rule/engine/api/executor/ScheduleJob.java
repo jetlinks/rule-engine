@@ -1,7 +1,10 @@
 package org.jetlinks.rule.engine.api.executor;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
 import org.jetlinks.rule.engine.api.model.Condition;
 
 import javax.annotation.Nonnull;
@@ -19,10 +22,10 @@ public class ScheduleJob implements Serializable {
     private static final long serialVersionUID = -1L;
 
     /**
-     * 任务唯一标识
+     * 规则实例ID
      */
     @Nonnull
-    private String id;
+    private String instanceId;
 
     /**
      * 规则ID
@@ -63,22 +66,49 @@ public class ScheduleJob implements Serializable {
     private List<Output> outputs;
 
     /**
-     * 事件输出ID
+     * 事件输出
      */
-    private Map<String, List<String>> events;
+    private List<Event> events;
 
     /**
      * 上下文
      */
     private Map<String, Object> context;
 
+    /**
+     * 调度规则
+     */
+    private SchedulingRule schedulingRule;
 
     @Getter
     @Setter
-    public static class Output implements Serializable{
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class Event implements Serializable {
+
+        private String type;
+
+        private String output;
+
+    }
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class Output implements Serializable {
         private String output;
 
         private Condition condition;
     }
 
+    public boolean isChanged(ScheduleJob job) {
+        // TODO: 2020/6/10  
+        return false;
+    }
+
+    @Override
+    public String toString() {
+        return instanceId + ":" + nodeId + "(" + executor + ")";
+    }
 }

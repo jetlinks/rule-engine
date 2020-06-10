@@ -15,7 +15,7 @@ import java.util.Optional;
  */
 public class DefaultConditionEvaluator implements ConditionEvaluator {
 
-    private Map<String, ConditionEvaluatorStrategy> allStrategy = new HashMap<>();
+    private final Map<String, ConditionEvaluatorStrategy> allStrategy = new HashMap<>();
 
     @Override
     public boolean evaluate(Condition condition, RuleData context) {

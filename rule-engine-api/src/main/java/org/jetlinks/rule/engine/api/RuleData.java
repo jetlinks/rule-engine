@@ -44,8 +44,8 @@ public interface RuleData extends Serializable {
             return ((RuleData) data).newData(data);
         }
         DefaultRuleData ruleData = new DefaultRuleData();
-        ruleData.setId(IDGenerator.MD5.generate());
-        ruleData.setContextId(IDGenerator.MD5.generate());
+        ruleData.setId(IDGenerator.UUID.generate());
+        ruleData.setContextId(IDGenerator.UUID.generate());
         ruleData.setData(data);
         return ruleData;
     }

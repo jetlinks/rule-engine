@@ -32,8 +32,8 @@ public interface EventBus {
      *
      * @param topic       Topic
      * @param eventStream 事件流
-     * @return empty Mono
+     * @return 接收的订阅者数量
      */
-    Mono<Void> publish(String topic, Publisher<?> eventStream);
+    Mono<Integer> publish(String topic, Publisher<?> eventStream);
 
 }
