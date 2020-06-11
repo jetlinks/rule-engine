@@ -46,6 +46,12 @@ public class LocalScheduler implements Scheduler {
         return Mono.justOrEmpty(workers.get(workerId));
     }
 
+    @Override
+    public Mono<Boolean> canSchedule(ScheduleJob job) {
+        return findWorker(job.getExecutor(), job.getSchedulingRule())
+                .hasElements();
+    }
+
     protected Flux<Worker> findWorker(String executor, SchedulingRule schedulingRule) {
         return workerSelector
                 .select(Flux.fromIterable(workers.values())
@@ -78,7 +84,7 @@ public class LocalScheduler implements Scheduler {
     private Flux<Task> createExecutor(ScheduleJob job) {
         return findWorker(job.getExecutor(), job.getSchedulingRule())
                 .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("unsupported executor:" + job.getExecutor())))
-                .flatMap(worker -> worker.createExecutor(job))
+                .flatMap(worker -> worker.createTask(job))
                 .doOnNext(task -> getExecutor(job.getInstanceId(), job.getNodeId()).add(task));
     }
 
@@ -93,6 +99,11 @@ public class LocalScheduler implements Scheduler {
         return Flux.fromIterable(executors.values())
                 .flatMapIterable(Map::values)
                 .flatMapIterable(Function.identity());
+    }
+
+    @Override
+    public Mono<Long> totalTask() {
+        return getSchedulingJobs().count();
     }
 
     private List<Task> getExecutor(String instanceId, String nodeId) {

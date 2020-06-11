@@ -75,6 +75,7 @@ public interface Task {
 
     /**
      * 执行任务
+     *
      * @return 结果
      */
     Mono<Void> execute(Publisher<RuleData> data);
@@ -103,6 +104,29 @@ public interface Task {
      * @return 启动时间
      */
     long getStartTime();
+
+    /**
+     * 创建任务快照
+     *
+     * @return 任务快照
+     */
+    default Mono<TaskSnapshot> dump() {
+        return getState()
+                .map(state -> {
+                    TaskSnapshot snapshot = new TaskSnapshot();
+                    snapshot.setInstanceId(getJob().getInstanceId());
+                    snapshot.setJob(getJob());
+                    snapshot.setLastStateTime(getLastStateTime());
+                    snapshot.setState(state);
+                    snapshot.setWorkerId(getWorkerId());
+                    snapshot.setStartTime(getStartTime());
+                    return snapshot;
+                });
+    }
+
+    default boolean isSameTask(TaskSnapshot snapshot) {
+        return this.getWorkerId().equals(snapshot.getWorkerId()) && this.getJob().getNodeId().equals(snapshot.getJob().getNodeId());
+    }
 
     enum State {
         //运行中

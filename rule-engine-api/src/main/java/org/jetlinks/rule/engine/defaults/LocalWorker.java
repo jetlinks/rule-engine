@@ -40,7 +40,7 @@ public class LocalWorker implements Worker {
     }
 
     @Override
-    public Mono<Task> createExecutor(ScheduleJob job) {
+    public Mono<Task> createTask(ScheduleJob job) {
         return Mono.justOrEmpty(executors.get(job.getExecutor()))
                 .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("unsupported executor:" + job.getExecutor())))
                 .flatMap(provider -> {

@@ -8,7 +8,6 @@ import reactor.core.publisher.Mono;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-@Deprecated
 public interface ExecutionContext {
 
     String getInstanceId();

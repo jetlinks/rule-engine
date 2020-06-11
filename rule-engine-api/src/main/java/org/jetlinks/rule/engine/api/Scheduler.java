@@ -35,7 +35,7 @@ public interface Scheduler {
      *
      * @param job 任务配置
      * @return 返回执行此任务的执行器
-     * @see Worker#createExecutor(ScheduleJob)
+     * @see Worker#createTask(ScheduleJob)
      */
     Flux<Task> schedule(ScheduleJob job);
 
@@ -54,6 +54,22 @@ public interface Scheduler {
      */
     Flux<Task> getSchedulingJob(String instanceId);
 
+    /**
+     * 获取全部调度中的任务
+     * @return 任务执行信息
+     */
     Flux<Task> getSchedulingJobs();
 
+    /**
+     * @return 调度中任务总数
+     */
+    Mono<Long> totalTask();
+
+    /**
+     * 当前调度器是否可以调度此任务
+     *
+     * @param job 任务信息
+     * @return 是否可以调度
+     */
+    Mono<Boolean> canSchedule(ScheduleJob job);
 }
