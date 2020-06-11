@@ -21,6 +21,7 @@ import java.util.function.Function;
  * @since 1.0.0
  */
 @Slf4j
+@Deprecated
 public abstract class CommonExecutableRuleNodeFactoryStrategy<C extends RuleNodeConfig>
         extends AbstractExecutableRuleNodeFactoryStrategy<C> {
 

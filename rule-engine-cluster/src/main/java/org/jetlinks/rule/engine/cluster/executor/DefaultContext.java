@@ -9,8 +9,8 @@ import org.jetlinks.rule.engine.api.executor.Input;
 import org.jetlinks.rule.engine.api.executor.Output;
 import reactor.core.publisher.Mono;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiFunction;
 
 public class DefaultContext implements ExecutionContext {
@@ -43,7 +43,7 @@ public class DefaultContext implements ExecutionContext {
     @Setter
     private BiFunction<String, RuleData, Mono<Void>> eventHandler;
 
-    private List<Runnable> stopListener = new ArrayList<>();
+    private final List<Runnable> stopListener = new CopyOnWriteArrayList<>();
 
     @Override
     public Mono<Void> fireEvent(String event, RuleData data) {

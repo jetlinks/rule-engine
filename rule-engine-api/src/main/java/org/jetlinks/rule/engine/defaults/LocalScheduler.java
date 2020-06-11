@@ -2,8 +2,8 @@ package org.jetlinks.rule.engine.defaults;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.jetlinks.rule.engine.api.Task;
 import org.jetlinks.rule.engine.api.Scheduler;
+import org.jetlinks.rule.engine.api.Task;
 import org.jetlinks.rule.engine.api.Worker;
 import org.jetlinks.rule.engine.api.WorkerSelector;
 import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
@@ -11,10 +11,8 @@ import org.jetlinks.rule.engine.api.executor.ScheduleJob;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
@@ -38,14 +36,14 @@ public class LocalScheduler implements Scheduler {
     }
 
     @Override
-    public List<Worker> getWorkers() {
-        return new ArrayList<>(workers.values());
+    public Flux<Worker> getWorkers() {
+        return Flux.fromIterable(workers.values());
     }
 
     @Override
-    public Optional<Worker> getWorker(String workerId) {
+    public Mono<Worker> getWorker(String workerId) {
 
-        return Optional.ofNullable(workers.get(workerId));
+        return Mono.justOrEmpty(workers.get(workerId));
     }
 
     protected Flux<Worker> findWorker(String executor, SchedulingRule schedulingRule) {
@@ -57,7 +55,7 @@ public class LocalScheduler implements Scheduler {
     }
 
     @Override
-    public synchronized Flux<Task> schedule(ScheduleJob job) {
+    public Flux<Task> schedule(ScheduleJob job) {
         //判断调度中的任务
         List<Task> tasks = getExecutor(job.getInstanceId(), job.getNodeId());
         if (tasks.isEmpty()) {
@@ -70,6 +68,13 @@ public class LocalScheduler implements Scheduler {
                         .thenReturn(task));
     }
 
+    @Override
+    public Mono<Void> shutdown(String instanceId) {
+        return getSchedulingJob(instanceId)
+                .flatMap(Task::shutdown)
+                .then();
+    }
+
     private Flux<Task> createExecutor(ScheduleJob job) {
         return findWorker(job.getExecutor(), job.getSchedulingRule())
                 .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("unsupported executor:" + job.getExecutor())))
@@ -80,6 +85,13 @@ public class LocalScheduler implements Scheduler {
     @Override
     public Flux<Task> getSchedulingJob(String instanceId) {
         return Flux.fromIterable(getExecutor(instanceId).values())
+                .flatMapIterable(Function.identity());
+    }
+
+    @Override
+    public Flux<Task> getSchedulingJobs() {
+        return Flux.fromIterable(executors.values())
+                .flatMapIterable(Map::values)
                 .flatMapIterable(Function.identity());
     }
 

@@ -5,7 +5,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
- * 基于订阅发布的事件总线
+ * 基于订阅发布的事件总线,可用于事件传递,消息转发等.
  *
  * <pre>
  *      subscribe("/rule-engine/{rule-id}/{task-id}/input")

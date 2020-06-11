@@ -61,12 +61,19 @@ public abstract class AbstractTaskExecutor implements TaskExecutor {
 
     @Override
     public void shutdown() {
-        disposable.dispose();
+        if (disposable != null) {
+            disposable.dispose();
+        }
         changeState(Task.State.shutdown);
     }
 
     @Override
     public void onStateChanged(BiConsumer<Task.State, Task.State> listener) {
         this.stateListener = this.stateListener.andThen(listener);
+    }
+
+    @Override
+    public void validate() {
+
     }
 }

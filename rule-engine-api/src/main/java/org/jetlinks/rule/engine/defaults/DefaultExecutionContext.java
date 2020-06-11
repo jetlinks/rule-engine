@@ -43,7 +43,8 @@ public class DefaultExecutionContext implements ExecutionContext {
         this.job = job;
         this.eventBus = eventBus;
         this.logger = new Slf4jLogger("rule.engine." + job.getInstanceId() + "." + job.getNodeId());
-        this.input = new EventBusInput(job.getInstanceId(), job.getNodeId(), job.getInputs(), eventBus);
+        this.input = new EventBusInput(job.getInstanceId(), job.getNodeId(), job.getEvents(), eventBus);
+
         this.output = new EventBusOutput(job.getInstanceId(), eventBus, job.getOutputs(), evaluator);
     }
 
@@ -56,20 +57,20 @@ public class DefaultExecutionContext implements ExecutionContext {
     public Mono<Void> fireEvent(@Nonnull String event, @Nonnull RuleData data) {
 
         return eventBus
-                .publish("/rule/engine/" + job.getInstanceId() + "/" + job.getNodeId() + "/event/" + event, Mono.just(data))
+                .publish(RuleConstants.Topics.event(job.getInstanceId(), job.getNodeId(), event), Mono.just(data))
                 .doOnSubscribe(ignore -> logger.debug("fire job task [{}] event [{}] ", job, event))
                 .then();
     }
 
     @Override
     public Mono<Void> onError(@Nullable Throwable e, @Nullable RuleData data) {
-        return fireEvent(RuleConstants.EVENT_ERROR, createErrorData(e, data));
+        return fireEvent(RuleConstants.Event.error, createErrorData(e, data));
     }
 
     private RuleData createErrorData(Throwable e, RuleData source) {
         Map<String, Object> obj = new HashMap<>();
         if (e != null) {
-            obj.put("error", e.getClass().getSimpleName());
+            obj.put("type", e.getClass().getSimpleName());
             obj.put("message", e.getMessage());
             obj.put("stack", StringUtils.throwable2String(e));
         }
@@ -83,7 +84,7 @@ public class DefaultExecutionContext implements ExecutionContext {
         data.put("code", code);
         data.put("message", message);
         return eventBus
-                .publish("/rule/engine/" + job.getInstanceId() + "/" + job.getNodeId() + "/shutdown", Mono.just(data))
+                .publish(RuleConstants.Topics.shutdown(job.getInstanceId(), job.getNodeId()), Mono.just(data))
                 .then();
     }
 

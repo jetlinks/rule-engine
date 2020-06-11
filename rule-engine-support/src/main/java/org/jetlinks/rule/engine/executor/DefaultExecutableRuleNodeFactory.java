@@ -10,6 +10,7 @@ import java.util.*;
  * @author zhouhao
  * @since 1.0.0
  */
+@Deprecated
 public class DefaultExecutableRuleNodeFactory implements ExecutableRuleNodeFactory {
 
     private Map<String, ExecutableRuleNodeFactoryStrategy> strategySupports = new HashMap<>();

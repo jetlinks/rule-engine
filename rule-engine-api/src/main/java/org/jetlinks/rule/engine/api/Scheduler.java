@@ -2,9 +2,7 @@ package org.jetlinks.rule.engine.api;
 
 import org.jetlinks.rule.engine.api.executor.ScheduleJob;
 import reactor.core.publisher.Flux;
-
-import java.util.List;
-import java.util.Optional;
+import reactor.core.publisher.Mono;
 
 /**
  * 任务调度器
@@ -22,7 +20,7 @@ public interface Scheduler {
     /**
      * @return 全部工作器
      */
-    List<Worker> getWorkers();
+    Flux<Worker> getWorkers();
 
     /**
      * 获取指定ID的工作器
@@ -30,7 +28,7 @@ public interface Scheduler {
      * @param workerId ID
      * @return 工作器
      */
-    Optional<Worker> getWorker(String workerId);
+    Mono<Worker> getWorker(String workerId);
 
     /**
      * 调度任务并返回执行此任务的执行器,此方法是幂等的,多次调度相同配置的信息,不会创建多个任务。
@@ -42,11 +40,20 @@ public interface Scheduler {
     Flux<Task> schedule(ScheduleJob job);
 
     /**
+     * 停止任务
+     * @param instanceId 实例ID
+     * @return void Mono
+     */
+    Mono<Void> shutdown(String instanceId);
+
+    /**
      * 根据规则ID获取全部调度中的任务
      *
      * @param instanceId 规则ID
      * @return 任务执行信息
      */
     Flux<Task> getSchedulingJob(String instanceId);
+
+    Flux<Task> getSchedulingJobs();
 
 }

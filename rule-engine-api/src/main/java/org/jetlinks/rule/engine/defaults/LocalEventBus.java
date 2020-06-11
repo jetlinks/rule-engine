@@ -20,7 +20,10 @@ public class LocalEventBus implements EventBus {
             log.debug("subscription topic: {}", topic);
             Topic<FluxSink> sub = subs.append(topic);
             sub.subscribe(sink);
-            sink.onDispose(() -> sub.unsubscribe(sink));
+            sink.onDispose(() -> {
+                log.debug("unsubscription topic: {}", topic);
+                sub.unsubscribe(sink);
+            });
         });
     }
 

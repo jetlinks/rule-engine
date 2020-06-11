@@ -11,6 +11,7 @@ import org.jetlinks.rule.engine.executor.node.RuleNodeConfig;
  * @author zhouhao
  * @since 1.0.0
  */
+@Deprecated
 public abstract class AbstractExecutableRuleNodeFactoryStrategy<C extends RuleNodeConfig>
         implements GenericConfigExecutableRuleNodeFactoryStrategy<C> {
 

@@ -32,8 +32,8 @@ public class DefaultTask implements Task {
         this.workerId = workerId;
         this.context = context;
         this.executor = executor;
+        //监听状态切换事件
         executor.onStateChanged((from, to) -> {
-
             lastStateTime = System.currentTimeMillis();
             Map<String, Object> data = new HashMap<>();
             data.put("from", from.name());
@@ -64,7 +64,16 @@ public class DefaultTask implements Task {
 
     @Override
     public Mono<Void> setJob(ScheduleJob job) {
-        return Mono.fromRunnable(() -> context.setJob(job));
+        return Mono.fromRunnable(() -> {
+            ScheduleJob old = context.getJob();
+            context.setJob(job);
+            try {
+                executor.validate();
+            } catch (Throwable e) {
+                context.setJob(old);
+                throw e;
+            }
+        });
     }
 
     @Override

@@ -9,6 +9,7 @@ import org.jetlinks.rule.engine.api.model.Condition;
 
 import javax.annotation.Nonnull;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -58,17 +59,17 @@ public class ScheduleJob implements Serializable {
     /**
      * 输入节点
      */
-    private List<String> inputs;
+    private List<String> inputs = new ArrayList<>();
+
+    /**
+     * 监听事件输入
+     */
+    private List<Event> events = new ArrayList<>();
 
     /**
      * 输出节点
      */
-    private List<Output> outputs;
-
-    /**
-     * 事件输出
-     */
-    private List<Event> events;
+    private List<Output> outputs = new ArrayList<>();
 
     /**
      * 上下文
@@ -88,7 +89,7 @@ public class ScheduleJob implements Serializable {
 
         private String type;
 
-        private String output;
+        private String source;
 
     }
 

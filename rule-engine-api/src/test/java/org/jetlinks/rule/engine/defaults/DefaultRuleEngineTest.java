@@ -30,6 +30,13 @@ public class DefaultRuleEngineTest {
             return Mono.just(ruleData.newData("boom"));
         }));
 
+        AtomicLong event = new AtomicLong();
+
+        worker.addExecutor(new MockTaskExecutorProvider("event", ruleData -> {
+            event.incrementAndGet();
+            return Mono.just(ruleData.newData("event"));
+        }));
+
         scheduler.addWorker(worker);
 
         DefaultRuleEngine engine = new DefaultRuleEngine(scheduler);
@@ -50,15 +57,29 @@ public class DefaultRuleEngineTest {
             node2.setName("测试节点2");
             node2.setExecutor("createBoom");
 
+            RuleNodeModel eventNode = new RuleNodeModel();
+            eventNode.setId("event");
+            eventNode.setName("事件处理");
+            eventNode.setExecutor("event");
+
+
             RuleLink link = new RuleLink();
             link.setSource(node1);
             link.setTarget(node2);
             link.setId("1-2");
 
             node1.getOutputs().add(link);
-
             node2.getInputs().add(link);
 
+            RuleLink eventLink = new RuleLink();
+            eventLink.setSource(node2);
+            eventLink.setTarget(eventNode);
+            eventLink.setId("1-3");
+            eventLink.setType("complete");
+
+            node2.getEvents().add(eventLink);
+
+            model.getNodes().add(eventNode);
             model.getNodes().add(node1);
             model.getNodes().add(node2);
 
@@ -66,18 +87,30 @@ public class DefaultRuleEngineTest {
 
         engine.startRule("test", model)
                 .as(StepVerifier::create)
-                .expectNextCount(2)
+                .expectNextCount(3)
+                .verifyComplete();
+
+        //重复调度也没事
+        engine.startRule("test", model)
+                .as(StepVerifier::create)
+                .expectNextCount(3)
                 .verifyComplete();
 
         engine.getTasks("test")
-                .filter(task->task.getJob().getNodeId().equals("createWorld"))
+                .filter(task -> task.getJob().getNodeId().equals("createWorld"))
                 .take(1)
                 .flatMap(task -> task.execute(Mono.just(RuleData.create("test"))))
                 .as(StepVerifier::create)
                 .expectComplete()
                 .verify();
 
-        Assert.assertEquals(counter.get(),1);
+        Assert.assertEquals(counter.get(), 1);
+        Assert.assertEquals(event.get(), 1);
+
+        engine.shutdown("test")
+                .as(StepVerifier::create)
+                .expectComplete()
+                .verify();
 
     }
 
