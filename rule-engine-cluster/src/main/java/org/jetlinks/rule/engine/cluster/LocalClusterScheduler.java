@@ -1,9 +1,10 @@
 package org.jetlinks.rule.engine.cluster;
 
 import lombok.Getter;
+import org.jetlinks.rule.engine.api.Scheduler;
 import org.jetlinks.rule.engine.api.Task;
 import org.jetlinks.rule.engine.api.Worker;
-import org.jetlinks.rule.engine.api.executor.ScheduleJob;
+import org.jetlinks.rule.engine.api.ScheduleJob;
 import reactor.core.publisher.EmitterProcessor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
@@ -22,12 +23,12 @@ import java.util.function.Function;
  * 本地集群调度器
  * 1. 注册worker时,自动恢复任务
  */
-public class LocalClusterScheduler implements ClusterScheduler {
+public class LocalClusterScheduler implements Scheduler {
 
     @Getter
-    private String id;
+    private final String id;
 
-    private TaskSnapshotRepository repository;
+    private final TaskSnapshotRepository repository;
 
     private final EmitterProcessor<Worker> joinProcessor = EmitterProcessor.create(false);
     private final EmitterProcessor<Worker> leaveProcessor = EmitterProcessor.create(false);
@@ -43,14 +44,9 @@ public class LocalClusterScheduler implements ClusterScheduler {
     //本地调度中的任务
     private final Map<String/*规则实例ID*/, Map<String/*nodeId*/, List<Task>>> localTasks = new ConcurrentHashMap<>();
 
-    @Override
-    public Flux<Worker> handleWorkerJoin() {
-        return joinProcessor;
-    }
-
-    @Override
-    public Flux<Worker> handleWorkerLeave() {
-        return leaveProcessor;
+    public LocalClusterScheduler(String id, TaskSnapshotRepository repository) {
+        this.id = id;
+        this.repository = repository;
     }
 
     public void shutdown() {

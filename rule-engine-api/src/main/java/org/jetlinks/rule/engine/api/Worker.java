@@ -1,6 +1,5 @@
 package org.jetlinks.rule.engine.api;
 
-import org.jetlinks.rule.engine.api.executor.ScheduleJob;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -22,11 +21,6 @@ public interface Worker {
      * @return 名称
      */
     String getName();
-
-    /**
-     * @return Host
-     */
-    String getHost();
 
     /**
      * 创建一个执行器

@@ -7,7 +7,7 @@ import org.jetlinks.rule.engine.api.Task;
 import org.jetlinks.rule.engine.api.Worker;
 import org.jetlinks.rule.engine.api.WorkerSelector;
 import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
-import org.jetlinks.rule.engine.api.executor.ScheduleJob;
+import org.jetlinks.rule.engine.api.ScheduleJob;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 

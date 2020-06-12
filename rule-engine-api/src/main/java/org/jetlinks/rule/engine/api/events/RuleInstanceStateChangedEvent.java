@@ -12,6 +12,7 @@ import java.io.Serializable;
 @Setter
 @AllArgsConstructor(staticName = "of")
 @NoArgsConstructor
+@Deprecated
 public class RuleInstanceStateChangedEvent implements Serializable {
 
     private String schedulerId;

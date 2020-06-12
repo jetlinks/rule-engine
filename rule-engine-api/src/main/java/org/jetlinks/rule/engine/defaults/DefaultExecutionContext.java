@@ -5,10 +5,11 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.hswebframework.utils.StringUtils;
 import org.jetlinks.rule.engine.api.*;
-import org.jetlinks.rule.engine.api.events.EventBus;
+import org.jetlinks.rule.engine.api.EventBus;
+import org.jetlinks.rule.engine.api.codec.Codecs;
 import org.jetlinks.rule.engine.api.executor.Input;
 import org.jetlinks.rule.engine.api.executor.Output;
-import org.jetlinks.rule.engine.api.executor.ScheduleJob;
+import org.jetlinks.rule.engine.api.ScheduleJob;
 import reactor.core.publisher.Mono;
 
 import javax.annotation.Nonnull;
@@ -57,7 +58,7 @@ public class DefaultExecutionContext implements ExecutionContext {
     public Mono<Void> fireEvent(@Nonnull String event, @Nonnull RuleData data) {
 
         return eventBus
-                .publish(RuleConstants.Topics.event(job.getInstanceId(), job.getNodeId(), event), Mono.just(data))
+                .publish(RuleConstants.Topics.event(job.getInstanceId(), job.getNodeId(), event), Codecs.lookup(RuleData.class), data)
                 .doOnSubscribe(ignore -> logger.debug("fire job task [{}] event [{}] ", job, event))
                 .then();
     }
@@ -84,7 +85,7 @@ public class DefaultExecutionContext implements ExecutionContext {
         data.put("code", code);
         data.put("message", message);
         return eventBus
-                .publish(RuleConstants.Topics.shutdown(job.getInstanceId(), job.getNodeId()), Mono.just(data))
+                .publish(RuleConstants.Topics.shutdown(job.getInstanceId(), job.getNodeId()),data)
                 .then();
     }
 

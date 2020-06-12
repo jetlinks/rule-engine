@@ -2,7 +2,9 @@ package org.jetlinks.rule.engine.defaults;
 
 import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.core.topic.Topic;
-import org.jetlinks.rule.engine.api.events.EventBus;
+import org.jetlinks.rule.engine.api.Decoder;
+import org.jetlinks.rule.engine.api.Encoder;
+import org.jetlinks.rule.engine.api.EventBus;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
@@ -15,7 +17,7 @@ public class LocalEventBus implements EventBus {
     private final Topic<FluxSink> subs = Topic.createRoot();
 
     @Override
-    public <T> Flux<T> subscribe(String topic, Class<T> type) {
+    public <T> Flux<T> subscribe(String topic,  Decoder<T> type) {
         return Flux.create((sink) -> {
             log.debug("subscription topic: {}", topic);
             Topic<FluxSink> sub = subs.append(topic);
@@ -28,14 +30,14 @@ public class LocalEventBus implements EventBus {
     }
 
     @Override
-    public Mono<Integer> publish(String topic, Publisher<?> eventStream) {
+    public <T> Mono<Integer> publish(String topic, Publisher<T> event) {
         return subs
                 .findTopic(topic)
                 .map(Topic::getSubscribers)
                 .flatMap(subscriber -> {
                     log.debug("publish topic: {}",topic);
                     return Flux
-                            .from(eventStream)
+                            .from(event)
                             .doOnNext(data -> {
                                 for (FluxSink fluxSink : subscriber) {
                                     try {
@@ -49,5 +51,10 @@ public class LocalEventBus implements EventBus {
                 })
                 .reduce(Math::addExact)
                 ;
+    }
+
+    @Override
+    public <T> Mono<Integer> publish(String topic, Encoder<T> encoder, Publisher<T> eventStream) {
+        return publish(topic,eventStream);
     }
 }

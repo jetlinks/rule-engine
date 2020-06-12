@@ -1,6 +1,5 @@
 package org.jetlinks.rule.engine.api;
 
-import org.jetlinks.rule.engine.api.executor.ScheduleJob;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
@@ -98,12 +97,12 @@ public interface Task {
     /**
      * @return 上一次状态变更时间
      */
-    long getLastStateTime();
+    Mono<Long> getLastStateTime();
 
     /**
      * @return 启动时间
      */
-    long getStartTime();
+    Mono<Long> getStartTime();
 
     /**
      * 创建任务快照
@@ -111,21 +110,22 @@ public interface Task {
      * @return 任务快照
      */
     default Mono<TaskSnapshot> dump() {
-        return getState()
-                .map(state -> {
+        return Mono.zip(getState(), getLastStateTime(), getStartTime())
+                .map(tp3 -> {
                     TaskSnapshot snapshot = new TaskSnapshot();
                     snapshot.setInstanceId(getJob().getInstanceId());
                     snapshot.setJob(getJob());
-                    snapshot.setLastStateTime(getLastStateTime());
-                    snapshot.setState(state);
+                    snapshot.setLastStateTime(tp3.getT2());
+                    snapshot.setState(tp3.getT1());
                     snapshot.setWorkerId(getWorkerId());
-                    snapshot.setStartTime(getStartTime());
+                    snapshot.setStartTime(tp3.getT3());
                     return snapshot;
                 });
     }
 
     default boolean isSameTask(TaskSnapshot snapshot) {
-        return this.getWorkerId().equals(snapshot.getWorkerId()) && this.getJob().getNodeId().equals(snapshot.getJob().getNodeId());
+        return this.getWorkerId().equals(snapshot.getWorkerId())
+                && this.getJob().getNodeId().equals(snapshot.getJob().getNodeId());
     }
 
     enum State {

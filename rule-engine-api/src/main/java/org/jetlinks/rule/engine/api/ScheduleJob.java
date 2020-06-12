@@ -1,4 +1,4 @@
-package org.jetlinks.rule.engine.api.executor;
+package org.jetlinks.rule.engine.api;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -15,6 +15,9 @@ import java.util.Map;
 
 /**
  * 调度任务
+ *
+ * @author zhouhao
+ * @since 1.0
  */
 @Getter
 @Setter

@@ -18,6 +18,7 @@ import java.util.Map;
 @Getter
 @Setter
 @EqualsAndHashCode
+@Deprecated
 public class RuleNodeConfiguration implements Serializable {
 
     /**

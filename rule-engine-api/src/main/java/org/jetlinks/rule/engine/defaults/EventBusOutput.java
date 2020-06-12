@@ -2,11 +2,8 @@ package org.jetlinks.rule.engine.defaults;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetlinks.rule.engine.api.ConditionEvaluator;
-import org.jetlinks.rule.engine.api.RuleData;
-import org.jetlinks.rule.engine.api.events.EventBus;
+import org.jetlinks.rule.engine.api.*;
 import org.jetlinks.rule.engine.api.executor.Output;
-import org.jetlinks.rule.engine.api.executor.ScheduleJob;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -35,13 +32,13 @@ public class EventBusOutput implements Output {
                                             log.warn(error.getMessage(), error);
                                             return Mono.just(false);
                                         }))
-                        .flatMap(out -> eventBus.publish(createTopic(out.getOutput()), Mono.just(data))))
+                        .flatMap(out -> eventBus.publish(createTopic(out.getOutput()), data)))
                 .then(Mono.just(true))
                 ;
     }
 
     private String createTopic(String node) {
-        return "/rule/engine/" + instanceId + "/" + node + "/input";
+        return RuleConstants.Topics.input(instanceId,node);
     }
 
 }

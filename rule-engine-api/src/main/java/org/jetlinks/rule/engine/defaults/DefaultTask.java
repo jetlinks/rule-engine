@@ -2,10 +2,7 @@ package org.jetlinks.rule.engine.defaults;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.jetlinks.rule.engine.api.RuleData;
-import org.jetlinks.rule.engine.api.Task;
-import org.jetlinks.rule.engine.api.TaskExecutor;
-import org.jetlinks.rule.engine.api.executor.ScheduleJob;
+import org.jetlinks.rule.engine.api.*;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
@@ -40,7 +37,8 @@ public class DefaultTask implements Task {
             data.put("to", to.name());
 
             context.getEventBus()
-                    .publish("/rule/engine/" + workerId + "/" + context.getInstanceId() + "/" + context.getJob().getNodeId() + "/state", Mono.just(data))
+                    .publish("/rule/engine/" + workerId + "/" + context.getInstanceId() + "/" + context.getJob().getNodeId() + "/state",
+                            data)
                     .doOnError(err -> log.error(err.getMessage(), err))
                     .subscribe();
 
@@ -118,12 +116,12 @@ public class DefaultTask implements Task {
     }
 
     @Override
-    public long getLastStateTime() {
-        return lastStateTime;
+    public Mono<Long> getLastStateTime() {
+        return Mono.just(lastStateTime);
     }
 
     @Override
-    public long getStartTime() {
-        return startTime;
+    public Mono<Long> getStartTime() {
+        return Mono.just(startTime);
     }
 }

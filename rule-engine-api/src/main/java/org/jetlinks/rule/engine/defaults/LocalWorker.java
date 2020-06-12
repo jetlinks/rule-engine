@@ -5,8 +5,8 @@ import org.jetlinks.rule.engine.api.ConditionEvaluator;
 import org.jetlinks.rule.engine.api.Task;
 import org.jetlinks.rule.engine.api.TaskExecutorProvider;
 import org.jetlinks.rule.engine.api.Worker;
-import org.jetlinks.rule.engine.api.events.EventBus;
-import org.jetlinks.rule.engine.api.executor.ScheduleJob;
+import org.jetlinks.rule.engine.api.EventBus;
+import org.jetlinks.rule.engine.api.ScheduleJob;
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
@@ -24,17 +24,13 @@ public class LocalWorker implements Worker {
     @Getter
     private final String name;
 
-    @Getter
-    private final String host;
-
     private final EventBus eventBus;
 
     private final ConditionEvaluator conditionEvaluator;
 
-    public LocalWorker(String id, String name, String host, EventBus eventBus, ConditionEvaluator evaluator) {
+    public LocalWorker(String id, String name,   EventBus eventBus, ConditionEvaluator evaluator) {
         this.id = id;
         this.name = name;
-        this.host = host;
         this.eventBus = eventBus;
         this.conditionEvaluator = evaluator;
     }

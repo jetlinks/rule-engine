@@ -19,7 +19,7 @@ public class DefaultRuleEngineTest {
 
         LocalScheduler scheduler = new LocalScheduler("local");
 
-        LocalWorker worker = new LocalWorker("local", "Local", "localhost", new LocalEventBus(), (c, d) -> true);
+        LocalWorker worker = new LocalWorker("local", "Local", new LocalEventBus(), (c, d) -> true);
 
         worker.addExecutor(new MockTaskExecutorProvider("createWorld", ruleData -> Mono.just(ruleData.newData("world"))));
 

@@ -13,6 +13,7 @@ import org.jetlinks.rule.engine.api.RuleData;
 @NoArgsConstructor
 @AllArgsConstructor(staticName = "of")
 @ToString
+@Deprecated
 public class NodeExecuteEvent implements RuleEvent {
 
     private String event;

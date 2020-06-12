@@ -1,10 +1,9 @@
 package org.jetlinks.rule.engine.defaults;
 
 import lombok.AllArgsConstructor;
-import org.jetlinks.rule.engine.api.RuleData;
-import org.jetlinks.rule.engine.api.events.EventBus;
+import org.jetlinks.rule.engine.api.*;
 import org.jetlinks.rule.engine.api.executor.Input;
-import org.jetlinks.rule.engine.api.executor.ScheduleJob;
+import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
@@ -23,11 +22,11 @@ public class EventBusInput implements Input {
 
     @Override
     public Flux<RuleData> subscribe() {
-        Flux<RuleData> input = bus.subscribe("/rule/engine/" + instanceId + "/" + nodeId + "/input", RuleData.class);
+        Flux<RuleData> input = bus.subscribe(RuleConstants.Topics.input(instanceId, nodeId), RuleData.class);
 
-        if (events != null) {
+        if (!CollectionUtils.isEmpty(events)) {
             return Flux.fromIterable(events)
-                    .map(event -> bus.subscribe("/rule/engine/" + instanceId + "/" + event.getSource() + "/event/" + event.getType(), RuleData.class))
+                    .map(event -> bus.subscribe(RuleConstants.Topics.event(instanceId, event.getSource(), event.getType()), RuleData.class))
                     .as(Flux::merge)
                     .mergeWith(input);
         }

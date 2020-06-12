@@ -1,9 +1,10 @@
 package org.jetlinks.rule.engine.cluster;
 
+import lombok.AllArgsConstructor;
 import org.jetlinks.rule.engine.api.Scheduler;
 import org.jetlinks.rule.engine.api.Task;
 import org.jetlinks.rule.engine.api.TaskSnapshot;
-import org.jetlinks.rule.engine.api.executor.ScheduleJob;
+import org.jetlinks.rule.engine.api.ScheduleJob;
 import org.jetlinks.rule.engine.api.model.RuleModel;
 import org.jetlinks.rule.engine.defaults.ScheduleJobCompiler;
 import reactor.core.publisher.Flux;
@@ -21,11 +22,12 @@ import java.util.stream.Collectors;
  *
  * @author zhouhao
  */
+@AllArgsConstructor
 public class ClusterRuleEngine {
 
-    private SchedulerRegistry schedulerRegistry;
+    private final SchedulerRegistry schedulerRegistry;
 
-    private TaskSnapshotRepository repository;
+    private final TaskSnapshotRepository repository;
 
     public Flux<Task> start(String instanceId, RuleModel model) {
         //编译

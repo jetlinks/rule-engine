@@ -1,7 +1,6 @@
 package org.jetlinks.rule.engine.cluster;
 
 import org.jetlinks.rule.engine.api.Scheduler;
-import org.jetlinks.rule.engine.api.executor.ScheduleJob;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -11,21 +10,21 @@ public interface SchedulerRegistry {
      *
      * @return scheduler流
      */
-    Flux<ClusterScheduler> getSchedulers();
+    Flux<Scheduler> getSchedulers();
 
     /**
      * 监听Scheduler加入注册中心事件
      *
      * @return scheduler流
      */
-    Flux<ClusterScheduler> handleSchedulerJoin();
+    Flux<Scheduler> handleSchedulerJoin();
 
     /**
      * 监听Scheduler掉线事件
      *
      * @return scheduler流
      */
-    Flux<ClusterScheduler> handleSchedulerLeave();
+    Flux<Scheduler> handleSchedulerLeave();
 
     /**
      * 注册Scheduler到注册中心

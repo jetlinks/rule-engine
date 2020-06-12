@@ -2,7 +2,6 @@ package org.jetlinks.rule.engine.api;
 
 import org.jetlinks.rule.engine.api.executor.Input;
 import org.jetlinks.rule.engine.api.executor.Output;
-import org.jetlinks.rule.engine.api.executor.ScheduleJob;
 import reactor.core.publisher.Mono;
 
 import javax.annotation.Nonnull;
