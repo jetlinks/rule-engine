@@ -25,32 +25,32 @@ public interface SchedulerRpc {
     }
 
     static RpcDefinition<String, Void> shutdown(String schedulerId) {
-        return RpcDefinition.ofNoResponse(ClusterConstants.Topics.scheduleJob(schedulerId),
+        return RpcDefinition.ofNoResponse(ClusterConstants.Topics.shutdown(schedulerId),
                 String.class
         );
     }
 
     static RpcDefinition<String, TaskRpc.TaskInfo> getSchedulingJobs(String schedulerId) {
-        return RpcDefinition.of(ClusterConstants.Topics.scheduleJob(schedulerId),
+        return RpcDefinition.of(ClusterConstants.Topics.getScheduleJobs(schedulerId),
                 String.class,
                 TaskRpc.TaskInfo.class
         );
     }
 
     static RpcDefinition<Void, TaskRpc.TaskInfo> getSchedulingAllJobs(String schedulerId) {
-        return RpcDefinition.ofNoParameter(ClusterConstants.Topics.scheduleJob(schedulerId),
+        return RpcDefinition.ofNoParameter(ClusterConstants.Topics.getAllScheduleJobs(schedulerId),
                 TaskRpc.TaskInfo.class
         );
     }
 
     static RpcDefinition<Void, Long> getTotalTasks(String schedulerId) {
-        return RpcDefinition.ofNoParameter(ClusterConstants.Topics.scheduleJob(schedulerId),
+        return RpcDefinition.ofNoParameter(ClusterConstants.Topics.totalScheduling(schedulerId),
                 long.class
         );
     }
 
     static RpcDefinition<ScheduleJob, Boolean> canSchedule(String schedulerId) {
-        return RpcDefinition.of(ClusterConstants.Topics.scheduleJob(schedulerId),
+        return RpcDefinition.of(ClusterConstants.Topics.canScheduleJob(schedulerId),
                 ScheduleJob.class,
                 boolean.class
         );

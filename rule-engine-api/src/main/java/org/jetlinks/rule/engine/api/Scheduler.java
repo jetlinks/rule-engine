@@ -34,7 +34,7 @@ public interface Scheduler {
      *
      * @param job 任务配置
      * @return 返回执行此任务的执行器
-     * @see Worker#createTask(ScheduleJob)
+     * @see Worker#createTask(String, ScheduleJob)
      */
     Flux<Task> schedule(ScheduleJob job);
 

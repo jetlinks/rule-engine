@@ -24,7 +24,7 @@ public class EnumCodec<T extends Enum<?>> implements Codec<T> {
 
     @Override
     public Payload encode(T body) {
-        return () -> Unpooled.wrappedBuffer(new byte[body.ordinal()]);
+        return () -> Unpooled.wrappedBuffer(new byte[]{(byte) body.ordinal()});
     }
 
 

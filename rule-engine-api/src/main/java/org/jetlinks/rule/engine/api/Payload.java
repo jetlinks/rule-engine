@@ -16,6 +16,10 @@ public interface Payload {
         return ByteBufUtil.getBytes(getBody());
     }
 
+    default byte[] bodyAsBytes(int offset, int length) {
+        return ByteBufUtil.getBytes(getBody(), offset, length);
+    }
+
     default String bodyAsString() {
         return getBody().toString(StandardCharsets.UTF_8);
     }

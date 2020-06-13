@@ -36,13 +36,13 @@ public class LocalWorker implements Worker {
     }
 
     @Override
-    public Mono<Task> createTask(ScheduleJob job) {
+    public Mono<Task> createTask(String schedulerId,ScheduleJob job) {
         return Mono.justOrEmpty(executors.get(job.getExecutor()))
                 .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("unsupported executor:" + job.getExecutor())))
                 .flatMap(provider -> {
                     DefaultExecutionContext context = createContext(job);
                     return provider.createTask(context)
-                            .map(executor -> new DefaultTask(this.getId(), context, executor));
+                            .map(executor -> new DefaultTask(schedulerId,this.getId(), context, executor));
                 });
     }
 

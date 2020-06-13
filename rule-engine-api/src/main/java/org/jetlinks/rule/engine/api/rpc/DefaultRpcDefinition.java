@@ -18,13 +18,13 @@ public class DefaultRpcDefinition<REQ, RES> implements RpcDefinition<REQ, RES> {
     }
 
     @Override
-    public Codec<? extends REQ> requestCodec() {
-        return requestCodec;
+    public Codec<REQ> requestCodec() {
+        return (Codec) requestCodec;
     }
 
     @Override
-    public Codec<? extends RES> responseCodec() {
-        return responseCodec;
+    public Codec<RES> responseCodec() {
+        return (Codec) responseCodec;
     }
 
 }

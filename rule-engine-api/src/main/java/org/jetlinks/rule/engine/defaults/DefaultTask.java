@@ -15,6 +15,9 @@ public class DefaultTask implements Task {
     @Getter
     private final String workerId;
 
+    @Getter
+    private final String schedulerId;
+
     private final DefaultExecutionContext context;
 
     private final TaskExecutor executor;
@@ -23,9 +26,11 @@ public class DefaultTask implements Task {
 
     private long startTime;
 
-    public DefaultTask(String workerId,
+    public DefaultTask(String schedulerId,
+                       String workerId,
                        DefaultExecutionContext context,
                        TaskExecutor executor) {
+        this.schedulerId=schedulerId;
         this.workerId = workerId;
         this.context = context;
         this.executor = executor;
@@ -101,7 +106,7 @@ public class DefaultTask implements Task {
     public Mono<Void> execute(Publisher<RuleData> data) {
         return context
                 .getEventBus()
-                .publish("/rule/engine/" + getJob().getInstanceId() + "/" + getJob().getNodeId() + "/input", data)
+                .publish(RuleConstants.Topics.input(getJob().getInstanceId(),getJob().getNodeId()), data)
                 .then();
     }
 

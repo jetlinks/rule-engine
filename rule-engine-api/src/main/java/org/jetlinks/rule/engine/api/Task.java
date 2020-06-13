@@ -29,6 +29,12 @@ public interface Task {
     String getWorkerId();
 
     /**
+     *
+     * @return 调度器ID
+     */
+    String getSchedulerId();
+
+    /**
      * 获取任务信息,请勿修改此任务信息的属性,修改了也没用。
      *
      * @return 任务信息
@@ -113,11 +119,13 @@ public interface Task {
         return Mono.zip(getState(), getLastStateTime(), getStartTime())
                 .map(tp3 -> {
                     TaskSnapshot snapshot = new TaskSnapshot();
+                    snapshot.setId(getId());
                     snapshot.setInstanceId(getJob().getInstanceId());
                     snapshot.setJob(getJob());
                     snapshot.setLastStateTime(tp3.getT2());
                     snapshot.setState(tp3.getT1());
                     snapshot.setWorkerId(getWorkerId());
+                    snapshot.setSchedulerId(getSchedulerId());
                     snapshot.setStartTime(tp3.getT3());
                     return snapshot;
                 });

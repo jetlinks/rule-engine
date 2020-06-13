@@ -21,6 +21,9 @@ public class RemoteTask implements Task {
     private final String workerId;
 
     @Getter
+    private final String schedulerId;
+
+    @Getter
     private final RpcService rpcService;
 
     @Getter

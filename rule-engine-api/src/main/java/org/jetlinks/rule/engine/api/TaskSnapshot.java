@@ -1,5 +1,6 @@
 package org.jetlinks.rule.engine.api;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -15,7 +16,11 @@ import java.io.Serializable;
 @Setter
 public class TaskSnapshot implements Serializable {
 
+    private String id;
+
     private String instanceId;
+
+    private String schedulerId;
 
     private String workerId;
 

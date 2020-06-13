@@ -84,7 +84,7 @@ public class LocalScheduler implements Scheduler {
     private Flux<Task> createExecutor(ScheduleJob job) {
         return findWorker(job.getExecutor(), job.getSchedulingRule())
                 .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("unsupported executor:" + job.getExecutor())))
-                .flatMap(worker -> worker.createTask(job))
+                .flatMap(worker -> worker.createTask(id, job))
                 .doOnNext(task -> getExecutor(job.getInstanceId(), job.getNodeId()).add(task));
     }
 

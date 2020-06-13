@@ -7,6 +7,8 @@ import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Collection;
+
 /**
  * 任务快照仓库
  *
@@ -38,6 +40,22 @@ public interface TaskSnapshotRepository {
      * @see Worker#getId()
      */
     Flux<TaskSnapshot> findByWorkerId(String workerId);
+
+    /**
+     * 根据调度器ID获取任务快照
+     *
+     * @param schedulerId 调度器ID
+     * @return 任务快照
+     */
+    Flux<TaskSnapshot> findBySchedulerId(String schedulerId);
+
+    /**
+     * 查询不是由指定调度器ID对应调度器调度的任务快照
+     *
+     * @param schedulerId 调度器ID
+     * @return 任务快照
+     */
+    Flux<TaskSnapshot> findBySchedulerIdNotIn(Collection<String> schedulerId);
 
     /**
      * 根据instanceId和workerId获取快照
@@ -82,27 +100,6 @@ public interface TaskSnapshotRepository {
      */
     Mono<Void> removeTaskByInstanceIdAndNodeId(String instanceId, String nodeId);
 
-    /**
-     * 修改快照workerId
-     *
-     * @param instanceId 实例ID
-     * @param nodeId     节点ID
-     * @param workerId   workerId
-     * @return empty mono
-     */
-    Mono<Void> changeWorkerId(String instanceId, String nodeId, String workerId);
-
-    /**
-     * 修改快照状态
-     *
-     * @param instanceId 实例ID
-     * @param nodeId     节点ID
-     * @param changeTime 状态变更时间
-     * @param before     变更前状态
-     * @param after      变更后状态
-     * @return empty mono
-     */
-    Mono<Void> changeTaskSate(String instanceId, String nodeId, long changeTime, Task.State before, Task.State after);
 
 
 }

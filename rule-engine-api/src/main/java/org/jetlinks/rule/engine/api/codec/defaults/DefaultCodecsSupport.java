@@ -1,6 +1,7 @@
 package org.jetlinks.rule.engine.api.codec.defaults;
 
 import org.jetlinks.rule.engine.api.DefaultRuleData;
+import org.jetlinks.rule.engine.api.Payload;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.codec.Codec;
 import org.jetlinks.rule.engine.api.codec.CodecsSupport;
@@ -56,8 +57,14 @@ public class DefaultCodecsSupport implements CodecsSupport {
             if (target.isEnum()) {
                 codec = EnumCodec.of((Enum[]) target.getEnumConstants());
             }
+            if (Payload.class.isAssignableFrom(target)) {
+                codec = DirectCodec.INSTANCE;
+            }
         }
-        return Optional.ofNullable(codec);
+        if (codec == null) {
+            codec = JsonCodec.of(target);
+        }
+        return Optional.of(codec);
     }
 
     @Override

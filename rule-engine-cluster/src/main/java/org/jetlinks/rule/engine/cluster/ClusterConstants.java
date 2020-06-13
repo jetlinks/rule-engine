@@ -56,6 +56,27 @@ public interface ClusterConstants {
             return schedulerPrefix(schedulerId) + "/schedule";
         }
 
+        static String shutdown(String schedulerId) {
+            return schedulerPrefix(schedulerId) + "/shutdown";
+        }
+
+        static String totalScheduling(String schedulerId) {
+            return schedulerPrefix(schedulerId) + "/scheduling-total";
+        }
+
+
+        static String getScheduleJobs(String schedulerId) {
+            return schedulerPrefix(schedulerId) + "/scheduling";
+        }
+
+        static String getAllScheduleJobs(String schedulerId) {
+            return schedulerPrefix(schedulerId) + "/scheduling-all";
+        }
+
+        static String canScheduleJob(String schedulerId) {
+            return schedulerPrefix(schedulerId) + "/schedulable";
+        }
+
 
     }
 }

@@ -1,8 +1,10 @@
 package org.jetlinks.rule.engine.cluster;
 
+import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.rule.engine.api.Scheduler;
 import org.jetlinks.rule.engine.api.EventBus;
 import org.jetlinks.rule.engine.api.rpc.RpcService;
+import org.jetlinks.rule.engine.cluster.scheduler.ClusterLocalScheduler;
 import org.jetlinks.rule.engine.cluster.scheduler.RemoteScheduler;
 import reactor.core.Disposable;
 import reactor.core.publisher.EmitterProcessor;
@@ -12,21 +14,27 @@ import reactor.core.publisher.Mono;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 
+@Slf4j
 public class ClusterSchedulerRegistry implements SchedulerRegistry {
 
+    //本地调度器
     private final Set<Scheduler> localSchedulers = new ConcurrentSkipListSet<>(Comparator.comparing(Scheduler::getId));
-    private final Set<Scheduler> remoteSchedulers = new ConcurrentSkipListSet<>(Comparator.comparing(Scheduler::getId));
+    //远程调度器,在集群其他节点上的调度器
+    private final Set<RemoteScheduler> remoteSchedulers = new ConcurrentSkipListSet<>(Comparator.comparing(Scheduler::getId));
 
     private final EmitterProcessor<Scheduler> joinProcessor = EmitterProcessor.create(false);
     private final EmitterProcessor<Scheduler> leaveProcessor = EmitterProcessor.create(false);
 
     private final FluxSink<Scheduler> joinSink = joinProcessor.sink(FluxSink.OverflowStrategy.BUFFER);
     private final FluxSink<Scheduler> leaveSink = leaveProcessor.sink(FluxSink.OverflowStrategy.BUFFER);
+
     private final List<Disposable> disposables = new CopyOnWriteArrayList<>();
 
     private final EventBus eventBus;
@@ -39,18 +47,37 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
 
     public void setup() {
 
-        disposables.add(eventBus.subscribe("/rule-engine/cluster-scheduler/join", String.class)
-                .map(id -> new RemoteScheduler(id, rpcService))
-                .filter(scheduler -> !localSchedulers.contains(scheduler))
-                .doOnNext(joinSink::next)
-                .subscribe(remoteSchedulers::add));
+        joinProcessor.subscribe(scheduler -> log.debug("remote scheduler join:{}", scheduler.getId()));
+        leaveProcessor.subscribe(scheduler -> log.debug("remote scheduler leaved:{}", scheduler.getId()));
 
-        disposables.add(eventBus.subscribe("/rule-engine/cluster-scheduler/leave", String.class)
-                .map(id -> new RemoteScheduler(id, rpcService))
-                .filter(scheduler -> !localSchedulers.contains(scheduler))
-                .doOnNext(leaveSink::next)
-                .subscribe(remoteSchedulers::remove));
+        disposables.add(
+                eventBus.subscribe("/rule-engine/cluster-scheduler/join", String.class)
+                        .map(id -> new RemoteScheduler(id, rpcService))
+                        .filter(scheduler -> !localSchedulers.contains(scheduler)&&!remoteSchedulers.contains(scheduler))
+                        .doOnNext(remoteScheduler -> {
+                            joinSink.next(remoteScheduler);
+                            publishLocal().subscribe();
+                        })
+                        .subscribe(
+                                remoteSchedulers::add,
+                                error -> log.error(error.getMessage(), error)
+                        )
+        );
 
+        disposables.add(
+                eventBus.subscribe("/rule-engine/cluster-scheduler/leave", String.class)
+                        .map(id -> new RemoteScheduler(id, rpcService))
+                        .filter(scheduler -> !localSchedulers.contains(scheduler))
+                        .doOnNext(leaveSink::next)
+                        .subscribe(remoteSchedulers::remove)
+        );
+
+    }
+
+    private Mono<Void> publishLocal() {
+        return eventBus
+                .publish("/rule-engine/cluster-scheduler/join", Flux.fromIterable(localSchedulers).map(Scheduler::getId))
+                .then();
     }
 
     public void cleanup() {
@@ -85,8 +112,6 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
     @Override
     public Mono<Void> register(Scheduler scheduler) {
         localSchedulers.add(scheduler);
-        return eventBus
-                .publish("/rule-engine/cluster-scheduler/join", Mono.just(scheduler.getId()))
-                .then();
+        return publishLocal();
     }
 }

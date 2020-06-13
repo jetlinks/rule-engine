@@ -28,7 +28,7 @@ public interface Worker {
      * @param job 任务
      * @return 任务执行器
      */
-    Mono<Task> createTask(ScheduleJob job);
+    Mono<Task> createTask(String schedulerId, ScheduleJob job);
 
     /**
      * @return 支持的执行器ID

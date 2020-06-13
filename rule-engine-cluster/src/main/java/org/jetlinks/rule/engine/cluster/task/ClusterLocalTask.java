@@ -17,11 +17,6 @@ import java.util.function.Function;
 
 @Getter
 public class ClusterLocalTask implements Task {
-    private final String id;
-
-    private final String name;
-
-    private final String workerId;
 
     private final Task localTask;
 
@@ -40,25 +35,24 @@ public class ClusterLocalTask implements Task {
         operationMapping.put(TaskRpc.TaskOperation.DISABLE_DEBUG, task -> task.debug(false));
     }
 
-    public ClusterLocalTask(String id, String name, String workerId, Task localTask, RpcService rpcService) {
-        this.id = id;
-        this.name = name;
-        this.workerId = workerId;
+    public ClusterLocalTask(Task localTask, RpcService rpcService) {
         this.localTask = localTask;
         this.rpcService = rpcService;
     }
 
     public void setup() {
-
+        if (!disposables.isEmpty()) {
+            return;
+        }
         disposables.add(rpcService
                 .listen(
-                        TaskRpc.getTaskState(workerId, id),
+                        TaskRpc.getTaskState(getWorkerId(), getId()),
                         (address) -> getState()
                 ));
 
         disposables.add(rpcService
                 .listen(
-                        TaskRpc.taskOperation(workerId, id),
+                        TaskRpc.taskOperation(getWorkerId(), getId()),
                         (address, operation) -> operationMapping
                                 .get(operation)
                                 .apply(this)
@@ -66,22 +60,22 @@ public class ClusterLocalTask implements Task {
                 ));
 
         disposables.add(rpcService
-                .listen(TaskRpc.setTaskJob(workerId, id),
+                .listen(TaskRpc.setTaskJob(getWorkerId(), getId()),
                         (address, requests) -> this.setJob(requests))
         );
 
         disposables.add(rpcService
-                .listen(TaskRpc.getStartTime(workerId, id),
+                .listen(TaskRpc.getStartTime(getWorkerId(), getId()),
                         (address) -> this.getStartTime())
         );
 
         disposables.add(rpcService
-                .listen(TaskRpc.getLastStateTime(workerId, id),
+                .listen(TaskRpc.getLastStateTime(getWorkerId(), getId()),
                         (address) -> this.getLastStateTime())
         );
 
         disposables.add(rpcService
-                .listen(TaskRpc.executeTask(workerId, id),
+                .listen(TaskRpc.executeTask(getWorkerId(), getId()),
                         (address, ruleData) -> this.execute(Mono.just(ruleData)))
         );
 
@@ -90,6 +84,26 @@ public class ClusterLocalTask implements Task {
     public void cleanup() {
         disposables.forEach(Disposable::dispose);
         disposables.clear();
+    }
+
+    @Override
+    public String getId() {
+        return localTask.getId();
+    }
+
+    @Override
+    public String getName() {
+        return localTask.getName();
+    }
+
+    @Override
+    public String getWorkerId() {
+        return localTask.getWorkerId();
+    }
+
+    @Override
+    public String getSchedulerId() {
+        return localTask.getSchedulerId();
     }
 
     @Override

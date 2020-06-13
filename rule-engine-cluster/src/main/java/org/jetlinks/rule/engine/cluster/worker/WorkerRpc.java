@@ -15,10 +15,10 @@ import java.util.List;
 
 public interface WorkerRpc {
 
-    static RpcDefinition<ScheduleJob, CreateTaskResponse> createTask(String workerId) {
+    static RpcDefinition<CreateTaskRequest, CreateTaskResponse> createTask(String workerId) {
         return RpcDefinition.of(
                 ClusterConstants.Topics.createTask(workerId),
-                ScheduleJob.class,
+                CreateTaskRequest.class,
                 CreateTaskResponse.class
         );
     }
@@ -38,6 +38,14 @@ public interface WorkerRpc {
         );
     }
 
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @NoArgsConstructor
+    class CreateTaskRequest{
+        String schedulerId;
+        ScheduleJob job;
+    }
 
     @Getter
     @Setter

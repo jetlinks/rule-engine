@@ -21,12 +21,15 @@ public class RemoteScheduler implements Scheduler {
     @Getter
     private final RpcService rpcService;
 
+    public Mono<Boolean> isAlive() {
+        return Mono.just(true);
+    }
+
     @Override
     public Flux<Worker> getWorkers() {
         return rpcService
                 .invoke(SchedulerRpc.getWorkers(id))
-                .map(info -> new RemoteWorker(info.getId(), info.getName(), rpcService))
-                ;
+                .map(info -> new RemoteWorker(info.getId(), info.getName(), rpcService));
     }
 
     @Override
@@ -40,7 +43,7 @@ public class RemoteScheduler implements Scheduler {
     public Flux<Task> schedule(ScheduleJob job) {
         return rpcService
                 .invoke(SchedulerRpc.schedule(id), job)
-                .map(taskInfo -> new RemoteTask(taskInfo.getId(), taskInfo.getName(), taskInfo.getWorkerId(), rpcService, job));
+                .map(taskInfo -> new RemoteTask(taskInfo.getId(), taskInfo.getName(), id,taskInfo.getWorkerId(), rpcService, job));
     }
 
     @Override
@@ -54,14 +57,14 @@ public class RemoteScheduler implements Scheduler {
     public Flux<Task> getSchedulingJob(String instanceId) {
         return rpcService
                 .invoke(SchedulerRpc.getSchedulingJobs(id), instanceId)
-                .map(taskInfo -> new RemoteTask(taskInfo.getId(), taskInfo.getName(), taskInfo.getWorkerId(), rpcService, taskInfo.getJob()));
+                .map(taskInfo -> new RemoteTask(taskInfo.getId(), taskInfo.getName(),  id,taskInfo.getWorkerId(), rpcService, taskInfo.getJob()));
     }
 
     @Override
     public Flux<Task> getSchedulingJobs() {
         return rpcService
                 .invoke(SchedulerRpc.getSchedulingAllJobs(id))
-                .map(taskInfo -> new RemoteTask(taskInfo.getId(), taskInfo.getName(), taskInfo.getWorkerId(), rpcService, taskInfo.getJob()));
+                .map(taskInfo -> new RemoteTask(taskInfo.getId(), taskInfo.getName(), id, taskInfo.getWorkerId(), rpcService, taskInfo.getJob()));
     }
 
     @Override
