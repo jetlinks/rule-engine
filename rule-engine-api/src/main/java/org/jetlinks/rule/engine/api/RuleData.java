@@ -1,9 +1,15 @@
 package org.jetlinks.rule.engine.api;
 
+import com.alibaba.fastjson.JSON;
+import lombok.Getter;
+import lombok.Setter;
+import org.hswebframework.web.bean.FastBeanCopier;
 import org.hswebframework.web.id.IDGenerator;
 import reactor.core.publisher.Flux;
 
 import java.io.Serializable;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -14,36 +20,111 @@ import java.util.function.Consumer;
  * @author zhouhao
  * @since 1.0.0
  */
-public interface RuleData extends Serializable {
-    String getId();
+@Getter
+@Setter
+public class RuleData implements Serializable {
 
-    String getContextId();
+    private String id;
 
-    Object getData();
+    private String contextId;
 
-    void acceptMap(Consumer<Map<String, Object>> consumer);
+    private Object data;
 
-    Flux<Map<String,Object>> dataToMap();
+    @Getter
+    private Map<String, Object> headers = new HashMap<>();
 
-    RuleData newData(Object data);
+    public void setHeader(String key, Object value) {
+        headers.put(key, value);
+    }
 
-    RuleData copy();
+    public void removeHeader(String key) {
+        headers.remove(key);
+    }
 
-    Map<String, Object> getAttributes();
+    public void clearHeader() {
+        headers.clear();
+    }
 
-    Optional<Object> getAttribute(String key);
+    public Optional<Object> getHeader(String key) {
+        return Optional.ofNullable(headers.get(key));
+    }
 
-    void setAttribute(String key, Object value);
+    public String getId() {
+        return id;
+    }
 
-    void removeAttribute(String key);
+    public Object getData() {
+        return data;
+    }
 
-    void clear();
+    public Flux<Map<String, Object>> dataToMap() {
+        return Flux.create(sink -> {
+            acceptMap(sink::next);
+            sink.complete();
+        });
+    }
 
-    static RuleData create(Object data) {
-        if(data instanceof RuleData){
+    @SuppressWarnings("all")
+    public void acceptMap(Consumer<Map<String, Object>> consumer) {
+        Object data = this.data;
+        if (data == null) {
+            return;
+        } else if (data instanceof byte[]) {
+            data = JSON.parse(((byte[]) data));
+        } else if (data instanceof String) {
+            String stringData = (String) data;
+            if (stringData.startsWith("{") || stringData.startsWith("[")) {
+                data = JSON.parse(stringData);
+            }
+        }
+
+        if (data instanceof Map) {
+            doAcceptMap(data, consumer);
+        } else if (data instanceof RuleData) {
+            ((RuleData) data).acceptMap(consumer);
+        } else if (data instanceof Collection) {
+            ((Collection) data).forEach(d -> doAcceptMap(d, consumer));
+        } else {
+            doAcceptMap(data, consumer);
+        }
+    }
+
+    @SuppressWarnings("all")
+    private void doAcceptMap(Object data, Consumer<Map<String, Object>> consumer) {
+        if (data instanceof Map) {
+            consumer.accept(((Map) data));
+        } else {
+            consumer.accept(FastBeanCopier.copy(data, HashMap::new));
+        }
+    }
+
+    public RuleData newData(Object data) {
+        RuleData ruleData = new RuleData();
+        if (data instanceof RuleData) {
+            data = ((RuleData) data).getData();
+        }
+        ruleData.id = IDGenerator.UUID.generate();
+        ruleData.headers = new HashMap<>(headers);
+        ruleData.data = data;
+        ruleData.contextId = contextId;
+        RuleDataHelper.clearError(ruleData);
+        return ruleData;
+    }
+
+    public RuleData copy() {
+        RuleData ruleData = new RuleData();
+        ruleData.id = id;
+        ruleData.contextId = contextId;
+        ruleData.headers = new HashMap<>(headers);
+        ruleData.data = data;
+        return ruleData;
+    }
+
+    public static RuleData create(Object data) {
+        if (data instanceof RuleData) {
             return ((RuleData) data).newData(data);
         }
-        DefaultRuleData ruleData = new DefaultRuleData();
+        RuleData ruleData = new RuleData();
         ruleData.setId(IDGenerator.UUID.generate());
         ruleData.setContextId(IDGenerator.UUID.generate());
         ruleData.setData(data);

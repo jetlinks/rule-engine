@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.jetlinks.rule.engine.api.ScheduleJob;
+import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.rpc.RpcDefinition;
 import org.jetlinks.rule.engine.cluster.ClusterConstants;
 import org.jetlinks.rule.engine.cluster.task.TaskRpc;

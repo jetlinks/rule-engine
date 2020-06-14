@@ -1,6 +1,6 @@
 package org.jetlinks.rule.engine.defaults;
 
-import org.jetlinks.rule.engine.api.ScheduleJob;
+import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.model.RuleLink;
 import org.jetlinks.rule.engine.api.model.RuleModel;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;

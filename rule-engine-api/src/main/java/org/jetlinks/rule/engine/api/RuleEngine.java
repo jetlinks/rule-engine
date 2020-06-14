@@ -1,6 +1,8 @@
 package org.jetlinks.rule.engine.api;
 
-import reactor.core.publisher.Mono;
+import org.jetlinks.rule.engine.api.model.RuleModel;
+import org.jetlinks.rule.engine.api.task.Task;
+import reactor.core.publisher.Flux;
 
 /**
  * 规则引擎
@@ -16,14 +18,14 @@ public interface RuleEngine {
      * @param model 规则模型
      * @return 规则实例上下文
      */
-    Mono<RuleInstanceContext> startRule(Rule model);
+    Flux<Task> startRule(String instanceId, RuleModel model);
 
     /**
-     * 获取运行中的规则实例
+     * 获取运行中的任务
      *
-     * @param id 实例ID
+     * @param instance 实例ID
      * @return 规则实例上下文
      */
-    Mono<RuleInstanceContext> getInstance(String id);
+    Flux<Task> getTasks(String instance);
 
 }

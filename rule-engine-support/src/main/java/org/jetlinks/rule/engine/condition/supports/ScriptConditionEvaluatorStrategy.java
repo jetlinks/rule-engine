@@ -34,7 +34,7 @@ public class ScriptConditionEvaluatorStrategy implements ConditionEvaluatorStrat
                 .orElseThrow(() -> new IllegalArgumentException("配置:script不能为空"));
         Map<String, Object> scriptContext = new HashMap<>();
         scriptContext.put("ruleData", context);
-        scriptContext.put("attr", context.getAttributes());
+        scriptContext.put("attr", context.getHeaders());
         scriptContext.put("data", context.getData());
         Object val = scriptEvaluator.evaluate(lang, script, scriptContext);
 

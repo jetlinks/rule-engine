@@ -1,10 +1,11 @@
 package org.jetlinks.rule.engine.cluster;
 
 import lombok.AllArgsConstructor;
-import org.jetlinks.rule.engine.api.Scheduler;
-import org.jetlinks.rule.engine.api.Task;
-import org.jetlinks.rule.engine.api.TaskSnapshot;
-import org.jetlinks.rule.engine.api.ScheduleJob;
+import org.jetlinks.rule.engine.api.RuleEngine;
+import org.jetlinks.rule.engine.api.scheduler.Scheduler;
+import org.jetlinks.rule.engine.api.task.Task;
+import org.jetlinks.rule.engine.api.task.TaskSnapshot;
+import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.model.RuleModel;
 import org.jetlinks.rule.engine.defaults.ScheduleJobCompiler;
 import reactor.core.publisher.Flux;
@@ -23,13 +24,13 @@ import java.util.stream.Collectors;
  * @author zhouhao
  */
 @AllArgsConstructor
-public class ClusterRuleEngine {
+public class ClusterRuleEngine implements RuleEngine {
 
     private final SchedulerRegistry schedulerRegistry;
 
     private final TaskSnapshotRepository repository;
 
-    public Flux<Task> start(String instanceId, RuleModel model) {
+    public Flux<Task> startRule(String instanceId, RuleModel model) {
         //编译
         Map<String, ScheduleJob> jobs = new ScheduleJobCompiler(instanceId, model).compile()
                 .stream()
@@ -70,7 +71,7 @@ public class ClusterRuleEngine {
     private Flux<Task> getTaskBySnapshot(TaskSnapshot snapshot) {
         return schedulerRegistry
                 .getSchedulers()
-                .flatMap(scheduler -> scheduler.getSchedulingJob(snapshot.getInstanceId()))
+                .flatMap(scheduler -> scheduler.getSchedulingTask(snapshot.getInstanceId()))
                 .filter(task -> task.isSameTask(snapshot));
     }
 
@@ -78,11 +79,16 @@ public class ClusterRuleEngine {
         return schedulerRegistry
                 .getSchedulers()
                 .filterWhen(scheduler -> scheduler.canSchedule(job))
+                .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("no worker for " + job.getExecutor())))
                 .flatMap(scheduler -> Mono.just(scheduler).zipWhen(Scheduler::totalTask))
                 .sort(Comparator.comparing(Tuple2::getT2))
                 .take(1)
                 .flatMap(tp2 -> tp2.getT1().schedule(job));
     }
 
-
+    @Override
+    public Flux<Task> getTasks(String instance) {
+        return schedulerRegistry.getSchedulers()
+                .flatMap(scheduler -> scheduler.getSchedulingTask(instance));
+    }
 }

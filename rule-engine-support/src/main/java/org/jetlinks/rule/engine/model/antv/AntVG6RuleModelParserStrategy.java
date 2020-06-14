@@ -2,15 +2,13 @@ package org.jetlinks.rule.engine.model.antv;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import org.jetlinks.rule.engine.api.cluster.RunMode;
-import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
+import org.jetlinks.rule.engine.api.scheduler.SchedulingRule;
 import org.jetlinks.rule.engine.api.model.Condition;
 import org.jetlinks.rule.engine.api.model.RuleLink;
 import org.jetlinks.rule.engine.api.model.RuleModel;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 import org.jetlinks.rule.engine.model.RuleModelParserStrategy;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
 
 import java.util.*;
 import java.util.function.Function;
@@ -31,11 +29,6 @@ public class AntVG6RuleModelParserStrategy implements RuleModelParserStrategy {
         ruleModel.setId(jsonObject.getString("id"));
         ruleModel.setDescription(jsonObject.getString("remark"));
         ruleModel.setName(jsonObject.getString("name"));
-
-        ruleModel.setRunMode(Optional.ofNullable(jsonObject.getString("runMode"))
-                .filter(StringUtils::hasText)
-                .map(RunMode::valueOf)
-                .orElse(RunMode.CLUSTER));
 
         ruleModel.setSchedulingRule(Optional.ofNullable(jsonObject.getJSONObject("schedulingRule"))
                 .map(json -> json.toJavaObject(SchedulingRule.class))

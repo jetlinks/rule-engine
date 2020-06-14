@@ -6,8 +6,7 @@ import org.dom4j.Document;
 import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
 import org.hswebframework.web.bean.FastBeanCopier;
-import org.jetlinks.rule.engine.api.cluster.RunMode;
-import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
+import org.jetlinks.rule.engine.api.scheduler.SchedulingRule;
 import org.jetlinks.rule.engine.api.model.Condition;
 import org.jetlinks.rule.engine.api.model.RuleLink;
 import org.jetlinks.rule.engine.api.model.RuleModel;
@@ -45,7 +44,6 @@ public class XmlRuleModelParserStrategy implements RuleModelParserStrategy {
         ruleModel.setId(rule.attributeValue("id"));
         ruleModel.setName(rule.attributeValue("name"));
         ruleModel.setDescription(rule.attributeValue("description"));
-        ruleModel.setRunMode(Optional.ofNullable(rule.attributeValue("runMode")).map(RunMode::valueOf).orElse(RunMode.CLUSTER));
 
         ruleModel.setConfiguration(new HashMap<>());
 
@@ -166,8 +164,8 @@ public class XmlRuleModelParserStrategy implements RuleModelParserStrategy {
                 if ("list".equals(type)) {
                     List<Object> data = new ArrayList<>();
                     for (Element child : elements) {
-                        String text =child.getTextTrim();
-                        if(StringUtils.hasLength(text)){
+                        String text = child.getTextTrim();
+                        if (StringUtils.hasLength(text)) {
                             data.add(text);
                             continue;
                         }
@@ -221,7 +219,7 @@ public class XmlRuleModelParserStrategy implements RuleModelParserStrategy {
         return link;
     }
 
-    private class PrepareRuleNode {
+    private static class PrepareRuleNode {
 
         private String getId() {
             return (String) nodeProperties.get("id");
@@ -229,11 +227,11 @@ public class XmlRuleModelParserStrategy implements RuleModelParserStrategy {
 
         private Map<String, Object> nodeProperties = new HashMap<>();
 
-        private Map<String, Object> configuration = new HashMap<>();
+        private final Map<String, Object> configuration = new HashMap<>();
 
-        private List<PrepareLink> outputs = new ArrayList<>();
+        private final List<PrepareLink> outputs = new ArrayList<>();
 
-        private List<PrepareLink> events = new ArrayList<>();
+        private final List<PrepareLink> events = new ArrayList<>();
 
         public RuleNodeModel toRuleNodeModel() {
             RuleNodeModel ruleNodeModel = FastBeanCopier.copy(nodeProperties, new RuleNodeModel());
@@ -242,11 +240,11 @@ public class XmlRuleModelParserStrategy implements RuleModelParserStrategy {
         }
     }
 
-    private class PrepareLink {
-        private String              id;
-        private String              type;
+    private static class PrepareLink {
+        private String id;
+        private String type;
         private Map<String, Object> configuration = new HashMap<>();
-        private String              target;
-        private Condition           condition;
+        private String target;
+        private Condition condition;
     }
 }

@@ -1,10 +1,10 @@
 package org.jetlinks.rule.engine.defaults;
 
 import lombok.Getter;
-import org.jetlinks.rule.engine.api.ExecutionContext;
+import org.jetlinks.rule.engine.api.task.ExecutionContext;
 import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.RuleData;
-import org.jetlinks.rule.engine.api.Task;
+import org.jetlinks.rule.engine.api.task.Task;
 import org.reactivestreams.Publisher;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
@@ -25,7 +25,7 @@ public abstract class FunctionTaskExecutor extends AbstractTaskExecutor {
     protected Disposable doStart() {
         return context
                 .getInput()
-                .subscribe()
+                .accept()
                 .filter(data -> state == Task.State.running)
                 .flatMap(input -> context
                         .getOutput()

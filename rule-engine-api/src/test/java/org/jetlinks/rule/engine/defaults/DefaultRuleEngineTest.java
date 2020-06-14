@@ -21,18 +21,18 @@ public class DefaultRuleEngineTest {
 
         LocalWorker worker = new LocalWorker("local", "Local", new LocalEventBus(), (c, d) -> true);
 
-        worker.addExecutor(new MockTaskExecutorProvider("createWorld", ruleData -> Mono.just(ruleData.newData("world"))));
+        worker.addExecutor(new LambdaTaskExecutorProvider("createWorld", ruleData -> Mono.just(ruleData.newData("world"))));
 
         AtomicLong counter = new AtomicLong();
 
-        worker.addExecutor(new MockTaskExecutorProvider("createBoom", ruleData -> {
+        worker.addExecutor(new LambdaTaskExecutorProvider("createBoom", ruleData -> {
             counter.incrementAndGet();
             return Mono.just(ruleData.newData("boom"));
         }));
 
         AtomicLong event = new AtomicLong();
 
-        worker.addExecutor(new MockTaskExecutorProvider("event", ruleData -> {
+        worker.addExecutor(new LambdaTaskExecutorProvider("event", ruleData -> {
             event.incrementAndGet();
             return Mono.just(ruleData.newData("event"));
         }));

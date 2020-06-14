@@ -1,8 +1,8 @@
 package org.jetlinks.rule.engine.cluster.worker;
 
-import org.jetlinks.rule.engine.api.Task;
-import org.jetlinks.rule.engine.api.Worker;
-import org.jetlinks.rule.engine.api.ScheduleJob;
+import org.jetlinks.rule.engine.api.task.Task;
+import org.jetlinks.rule.engine.api.worker.Worker;
+import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.rpc.RpcService;
 import org.jetlinks.rule.engine.cluster.task.ClusterLocalTask;
 import reactor.core.Disposable;

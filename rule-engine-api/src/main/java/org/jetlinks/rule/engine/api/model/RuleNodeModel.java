@@ -2,8 +2,7 @@ package org.jetlinks.rule.engine.api.model;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
-import org.jetlinks.rule.engine.api.executor.RuleNodeConfiguration;
+import org.jetlinks.rule.engine.api.scheduler.SchedulingRule;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -52,17 +51,6 @@ public class RuleNodeModel {
     public RuleNodeModel addConfiguration(String key, Object value) {
         configuration.put(key, value);
         return this;
-    }
-
-    public RuleNodeConfiguration createConfiguration() {
-        RuleNodeConfiguration configuration = new RuleNodeConfiguration();
-        configuration.setId(this.ruleId + ":" + this.id + ":" + this.executor);
-        configuration.setName(this.name);
-        configuration.setNodeId(this.id);
-        configuration.setNodeType(this.nodeType);
-        configuration.setExecutor(this.executor);
-        configuration.setConfiguration(this.configuration);
-        return configuration;
     }
 
     public List<RuleLink> getEvents(String type) {

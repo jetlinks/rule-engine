@@ -2,9 +2,12 @@ package org.jetlinks.rule.engine.cluster.scheduler;
 
 import org.jetlinks.rule.engine.api.*;
 import org.jetlinks.rule.engine.api.rpc.RpcService;
+import org.jetlinks.rule.engine.api.task.ExecutionContext;
+import org.jetlinks.rule.engine.api.task.TaskExecutor;
+import org.jetlinks.rule.engine.api.task.TaskExecutorProvider;
+import org.jetlinks.rule.engine.api.worker.Worker;
 import org.jetlinks.rule.engine.cluster.rpc.EventBusRcpService;
 import org.jetlinks.rule.engine.defaults.AbstractTaskExecutor;
-import org.jetlinks.rule.engine.defaults.FunctionTaskExecutor;
 import org.jetlinks.rule.engine.defaults.LocalEventBus;
 import org.jetlinks.rule.engine.defaults.LocalWorker;
 import org.junit.Test;
@@ -13,8 +16,6 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.util.function.Function;
-
-import static org.junit.Assert.*;
 
 public class ClusterSchedulerTest {
 
@@ -48,7 +49,7 @@ public class ClusterSchedulerTest {
                 });
             }
         });
-        scheduler.register(worker);
+        scheduler.addWorker(worker);
 
         RemoteScheduler remoteScheduler = new RemoteScheduler("test", rpcService);
         remoteScheduler

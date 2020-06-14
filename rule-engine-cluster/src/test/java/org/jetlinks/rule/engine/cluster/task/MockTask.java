@@ -2,8 +2,8 @@ package org.jetlinks.rule.engine.cluster.task;
 
 import lombok.*;
 import org.jetlinks.rule.engine.api.RuleData;
-import org.jetlinks.rule.engine.api.ScheduleJob;
-import org.jetlinks.rule.engine.api.Task;
+import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
+import org.jetlinks.rule.engine.api.task.Task;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 

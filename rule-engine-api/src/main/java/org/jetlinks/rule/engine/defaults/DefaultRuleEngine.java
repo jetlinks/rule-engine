@@ -1,17 +1,17 @@
 package org.jetlinks.rule.engine.defaults;
 
 import lombok.AllArgsConstructor;
-import org.jetlinks.rule.engine.api.Scheduler;
-import org.jetlinks.rule.engine.api.Task;
+import org.jetlinks.rule.engine.api.RuleEngine;
+import org.jetlinks.rule.engine.api.scheduler.Scheduler;
+import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.model.RuleModel;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.function.Function;
 
-
 @AllArgsConstructor
-public class DefaultRuleEngine {
+public class DefaultRuleEngine implements RuleEngine {
 
     //调度器
     private final Scheduler scheduler;
@@ -26,7 +26,7 @@ public class DefaultRuleEngine {
     }
 
     public Flux<Task> getTasks(String instanceId) {
-        return scheduler.getSchedulingJob(instanceId);
+        return scheduler.getSchedulingTask(instanceId);
     }
 
     public Mono<Void> shutdown(String instanceId) {

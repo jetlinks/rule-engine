@@ -9,8 +9,8 @@ public class DefaultRpcDefinition<REQ, RES> implements RpcDefinition<REQ, RES> {
 
     private final String address;
 
-    private final Codec<? extends REQ> requestCodec;
-    private final Codec<? extends RES> responseCodec;
+    private final Codec<REQ> requestCodec;
+    private final Codec<RES> responseCodec;
 
     @Override
     public String getAddress() {
@@ -19,12 +19,12 @@ public class DefaultRpcDefinition<REQ, RES> implements RpcDefinition<REQ, RES> {
 
     @Override
     public Codec<REQ> requestCodec() {
-        return (Codec) requestCodec;
+        return requestCodec;
     }
 
     @Override
     public Codec<RES> responseCodec() {
-        return (Codec) responseCodec;
+        return responseCodec;
     }
 
 }

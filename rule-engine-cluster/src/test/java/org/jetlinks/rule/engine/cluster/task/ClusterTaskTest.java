@@ -1,8 +1,8 @@
 package org.jetlinks.rule.engine.cluster.task;
 
 import org.jetlinks.rule.engine.api.EventBus;
-import org.jetlinks.rule.engine.api.ScheduleJob;
-import org.jetlinks.rule.engine.api.Task;
+import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
+import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.rpc.RpcService;
 import org.jetlinks.rule.engine.cluster.rpc.EventBusRcpService;
 import org.jetlinks.rule.engine.defaults.LocalEventBus;

@@ -1,10 +1,9 @@
 package org.jetlinks.rule.engine.cluster;
 
 import lombok.extern.slf4j.Slf4j;
-import org.jetlinks.rule.engine.api.Scheduler;
+import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.api.EventBus;
 import org.jetlinks.rule.engine.api.rpc.RpcService;
-import org.jetlinks.rule.engine.cluster.scheduler.ClusterLocalScheduler;
 import org.jetlinks.rule.engine.cluster.scheduler.RemoteScheduler;
 import reactor.core.Disposable;
 import reactor.core.publisher.EmitterProcessor;
@@ -14,9 +13,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
@@ -53,10 +50,10 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
         disposables.add(
                 eventBus.subscribe("/rule-engine/cluster-scheduler/join", String.class)
                         .map(id -> new RemoteScheduler(id, rpcService))
-                        .filter(scheduler -> !localSchedulers.contains(scheduler)&&!remoteSchedulers.contains(scheduler))
+                        .filter(scheduler -> !localSchedulers.contains(scheduler) && !remoteSchedulers.contains(scheduler))
                         .doOnNext(remoteScheduler -> {
                             joinSink.next(remoteScheduler);
-                            publishLocal().subscribe();
+                            publishLocal().subscribe(); //有节点上线，广播本地节点。
                         })
                         .subscribe(
                                 remoteSchedulers::add,
@@ -81,7 +78,6 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
     }
 
     public void cleanup() {
-
         eventBus.publish(
                 "/rule-engine/cluster-scheduler/leave",
                 Flux.fromIterable(localSchedulers).map(Scheduler::getId))
@@ -110,8 +106,9 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
     }
 
     @Override
-    public Mono<Void> register(Scheduler scheduler) {
+    public void register(Scheduler scheduler) {
         localSchedulers.add(scheduler);
-        return publishLocal();
+        publishLocal()
+                .subscribe();
     }
 }

@@ -2,8 +2,7 @@ package org.jetlinks.rule.engine.api.model;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.jetlinks.rule.engine.api.cluster.RunMode;
-import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
+import org.jetlinks.rule.engine.api.scheduler.SchedulingRule;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -23,8 +22,6 @@ public class RuleModel {
     private String name;
 
     private String description;
-
-    private RunMode runMode;
 
     private SchedulingRule schedulingRule;
 

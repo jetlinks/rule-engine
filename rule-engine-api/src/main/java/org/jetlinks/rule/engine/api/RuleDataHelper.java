@@ -42,13 +42,13 @@ public class RuleDataHelper {
     }
 
     public RuleDataHelper markStartWith(String startWithNodeId) {
-        ruleData.setAttribute(START_WITH_NODE, startWithNodeId);
+        ruleData.setHeader(START_WITH_NODE, startWithNodeId);
         return this;
     }
 
     public RuleDataHelper markEndWith(String endWithNodeId) {
-        ruleData.setAttribute(END_WITH_NODE, endWithNodeId);
-        ruleData.setAttribute(SYNC_RETURN, true);
+        ruleData.setHeader(END_WITH_NODE, endWithNodeId);
+        ruleData.setHeader(SYNC_RETURN, true);
         return this;
     }
 
@@ -60,37 +60,37 @@ public class RuleDataHelper {
     }
 
     public static void markStartWith(RuleData data, String startWithNodeId) {
-        data.setAttribute(START_WITH_NODE, startWithNodeId);
+        data.setHeader(START_WITH_NODE, startWithNodeId);
     }
 
     public static void setExecuteTimeNow(RuleData data) {
-        data.setAttribute(EXECUTE_TIME, System.currentTimeMillis());
+        data.setHeader(EXECUTE_TIME, System.currentTimeMillis());
     }
 
     public static boolean isSync(RuleData data) {
-        return data.getAttribute(SYNC_RETURN)
+        return data.getHeader(SYNC_RETURN)
                 .map(Boolean.class::cast)
                 .orElse(false);
     }
 
     public static Optional<String> getStartWithNodeId(RuleData data) {
-        return data.getAttribute(START_WITH_NODE)
+        return data.getHeader(START_WITH_NODE)
                 .map(String::valueOf);
     }
 
     public static Optional<String> getEndWithNodeId(RuleData data) {
-        return data.getAttribute(END_WITH_NODE)
+        return data.getHeader(END_WITH_NODE)
                 .map(String::valueOf);
     }
 
     public static RuleData markSyncReturn(RuleData data) {
-        data.setAttribute(SYNC_RETURN, true);
+        data.setHeader(SYNC_RETURN, true);
 
         return data;
     }
 
     public static boolean hasError(RuleData data) {
-        return data.getAttribute(ERROR_TYPE).isPresent();
+        return data.getHeader(ERROR_TYPE).isPresent();
     }
 
     public static RuleData putError(RuleData data, Throwable error) {
@@ -99,26 +99,26 @@ public class RuleDataHelper {
         }
         putError(data, error.getClass().getName(), error.getMessage());
         String stack = StringUtils.throwable2String(error);
-        data.setAttribute(ERROR_STACK, stack);
+        data.setHeader(ERROR_STACK, stack);
         return data;
     }
 
     public static RuleData putError(RuleData data, String type, String message) {
-        data.setAttribute(ERROR_TYPE, type);
-        data.setAttribute(ERROR_MESSAGE, message);
+        data.setHeader(ERROR_TYPE, type);
+        data.setHeader(ERROR_MESSAGE, message);
         return data;
     }
 
     public static RuleData clearError(RuleData data) {
-        data.removeAttribute(ERROR_TYPE);
-        data.removeAttribute(ERROR_MESSAGE);
-        data.removeAttribute(ERROR_STACK);
+        data.removeHeader(ERROR_TYPE);
+        data.removeHeader(ERROR_MESSAGE);
+        data.removeHeader(ERROR_STACK);
         return data;
     }
 
     public static RuleData markSyncReturn(RuleData data, String endWithId) {
-        data.setAttribute(SYNC_RETURN, true);
-        data.setAttribute(END_WITH_NODE, endWithId);
+        data.setHeader(SYNC_RETURN, true);
+        data.setHeader(END_WITH_NODE, endWithId);
         return data;
     }
 
@@ -131,7 +131,7 @@ public class RuleDataHelper {
         if(map.isEmpty()){
             map.put("data", ruleData.getData());
         }
-        map.put("attr", ruleData.getAttributes());
+        map.put("headers", ruleData.getHeaders());
         return map;
     }
 }

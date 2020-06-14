@@ -1,7 +1,11 @@
 package org.jetlinks.rule.engine.api;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 public interface Decoder<T> {
 
-    T decode(Payload payload);
+    @Nullable
+    T decode(@Nonnull Payload payload);
 
 }

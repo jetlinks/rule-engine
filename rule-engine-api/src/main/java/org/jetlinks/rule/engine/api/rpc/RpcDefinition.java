@@ -2,7 +2,7 @@ package org.jetlinks.rule.engine.api.rpc;
 
 import org.jetlinks.rule.engine.api.codec.Codec;
 import org.jetlinks.rule.engine.api.codec.Codecs;
-import org.jetlinks.rule.engine.api.codec.defaults.ErrorCodec;
+import org.jetlinks.rule.engine.defaults.codec.ErrorCodec;
 
 /**
  * Rpc定义信息
@@ -29,13 +29,16 @@ public interface RpcDefinition<REQ, RES> {
      */
     Codec<RES> responseCodec();
 
+    /**
+     * @return 错误相应编解码器
+     */
     default Codec<Throwable> errorCodec() {
         return ErrorCodec.DEFAULT;
     }
 
     static <REQ, RES> RpcDefinition<REQ, RES> of(String address,
-                                                 Codec<? extends REQ> requestCodec,
-                                                 Codec<? extends RES> responseCodec) {
+                                                 Codec<REQ> requestCodec,
+                                                 Codec<RES> responseCodec) {
         return new DefaultRpcDefinition<>(address, requestCodec, responseCodec);
     }
 

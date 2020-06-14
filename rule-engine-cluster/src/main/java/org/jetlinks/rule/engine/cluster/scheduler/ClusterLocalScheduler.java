@@ -2,9 +2,13 @@ package org.jetlinks.rule.engine.cluster.scheduler;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.jetlinks.rule.engine.api.*;
-import org.jetlinks.rule.engine.api.cluster.SchedulingRule;
+import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
+import org.jetlinks.rule.engine.api.scheduler.Scheduler;
+import org.jetlinks.rule.engine.api.scheduler.SchedulingRule;
 import org.jetlinks.rule.engine.api.rpc.RpcService;
+import org.jetlinks.rule.engine.api.task.Task;
+import org.jetlinks.rule.engine.api.worker.Worker;
+import org.jetlinks.rule.engine.api.worker.WorkerSelector;
 import org.jetlinks.rule.engine.cluster.task.TaskRpc;
 import org.jetlinks.rule.engine.cluster.worker.ClusterLocalWorker;
 import reactor.core.Disposable;
@@ -26,8 +30,10 @@ public class ClusterLocalScheduler implements Scheduler {
     private final String id;
     private final RpcService rpcService;
 
+    final static WorkerSelector defaultSelector = (workers1, rule) -> workers1.take(1);
+
     @Setter
-    private WorkerSelector workerSelector;
+    private WorkerSelector workerSelector = defaultSelector;
 
     private final List<Disposable> disposables = new CopyOnWriteArrayList<>();
 
@@ -46,7 +52,7 @@ public class ClusterLocalScheduler implements Scheduler {
     }
 
     public void setup() {
-        
+
         disposables.add(
                 rpcService.listen(
                         SchedulerRpc.canSchedule(getId()),
@@ -87,7 +93,7 @@ public class ClusterLocalScheduler implements Scheduler {
         disposables.add(
                 rpcService.listen(
                         SchedulerRpc.getSchedulingJobs(getId()),
-                        (addr, id) -> getSchedulingJob(id)
+                        (addr, id) -> getSchedulingTask(id)
                                 .map(task -> new TaskRpc.TaskInfo(task.getId(), task.getName(), task.getWorkerId(), task.getJob()))
                 )
         );
@@ -95,7 +101,7 @@ public class ClusterLocalScheduler implements Scheduler {
         disposables.add(
                 rpcService.listen(
                         SchedulerRpc.getSchedulingAllJobs(getId()),
-                        (addr, id) -> getSchedulingJobs()
+                        (addr, id) -> getSchedulingTasks()
                                 .map(task -> new TaskRpc.TaskInfo(task.getId(), task.getName(), task.getWorkerId(), task.getJob()))
                 )
         );
@@ -110,7 +116,7 @@ public class ClusterLocalScheduler implements Scheduler {
         }
     }
 
-    public void register(Worker worker) {
+    public void addWorker(Worker worker) {
         localWorkers.add(wrapLocalWorker(worker));
     }
 
@@ -149,7 +155,7 @@ public class ClusterLocalScheduler implements Scheduler {
     }
 
     private Flux<Task> createExecutor(ScheduleJob job) {
-        return findWorker(job.getExecutor(), job.getSchedulingRule())
+        return findWorker(job.getExecutor(), job)
                 .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("unsupported executor:" + job.getExecutor())))
                 .flatMap(worker -> worker.createTask(id, job))
                 .doOnNext(task -> getExecutor(job.getInstanceId(), job.getNodeId()).add(task));
@@ -157,19 +163,19 @@ public class ClusterLocalScheduler implements Scheduler {
 
     @Override
     public Mono<Void> shutdown(String instanceId) {
-        return getSchedulingJob(instanceId)
+        return getSchedulingTask(instanceId)
                 .flatMap(Task::shutdown)
                 .then();
     }
 
     @Override
-    public Flux<Task> getSchedulingJob(String instanceId) {
+    public Flux<Task> getSchedulingTask(String instanceId) {
         return Flux.fromIterable(getExecutor(instanceId).values())
                 .flatMapIterable(Function.identity());
     }
 
     @Override
-    public Flux<Task> getSchedulingJobs() {
+    public Flux<Task> getSchedulingTasks() {
         return Flux.fromIterable(localTasks.values())
                 .flatMapIterable(Map::values)
                 .flatMapIterable(Function.identity());
@@ -177,21 +183,21 @@ public class ClusterLocalScheduler implements Scheduler {
 
     @Override
     public Mono<Long> totalTask() {
-        return getSchedulingJobs().count();
+        return getSchedulingTasks().count();
     }
 
     @Override
     public Mono<Boolean> canSchedule(ScheduleJob job) {
-        return findWorker(job.getExecutor(), job.getSchedulingRule())
+        return findWorker(job.getExecutor(), job)
                 .hasElements();
     }
 
-    protected Flux<Worker> findWorker(String executor, SchedulingRule schedulingRule) {
+    protected Flux<Worker> findWorker(String executor, ScheduleJob job) {
         return workerSelector
                 .select(Flux.fromIterable(localWorkers)
                         .filterWhen(exe -> exe.getSupportExecutors()
                                 .map(list -> list.contains(executor))
-                                .defaultIfEmpty(false)), schedulingRule);
+                                .defaultIfEmpty(false)), job);
     }
 
     private List<Task> getExecutor(String instanceId, String nodeId) {

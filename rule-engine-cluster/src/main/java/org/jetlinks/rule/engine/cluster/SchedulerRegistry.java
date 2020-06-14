@@ -1,6 +1,6 @@
 package org.jetlinks.rule.engine.cluster;
 
-import org.jetlinks.rule.engine.api.Scheduler;
+import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -30,8 +30,7 @@ public interface SchedulerRegistry {
      * 注册Scheduler到注册中心
      *
      * @param worker scheduler
-     * @return empty mono
      */
-    Mono<Void> register(Scheduler worker);
+    void register(Scheduler worker);
 
 }

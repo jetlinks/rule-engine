@@ -1,6 +1,6 @@
 package org.jetlinks.rule.engine.cluster.balancer;
 
-import org.jetlinks.rule.engine.api.Scheduler;
+import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import reactor.core.publisher.Mono;
 
 import java.util.List;

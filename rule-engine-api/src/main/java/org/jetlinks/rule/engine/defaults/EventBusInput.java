@@ -2,7 +2,8 @@ package org.jetlinks.rule.engine.defaults;
 
 import lombok.AllArgsConstructor;
 import org.jetlinks.rule.engine.api.*;
-import org.jetlinks.rule.engine.api.executor.Input;
+import org.jetlinks.rule.engine.api.task.Input;
+import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 
@@ -21,7 +22,7 @@ public class EventBusInput implements Input {
     private final EventBus bus;
 
     @Override
-    public Flux<RuleData> subscribe() {
+    public Flux<RuleData> accept() {
         Flux<RuleData> input = bus.subscribe(RuleConstants.Topics.input(instanceId, nodeId), RuleData.class);
 
         if (!CollectionUtils.isEmpty(events)) {
@@ -34,8 +35,4 @@ public class EventBusInput implements Input {
         return input;
     }
 
-    @Override
-    public void close() {
-
-    }
 }

@@ -1,8 +1,7 @@
 package org.jetlinks.rule.engine.cluster;
 
-import org.jetlinks.rule.engine.api.Task;
-import org.jetlinks.rule.engine.api.Worker;
-import org.jetlinks.rule.engine.api.TaskSnapshot;
+import org.jetlinks.rule.engine.api.worker.Worker;
+import org.jetlinks.rule.engine.api.task.TaskSnapshot;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;

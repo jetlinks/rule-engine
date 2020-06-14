@@ -2,9 +2,9 @@ package org.jetlinks.rule.engine.cluster.worker;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.jetlinks.rule.engine.api.Task;
-import org.jetlinks.rule.engine.api.Worker;
-import org.jetlinks.rule.engine.api.ScheduleJob;
+import org.jetlinks.rule.engine.api.task.Task;
+import org.jetlinks.rule.engine.api.worker.Worker;
+import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.rpc.RpcService;
 import org.jetlinks.rule.engine.cluster.task.RemoteTask;
 import reactor.core.publisher.Mono;
@@ -29,8 +29,8 @@ public class RemoteWorker implements Worker {
                 .singleOrEmpty()
                 .map(response -> new RemoteTask(
                         response.getTaskId(),
-                        id,
                         response.getTaskName(),
+                        id,
                         schedulerId,
                         rpcService,
                         job

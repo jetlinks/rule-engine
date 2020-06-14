@@ -28,7 +28,7 @@ public class ClusterSchedulerRegistryTest {
 
             ClusterLocalScheduler scheduler = new ClusterLocalScheduler("test", rpcService);
             scheduler.setup();
-            registry.register(scheduler).subscribe();
+            registry.register(scheduler);
         }
 
         ClusterSchedulerRegistry registry = new ClusterSchedulerRegistry(eventBus, rpcService);
@@ -36,7 +36,7 @@ public class ClusterSchedulerRegistryTest {
         ClusterLocalScheduler scheduler = new ClusterLocalScheduler("test2", rpcService);
         scheduler.setup();
 
-        registry.register(scheduler).subscribe();
+        registry.register(scheduler);
 
         registry.getSchedulers()
                 .as(StepVerifier::create)
