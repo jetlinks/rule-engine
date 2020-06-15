@@ -105,11 +105,6 @@ public class ScheduleJob implements Serializable {
         private Condition condition;
     }
 
-    public boolean isChanged(ScheduleJob job) {
-        // TODO: 2020/6/10  
-        return false;
-    }
-
     @Override
     public String toString() {
         return instanceId + ":" + nodeId + "(" + executor + ")";

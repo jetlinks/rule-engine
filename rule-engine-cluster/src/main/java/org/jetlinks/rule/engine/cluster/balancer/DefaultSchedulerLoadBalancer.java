@@ -1,16 +1,19 @@
 package org.jetlinks.rule.engine.cluster.balancer;
 
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.rule.engine.api.EventBus;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
+import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.cluster.SchedulerRegistry;
 import org.jetlinks.rule.engine.cluster.TaskSnapshotRepository;
 import org.springframework.util.CollectionUtils;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
+@Slf4j
 public class DefaultSchedulerLoadBalancer implements SchedulerLoadBalancer {
 
     //均衡器ID,集群全局唯一
@@ -25,14 +28,39 @@ public class DefaultSchedulerLoadBalancer implements SchedulerLoadBalancer {
     @Setter
     private boolean autoReBalance = true;
 
-    private EventBus eventBus;
+    private final EventBus eventBus;
 
-    private SchedulerRegistry registry;
+    private final SchedulerRegistry registry;
 
-    private TaskSnapshotRepository snapshotRepository;
+    private final TaskSnapshotRepository snapshotRepository;
 
-    public void start() {
+    public DefaultSchedulerLoadBalancer(EventBus eventBus,
+                                        SchedulerRegistry registry,
+                                        TaskSnapshotRepository snapshotRepository) {
+        this.eventBus = eventBus;
+        this.registry = registry;
+        this.snapshotRepository = snapshotRepository;
+    }
+
+    public void setup() {
         uptime = System.currentTimeMillis();
+        //恢复当前节点的任务
+        Flux.fromIterable(registry.getLocalSchedulers())
+                .flatMap(scheduler -> snapshotRepository
+                        .findBySchedulerId(scheduler.getId())
+                        .filterWhen(snapshot -> scheduler.canSchedule(snapshot.getJob()))
+                        .flatMap(snapshot -> scheduler
+                                .schedule(snapshot.getJob())
+                                .flatMap(task -> {
+                                    if (snapshot.getState() == Task.State.running) {
+                                        return task.start();
+                                    }
+                                    return Mono.empty();
+                                })
+                                .onErrorContinue((err, obj) -> log.debug(err.getMessage(), err)))
+                )
+                .doOnError(err -> log.debug(err.getMessage(), err))
+                .subscribe();
 
         if (!autoReBalance) {
             return;
@@ -51,20 +79,16 @@ public class DefaultSchedulerLoadBalancer implements SchedulerLoadBalancer {
                 });
     }
 
+    public void cleanup() {
+
+    }
+
     @Override
     public Mono<Void> reBalance(List<Scheduler> schedulers, boolean balanceAll) {
         if (CollectionUtils.isEmpty(schedulers)) {
             return Mono.empty();
         }
-        List<String> schedulerList = schedulers.stream()
-                .map(Scheduler::getId)
-                .collect(Collectors.toList());
-
-        //查询由其他调度器调度的任务
-        snapshotRepository
-                .findBySchedulerIdNotIn(schedulerList);
-
-
-        return null;
+        //TODO 实现re balance
+        return Mono.empty();
     }
 }

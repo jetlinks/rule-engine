@@ -48,11 +48,11 @@ public final class Codecs {
         throw new UnsupportedOperationException("unsupported codec for " + target);
     }
 
-    public static <T> Codec<T> lookup(@Nonnull Class<T> target) {
+    public static <T> Codec<T> lookup(@Nonnull Class<? extends T> target) {
         return (Codec<T>) mapping.computeIfAbsent(new Cache(Type.OBJ, target), t -> resolve(t));
     }
 
-    public static <T> Codec<List<T>> lookupForList(@Nonnull Class<T> target) {
+    public static <T> Codec<List<T>> lookupForList(@Nonnull Class<? extends T> target) {
         return (Codec<List<T>>) mapping.computeIfAbsent(new Cache(Type.ARR, target), t -> resolve(t));
     }
 

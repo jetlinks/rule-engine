@@ -6,12 +6,16 @@ public interface RuleConstants {
         String error = "error";
         String result = "result";
         String complete = "complete";
+
+        String start = "start";
+        String paused = "paused";
+
     }
 
     interface Topics {
 
         static String prefix(String instanceId, String nodeId) {
-            return "/rule/engine/" + instanceId + "/" + nodeId;
+            return "/rule-engine/" + instanceId + "/" + nodeId;
         }
 
         static String input(String instanceId, String nodeId) {
@@ -24,6 +28,10 @@ public interface RuleConstants {
 
         static String event(String instanceId, String nodeId, String event) {
             return prefix(instanceId, nodeId) + "/event/" + event;
+        }
+
+        static String state(String instanceId, String nodeId) {
+            return prefix(instanceId, nodeId) + "/state";
         }
     }
 }

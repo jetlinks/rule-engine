@@ -161,7 +161,7 @@ public class EventBusRcpService implements RpcService {
                             })
                             .doOnError(sink::error)
                             .subscribe());
-                    log.debug("do invoke rcp:{}", definition.getAddress());
+                    log.debug("do invoke rpc:{}", definition.getAddress());
                     doSend.apply(id, reqTopic)
                             .map(i -> {
                                 if (i == 0) {

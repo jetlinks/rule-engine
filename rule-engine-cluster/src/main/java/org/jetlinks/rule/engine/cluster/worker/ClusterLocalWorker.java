@@ -62,8 +62,8 @@ public class ClusterLocalWorker implements Worker {
     public Mono<Task> createTask(String schedulerId, ScheduleJob job) {
 
         return localWorker.createTask(schedulerId, job)
-                .map(task->{
-                    ClusterLocalTask clusterLocalTask= new ClusterLocalTask(task,rpcService);
+                .map(task -> {
+                    ClusterLocalTask clusterLocalTask = new ClusterLocalTask(task, rpcService);
                     clusterLocalTask.setup();
                     return clusterLocalTask;
                 })

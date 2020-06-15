@@ -25,6 +25,10 @@ public class RemoteScheduler implements Scheduler {
         //TODO
         return Mono.just(true);
     }
+    public Mono<Boolean> isNoAlive() {
+        //TODO
+        return Mono.just(false);
+    }
 
     @Override
     public Flux<Worker> getWorkers() {

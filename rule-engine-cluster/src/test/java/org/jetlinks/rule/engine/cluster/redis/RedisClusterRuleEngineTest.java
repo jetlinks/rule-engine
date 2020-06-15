@@ -1,13 +1,13 @@
-package org.jetlinks.rule.engine.cluster;
+package org.jetlinks.rule.engine.cluster.redis;
 
 import org.jetlinks.rule.engine.api.EventBus;
 import org.jetlinks.rule.engine.api.rpc.RpcService;
+import org.jetlinks.rule.engine.cluster.AbstractClusterRuleEngineTest;
 import org.jetlinks.rule.engine.cluster.rpc.EventBusRcpService;
-import org.jetlinks.rule.engine.defaults.LocalEventBus;
 
-public class ClusterRuleEngineTest extends AbstractClusterRuleEngineTest{
+public class RedisClusterRuleEngineTest extends AbstractClusterRuleEngineTest {
 
-    EventBus eventBus = new LocalEventBus();
+    EventBus eventBus=new RedisEventBus(RedisHelper.connectionFactory());
     RpcService rpcService = new EventBusRcpService(eventBus);
 
     @Override

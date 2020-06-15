@@ -2,10 +2,9 @@ package org.jetlinks.rule.engine.cluster.scheduler;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.jetlinks.rule.engine.api.rpc.RpcService;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
-import org.jetlinks.rule.engine.api.scheduler.SchedulingRule;
-import org.jetlinks.rule.engine.api.rpc.RpcService;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.worker.Worker;
 import org.jetlinks.rule.engine.api.worker.WorkerSelector;
@@ -39,9 +38,6 @@ public class ClusterLocalScheduler implements Scheduler {
 
     //本地worker
     private final Set<Worker> localWorkers = new ConcurrentSkipListSet<>(Comparator.comparing(Worker::getId));
-
-    //其他节点的worker
-    private final Set<Worker> remoteWorkers = new ConcurrentSkipListSet<>(Comparator.comparing(Worker::getId));
 
     //本地调度中的任务
     private final Map<String/*规则实例ID*/, Map<String/*nodeId*/, List<Task>>> localTasks = new ConcurrentHashMap<>();
@@ -128,7 +124,7 @@ public class ClusterLocalScheduler implements Scheduler {
 
     @Override
     public Flux<Worker> getWorkers() {
-        return Flux.just(localWorkers, remoteWorkers)
+        return Flux.just(localWorkers)
                 .flatMapIterable(Function.identity());
     }
 

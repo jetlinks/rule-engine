@@ -5,6 +5,7 @@ import org.jetlinks.rule.engine.api.RuleEngine;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.model.RuleModel;
+import org.jetlinks.rule.engine.api.worker.Worker;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -33,5 +34,8 @@ public class DefaultRuleEngine implements RuleEngine {
         return scheduler.shutdown(instanceId);
     }
 
-
+    @Override
+    public Flux<Worker> getWorkers() {
+        return scheduler.getWorkers();
+    }
 }

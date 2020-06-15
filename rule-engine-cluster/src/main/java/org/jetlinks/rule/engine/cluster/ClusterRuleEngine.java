@@ -7,12 +7,14 @@ import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.task.TaskSnapshot;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.model.RuleModel;
+import org.jetlinks.rule.engine.api.worker.Worker;
 import org.jetlinks.rule.engine.defaults.ScheduleJobCompiler;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.function.Function;
@@ -30,6 +32,14 @@ public class ClusterRuleEngine implements RuleEngine {
 
     private final TaskSnapshotRepository repository;
 
+    @Override
+    public Mono<Void> shutdown(String instanceId) {
+        return schedulerRegistry.getSchedulers()
+                .flatMap(scheduler -> scheduler.shutdown(instanceId))
+                .then(repository.removeTaskByInstanceId(instanceId))
+                .then();
+    }
+
     public Flux<Task> startRule(String instanceId, RuleModel model) {
         //编译
         Map<String, ScheduleJob> jobs = new ScheduleJobCompiler(instanceId, model).compile()
@@ -46,7 +56,7 @@ public class ClusterRuleEngine implements RuleEngine {
                                 .then(task.reload())
                                 .thenReturn(task)
                         ).switchIfEmpty(Flux.defer(() -> //没有worker调度此任务? 重新调度
-                                scheduleTask(jobs.get(snapshot.getJob().getNodeId()))
+                               doStart(Collections.singleton(jobs.get(snapshot.getJob().getNodeId())))
                                         .flatMap(task -> repository
                                                 .saveTaskSnapshots(task.dump())
                                                 .thenReturn(task))))
@@ -90,5 +100,12 @@ public class ClusterRuleEngine implements RuleEngine {
     public Flux<Task> getTasks(String instance) {
         return schedulerRegistry.getSchedulers()
                 .flatMap(scheduler -> scheduler.getSchedulingTask(instance));
+    }
+
+    @Override
+    public Flux<Worker> getWorkers() {
+        return schedulerRegistry.getSchedulers()
+                .flatMap(Scheduler::getWorkers)
+                ;
     }
 }

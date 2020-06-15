@@ -10,17 +10,17 @@ import reactor.core.publisher.Mono;
 import java.util.function.Function;
 
 public class LambdaTaskExecutorProvider implements TaskExecutorProvider {
-    private final Function<RuleData, Publisher<RuleData>> function;
+    private final Function<RuleData, Publisher<?>> function;
 
     private final String executor;
 
     private final String name;
 
-    public LambdaTaskExecutorProvider(String executor, Function<RuleData, Publisher<RuleData>> function) {
+    public LambdaTaskExecutorProvider(String executor, Function<RuleData, Publisher<?>> function) {
         this(executor, executor, function);
     }
 
-    public LambdaTaskExecutorProvider(String executor, String name, Function<RuleData, Publisher<RuleData>> function) {
+    public LambdaTaskExecutorProvider(String executor, String name, Function<RuleData, Publisher<?>> function) {
         this.function = function;
         this.executor = executor;
         this.name = name;
@@ -33,19 +33,7 @@ public class LambdaTaskExecutorProvider implements TaskExecutorProvider {
 
     @Override
     public Mono<TaskExecutor> createTask(ExecutionContext context) {
-        return Mono.just(new LambdaTaskExecutor(name, context));
+        return Mono.just(new LambdaTaskExecutor(name, context,function));
     }
 
-
-    private class LambdaTaskExecutor extends FunctionTaskExecutor {
-
-        public LambdaTaskExecutor(String name, ExecutionContext context) {
-            super(name, context);
-        }
-
-        @Override
-        protected Publisher<RuleData> apply(RuleData input) {
-            return function.apply(input);
-        }
-    }
 }

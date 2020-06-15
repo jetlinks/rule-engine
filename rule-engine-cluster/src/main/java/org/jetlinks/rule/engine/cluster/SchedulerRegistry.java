@@ -2,9 +2,14 @@ package org.jetlinks.rule.engine.cluster;
 
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 public interface SchedulerRegistry {
+
+
+    List<Scheduler> getLocalSchedulers();
+
     /**
      * 获取全部Scheduler
      *

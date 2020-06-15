@@ -39,15 +39,15 @@ public interface EventBus {
      * @param eventStream 事件流
      * @return 接收的订阅者数量
      */
-    <T> Mono<Integer> publish(String topic, Encoder<T> decoder, Publisher<? extends T> eventStream);
+    <T> Mono<Integer> publish(String topic, Encoder<T> encoder, Publisher<? extends T> eventStream);
 
-    default <T> Mono<Integer> publish(String topic, Encoder<T> decoder, T event) {
-        return publish(topic, decoder, Mono.just(event));
+    default <T> Mono<Integer> publish(String topic, Encoder<T> encoder, T event) {
+        return publish(topic, encoder, Mono.just(event));
     }
 
-    <T> Flux<Payload> subscribe(String topic);
+    Flux<SubscribePayload> subscribe(String topic);
 
-    <T> Mono<Integer> publish(String topic, Publisher<? extends T> event);
+    <T> Mono<Integer> publish(String topic, Publisher<T> event);
 
     @SuppressWarnings("all")
     default <T> Mono<Integer> publish(String topic, T event) {

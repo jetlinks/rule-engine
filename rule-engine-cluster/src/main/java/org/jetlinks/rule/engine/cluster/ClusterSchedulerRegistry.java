@@ -1,9 +1,9 @@
 package org.jetlinks.rule.engine.cluster;
 
 import lombok.extern.slf4j.Slf4j;
-import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.api.EventBus;
 import org.jetlinks.rule.engine.api.rpc.RpcService;
+import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.cluster.scheduler.RemoteScheduler;
 import reactor.core.Disposable;
 import reactor.core.publisher.EmitterProcessor;
@@ -11,6 +11,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -43,7 +45,9 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
     }
 
     public void setup() {
-
+        if (!disposables.isEmpty()) {
+            return;
+        }
         joinProcessor.subscribe(scheduler -> log.debug("remote scheduler join:{}", scheduler.getId()));
         leaveProcessor.subscribe(scheduler -> log.debug("remote scheduler leaved:{}", scheduler.getId()));
 
@@ -69,6 +73,20 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
                         .subscribe(remoteSchedulers::remove)
         );
 
+        disposables.add(
+                Flux.interval(Duration.ofSeconds(10))
+                        .subscribe(ignore ->
+                                Flux.fromIterable(remoteSchedulers)
+                                        .filterWhen(RemoteScheduler::isNoAlive)
+                                        .doOnNext(scheduler -> {
+                                            remoteSchedulers.remove(scheduler);
+                                            leaveSink.next(scheduler);
+                                        })
+                                        .then(publishLocal())
+                                        .subscribe())
+        );
+
+        publishLocal().subscribe();
     }
 
     private Mono<Void> publishLocal() {
@@ -108,7 +126,13 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
     @Override
     public void register(Scheduler scheduler) {
         localSchedulers.add(scheduler);
-        publishLocal()
-                .subscribe();
+        if (!disposables.isEmpty()) {
+            publishLocal().subscribe();
+        }
+    }
+
+    @Override
+    public List<Scheduler> getLocalSchedulers() {
+        return new ArrayList<>(localSchedulers);
     }
 }
