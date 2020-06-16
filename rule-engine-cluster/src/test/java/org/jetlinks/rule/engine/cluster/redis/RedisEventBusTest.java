@@ -23,6 +23,7 @@ public class RedisEventBusTest {
         eventBus.subscribe("/test/*/a", Integer.class)
                 .take(1)
                 .subscribe(ref::set);
+        Thread.sleep(1000);
         eventBus.publish("/test/a/a", Flux.just(1))
                 .as(StepVerifier::create)
                 .expectNext(1)
