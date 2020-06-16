@@ -1,7 +1,7 @@
-package org.jetlinks.rule.engine.cluster.rpc;
+package org.jetlinks.rule.engine.defaults;
 
 import org.jetlinks.rule.engine.api.rpc.RpcDefinition;
-import org.jetlinks.rule.engine.defaults.LocalEventBus;
+import org.jetlinks.rule.engine.defaults.rpc.EventBusRcpService;
 import org.junit.Test;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;

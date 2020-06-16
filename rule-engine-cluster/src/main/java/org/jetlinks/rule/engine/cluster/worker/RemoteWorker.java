@@ -2,10 +2,10 @@ package org.jetlinks.rule.engine.cluster.worker;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.worker.Worker;
-import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
-import org.jetlinks.rule.engine.api.rpc.RpcService;
+import org.jetlinks.rule.engine.cluster.scheduler.SchedulerRpcService;
 import org.jetlinks.rule.engine.cluster.task.RemoteTask;
 import reactor.core.publisher.Mono;
 
@@ -20,16 +20,15 @@ public class RemoteWorker implements Worker {
     @Getter
     private final String name;
 
-    private final RpcService rpcService;
+    private final SchedulerRpcService rpcService;
 
     @Override
     public Mono<Task> createTask(String schedulerId, ScheduleJob job) {
         return rpcService
-                .invoke(WorkerRpc.createTask(id), new WorkerRpc.CreateTaskRequest(schedulerId, job))
-                .singleOrEmpty()
+                .createTask(id,job)
                 .map(response -> new RemoteTask(
-                        response.getTaskId(),
-                        response.getTaskName(),
+                        response.getId(),
+                        response.getName(),
                         id,
                         schedulerId,
                         rpcService,
@@ -40,14 +39,12 @@ public class RemoteWorker implements Worker {
     @Override
     public Mono<List<String>> getSupportExecutors() {
         return rpcService
-                .invoke(WorkerRpc.getSupportExecutors(id))
-                .singleOrEmpty();
+                .getSupportExecutors(id);
     }
 
     @Override
     public Mono<State> getState() {
         return rpcService
-                .invoke(WorkerRpc.getWorkerState(id))
-                .singleOrEmpty();
+                .getWorkerState(id);
     }
 }

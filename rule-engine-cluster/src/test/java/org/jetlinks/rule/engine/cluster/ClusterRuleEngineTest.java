@@ -2,7 +2,7 @@ package org.jetlinks.rule.engine.cluster;
 
 import org.jetlinks.rule.engine.api.EventBus;
 import org.jetlinks.rule.engine.api.rpc.RpcService;
-import org.jetlinks.rule.engine.cluster.rpc.EventBusRcpService;
+import org.jetlinks.rule.engine.defaults.rpc.EventBusRcpService;
 import org.jetlinks.rule.engine.defaults.LocalEventBus;
 
 public class ClusterRuleEngineTest extends AbstractClusterRuleEngineTest{

@@ -1,4 +1,4 @@
-package org.jetlinks.rule.engine.cluster.rpc;
+package org.jetlinks.rule.engine.defaults.rpc;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -85,7 +85,10 @@ public class EventBusRcpService implements RpcService {
             Flux.from(invoker.apply(reqTopic, processor.onBackpressureBuffer()))
                     .flatMap(res -> reply(reqTopicRes, RcpResult.result(requestId, definition.responseCodec().encode(res))))
                     .doOnComplete(() -> reply(reqTopicRes, RcpResult.complete(requestId)).subscribe())
-                    .doOnError((e) -> reply(reqTopicRes, RcpResult.error(requestId, definition.errorCodec().encode(e))).subscribe())
+                    .doOnError((e) -> {
+                        log.error(e.getMessage(),e);
+                        reply(reqTopicRes, RcpResult.error(requestId, definition.errorCodec().encode(e))).subscribe();
+                    })
                     .subscribe();
             sink.onDispose(disposable);
         }

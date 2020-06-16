@@ -2,16 +2,13 @@ package org.jetlinks.rule.engine.cluster;
 
 import org.jetlinks.rule.engine.api.EventBus;
 import org.jetlinks.rule.engine.api.rpc.RpcService;
-import org.jetlinks.rule.engine.cluster.rpc.EventBusRcpService;
+import org.jetlinks.rule.engine.api.rpc.RpcServiceFactory;
+import org.jetlinks.rule.engine.defaults.DefaultRpcServiceFactory;
+import org.jetlinks.rule.engine.defaults.rpc.EventBusRcpService;
 import org.jetlinks.rule.engine.cluster.scheduler.ClusterLocalScheduler;
-import org.jetlinks.rule.engine.cluster.task.MockTask;
 import org.jetlinks.rule.engine.defaults.LocalEventBus;
 import org.junit.Test;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
-
-import static org.junit.Assert.*;
 
 public class ClusterSchedulerRegistryTest {
 
@@ -22,19 +19,19 @@ public class ClusterSchedulerRegistryTest {
 
     @Test
     public void test() {
+        RpcServiceFactory factory=new DefaultRpcServiceFactory(rpcService);
+
         {
-            ClusterSchedulerRegistry registry = new ClusterSchedulerRegistry(eventBus, rpcService);
+            ClusterSchedulerRegistry registry = new ClusterSchedulerRegistry(eventBus, factory);
             registry.setup();
 
-            ClusterLocalScheduler scheduler = new ClusterLocalScheduler("test", rpcService);
-            scheduler.setup();
+            ClusterLocalScheduler scheduler = new ClusterLocalScheduler("test", factory);
             registry.register(scheduler);
         }
 
-        ClusterSchedulerRegistry registry = new ClusterSchedulerRegistry(eventBus, rpcService);
+        ClusterSchedulerRegistry registry = new ClusterSchedulerRegistry(eventBus, factory);
         registry.setup();
-        ClusterLocalScheduler scheduler = new ClusterLocalScheduler("test2", rpcService);
-        scheduler.setup();
+        ClusterLocalScheduler scheduler = new ClusterLocalScheduler("test2", factory);
 
         registry.register(scheduler);
 

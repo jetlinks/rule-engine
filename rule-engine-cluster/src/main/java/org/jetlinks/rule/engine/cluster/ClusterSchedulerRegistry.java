@@ -2,7 +2,7 @@ package org.jetlinks.rule.engine.cluster;
 
 import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.rule.engine.api.EventBus;
-import org.jetlinks.rule.engine.api.rpc.RpcService;
+import org.jetlinks.rule.engine.api.rpc.RpcServiceFactory;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.cluster.scheduler.RemoteScheduler;
 import reactor.core.Disposable;
@@ -37,11 +37,11 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
     private final List<Disposable> disposables = new CopyOnWriteArrayList<>();
 
     private final EventBus eventBus;
-    private final RpcService rpcService;
+    private final RpcServiceFactory serviceFactory;
 
-    public ClusterSchedulerRegistry(EventBus eventBus, RpcService rpcService) {
+    public ClusterSchedulerRegistry(EventBus eventBus, RpcServiceFactory serviceFactory) {
         this.eventBus = eventBus;
-        this.rpcService = rpcService;
+        this.serviceFactory = serviceFactory;
     }
 
     public void setup() {
@@ -53,9 +53,10 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
 
         disposables.add(
                 eventBus.subscribe("/rule-engine/cluster-scheduler/join", String.class)
-                        .map(id -> new RemoteScheduler(id, rpcService))
+                        .map(id -> new RemoteScheduler(id, serviceFactory))
                         .filter(scheduler -> !localSchedulers.contains(scheduler) && !remoteSchedulers.contains(scheduler))
                         .doOnNext(remoteScheduler -> {
+                            remoteScheduler.init();
                             joinSink.next(remoteScheduler);
                             publishLocal().subscribe(); //有节点上线，广播本地节点。
                         })
@@ -67,7 +68,7 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
 
         disposables.add(
                 eventBus.subscribe("/rule-engine/cluster-scheduler/leave", String.class)
-                        .map(id -> new RemoteScheduler(id, rpcService))
+                        .map(id -> new RemoteScheduler(id, serviceFactory))
                         .filter(scheduler -> !localSchedulers.contains(scheduler))
                         .doOnNext(leaveSink::next)
                         .subscribe(remoteSchedulers::remove)

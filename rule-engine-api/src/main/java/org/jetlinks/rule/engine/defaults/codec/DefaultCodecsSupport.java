@@ -33,6 +33,9 @@ public class DefaultCodecsSupport implements CodecsSupport {
         staticCodec.put(String.class, StringCodec.UTF8);
         staticCodec.put(byte[].class, BytesCodec.INSTANCE);
 
+        staticCodec.put(Void.class, VoidCodec.INSTANCE);
+        staticCodec.put(void.class, VoidCodec.INSTANCE);
+
         {
             JsonCodec<RuleData> codec = JsonCodec.of(RuleData.class);
             staticCodec.put(RuleData.class, codec);

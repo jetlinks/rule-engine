@@ -3,10 +3,9 @@ package org.jetlinks.rule.engine.cluster.task;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.jetlinks.rule.engine.api.RuleData;
-import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
-import org.jetlinks.rule.engine.api.rpc.RpcService;
-import org.reactivestreams.Publisher;
+import org.jetlinks.rule.engine.api.task.Task;
+import org.jetlinks.rule.engine.cluster.scheduler.SchedulerRpcService;
 import reactor.core.publisher.Mono;
 
 @AllArgsConstructor
@@ -24,7 +23,7 @@ public class RemoteTask implements Task {
     private final String schedulerId;
 
     @Getter
-    private final RpcService rpcService;
+    private final SchedulerRpcService rpcService;
 
     @Getter
     private ScheduleJob job;
@@ -33,14 +32,12 @@ public class RemoteTask implements Task {
     public Mono<Void> setJob(ScheduleJob job) {
         this.job = job;
         return rpcService
-                .invoke(TaskRpc.setTaskJob(workerId, id), job)
-                .then();
+                .setTaskJob(id,job);
     }
 
     private Mono<Void> operation(TaskRpc.TaskOperation operation) {
         return rpcService
-                .invoke(TaskRpc.taskOperation(workerId, id), operation)
-                .then();
+                .taskOperation(id,operation);
     }
 
     @Override
@@ -64,15 +61,14 @@ public class RemoteTask implements Task {
     }
 
     @Override
-    public Mono<Void> execute(Publisher<RuleData> data) {
-        return rpcService.invoke(TaskRpc.executeTask(workerId, id), data).then();
+    public Mono<Void> execute(RuleData data) {
+        return rpcService.executeTask(id, data).then();
     }
 
     @Override
     public Mono<State> getState() {
         return rpcService
-                .invoke(TaskRpc.getTaskState(workerId, id))
-                .single(State.unknown);
+                .getTaskState(id);
     }
 
     @Override
@@ -82,17 +78,11 @@ public class RemoteTask implements Task {
 
     @Override
     public Mono<Long> getLastStateTime() {
-        return rpcService
-                .invoke(TaskRpc.getLastStateTime(workerId, id))
-                .singleOrEmpty()
-                ;
+        return rpcService.getLastStateTime(id);
     }
 
     @Override
     public Mono<Long> getStartTime() {
-        return rpcService
-                .invoke(TaskRpc.getStartTime(workerId, id))
-                .singleOrEmpty()
-                ;
+        return rpcService.getStartTime(id);
     }
 }

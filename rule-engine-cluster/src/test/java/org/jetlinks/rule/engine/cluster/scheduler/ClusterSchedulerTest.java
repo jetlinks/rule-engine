@@ -6,7 +6,8 @@ import org.jetlinks.rule.engine.api.task.ExecutionContext;
 import org.jetlinks.rule.engine.api.task.TaskExecutor;
 import org.jetlinks.rule.engine.api.task.TaskExecutorProvider;
 import org.jetlinks.rule.engine.api.worker.Worker;
-import org.jetlinks.rule.engine.cluster.rpc.EventBusRcpService;
+import org.jetlinks.rule.engine.defaults.DefaultRpcServiceFactory;
+import org.jetlinks.rule.engine.defaults.rpc.EventBusRcpService;
 import org.jetlinks.rule.engine.defaults.AbstractTaskExecutor;
 import org.jetlinks.rule.engine.defaults.LocalEventBus;
 import org.jetlinks.rule.engine.defaults.LocalWorker;
@@ -24,9 +25,12 @@ public class ClusterSchedulerTest {
 
     @Test
     public void test() {
-        ClusterLocalScheduler scheduler = new ClusterLocalScheduler("test", rpcService);
-        scheduler.setup();
-        LocalWorker worker=new LocalWorker("worker1", "测试", eventBus, (r, v) -> true);
+
+        DefaultRpcServiceFactory factory = new DefaultRpcServiceFactory(rpcService);
+
+        ClusterLocalScheduler scheduler = new ClusterLocalScheduler("test", factory);
+
+        LocalWorker worker = new LocalWorker("worker1", "测试", eventBus, (r, v) -> true);
 
         worker.addExecutor(new TaskExecutorProvider() {
             @Override
@@ -51,7 +55,8 @@ public class ClusterSchedulerTest {
         });
         scheduler.addWorker(worker);
 
-        RemoteScheduler remoteScheduler = new RemoteScheduler("test", rpcService);
+        RemoteScheduler remoteScheduler = new RemoteScheduler("test", factory);
+        remoteScheduler.init();
         remoteScheduler
                 .getWorker(worker.getId())
                 .map(Worker::getName)

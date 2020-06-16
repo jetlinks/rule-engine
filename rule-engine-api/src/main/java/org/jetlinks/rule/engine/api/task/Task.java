@@ -2,7 +2,6 @@ package org.jetlinks.rule.engine.api.task;
 
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
-import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
 /**
@@ -85,7 +84,7 @@ public interface Task {
      *
      * @return 结果
      */
-    Mono<Void> execute(Publisher<RuleData> data);
+    Mono<Void> execute(RuleData data);
 
     /**
      * 获取任务状态

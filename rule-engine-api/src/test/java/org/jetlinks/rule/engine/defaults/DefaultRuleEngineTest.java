@@ -99,7 +99,7 @@ public class DefaultRuleEngineTest {
         engine.getTasks("test")
                 .filter(task -> task.getJob().getNodeId().equals("createWorld"))
                 .take(1)
-                .flatMap(task -> task.execute(Mono.just(RuleData.create("test"))))
+                .flatMap(task -> task.execute(RuleData.create("test")))
                 .as(StepVerifier::create)
                 .expectComplete()
                 .verify();

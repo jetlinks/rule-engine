@@ -3,11 +3,11 @@ package org.jetlinks.rule.engine.defaults;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.jetlinks.rule.engine.api.*;
+import org.jetlinks.rule.engine.api.RuleConstants;
+import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.task.TaskExecutor;
-import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -119,7 +119,7 @@ public class DefaultTask implements Task {
     }
 
     @Override
-    public Mono<Void> execute(Publisher<RuleData> data) {
+    public Mono<Void> execute(RuleData data) {
         log.debug("execute task[{}]:[{}]", getId(), getJob());
         return context
                 .getEventBus()

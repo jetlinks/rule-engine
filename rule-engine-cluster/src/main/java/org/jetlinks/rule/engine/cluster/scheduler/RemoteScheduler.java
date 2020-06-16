@@ -2,11 +2,11 @@ package org.jetlinks.rule.engine.cluster.scheduler;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.jetlinks.rule.engine.api.rpc.RpcServiceFactory;
+import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.worker.Worker;
-import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
-import org.jetlinks.rule.engine.api.rpc.RpcService;
 import org.jetlinks.rule.engine.cluster.task.RemoteTask;
 import org.jetlinks.rule.engine.cluster.worker.RemoteWorker;
 import reactor.core.publisher.Flux;
@@ -18,13 +18,24 @@ public class RemoteScheduler implements Scheduler {
     @Getter
     private final String id;
 
-    @Getter
-    private final RpcService rpcService;
+    private SchedulerRpcService rpcService;
+
+    private final RpcServiceFactory factory;
+
+    public RemoteScheduler(String id, RpcServiceFactory factory) {
+        this.id = id;
+        this.factory = factory;
+    }
+
+    public void init() {
+        this.rpcService = factory.createProducer("/rule-engine/cluster-scheduler:" + id, SchedulerRpcService.class);
+    }
 
     public Mono<Boolean> isAlive() {
         //TODO
         return Mono.just(true);
     }
+
     public Mono<Boolean> isNoAlive() {
         //TODO
         return Mono.just(false);
@@ -33,7 +44,7 @@ public class RemoteScheduler implements Scheduler {
     @Override
     public Flux<Worker> getWorkers() {
         return rpcService
-                .invoke(SchedulerRpc.getWorkers(id))
+                .getWorkers()
                 .map(info -> new RemoteWorker(info.getId(), info.getName(), rpcService));
     }
 
@@ -47,42 +58,40 @@ public class RemoteScheduler implements Scheduler {
     @Override
     public Flux<Task> schedule(ScheduleJob job) {
         return rpcService
-                .invoke(SchedulerRpc.schedule(id), job)
-                .map(taskInfo -> new RemoteTask(taskInfo.getId(), taskInfo.getName(), taskInfo.getWorkerId(),id, rpcService, job));
+                .schedule(job)
+                .map(taskInfo -> new RemoteTask(taskInfo.getId(), taskInfo.getName(), taskInfo.getWorkerId(), id, rpcService, job));
     }
 
     @Override
     public Mono<Void> shutdown(String instanceId) {
         return rpcService
-                .invoke(SchedulerRpc.shutdown(id), instanceId)
-                .then();
+                .shutdown(instanceId);
     }
 
     @Override
     public Flux<Task> getSchedulingTask(String instanceId) {
         return rpcService
-                .invoke(SchedulerRpc.getSchedulingJobs(id), instanceId)
-                .map(taskInfo -> new RemoteTask(taskInfo.getId(), taskInfo.getName(), taskInfo.getWorkerId(),id, rpcService, taskInfo.getJob()));
+                .getSchedulingTask(instanceId)
+                .map(taskInfo -> new RemoteTask(taskInfo.getId(), taskInfo.getName(), taskInfo.getWorkerId(), id, rpcService, taskInfo.getJob()));
     }
 
     @Override
     public Flux<Task> getSchedulingTasks() {
         return rpcService
-                .invoke(SchedulerRpc.getSchedulingAllJobs(id))
-                .map(taskInfo -> new RemoteTask(taskInfo.getId(), taskInfo.getName(), taskInfo.getWorkerId(),id, rpcService, taskInfo.getJob()));
+                .getSchedulingTasks()
+                .map(taskInfo -> new RemoteTask(taskInfo.getId(), taskInfo.getName(), taskInfo.getWorkerId(), id, rpcService, taskInfo.getJob()));
     }
 
     @Override
     public Mono<Long> totalTask() {
         return rpcService
-                .invoke(SchedulerRpc.getTotalTasks(id))
-                .single(0L);
+                .totalTask()
+                .defaultIfEmpty(0L);
     }
 
     @Override
     public Mono<Boolean> canSchedule(ScheduleJob job) {
         return rpcService
-                .invoke(SchedulerRpc.canSchedule(id), job)
-                .single(false);
+                .canSchedule(job);
     }
 }

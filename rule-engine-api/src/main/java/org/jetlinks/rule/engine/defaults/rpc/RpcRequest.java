@@ -1,4 +1,4 @@
-package org.jetlinks.rule.engine.cluster.rpc;
+package org.jetlinks.rule.engine.defaults.rpc;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;

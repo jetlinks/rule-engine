@@ -1,7 +1,6 @@
-package org.jetlinks.rule.engine.cluster.rpc;
+package org.jetlinks.rule.engine.cluster;
 
 import org.jetlinks.rule.engine.api.task.TaskSnapshot;
-import org.jetlinks.rule.engine.cluster.TaskSnapshotRepository;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;

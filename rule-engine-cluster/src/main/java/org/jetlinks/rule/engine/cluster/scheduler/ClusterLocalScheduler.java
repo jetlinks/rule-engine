@@ -2,14 +2,12 @@ package org.jetlinks.rule.engine.cluster.scheduler;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.jetlinks.rule.engine.api.rpc.RpcService;
+import org.jetlinks.rule.engine.api.rpc.RpcServiceFactory;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.worker.Worker;
 import org.jetlinks.rule.engine.api.worker.WorkerSelector;
-import org.jetlinks.rule.engine.cluster.task.TaskRpc;
-import org.jetlinks.rule.engine.cluster.worker.ClusterLocalWorker;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -27,8 +25,6 @@ public class ClusterLocalScheduler implements Scheduler {
 
     @Getter
     private final String id;
-    private final RpcService rpcService;
-
     final static WorkerSelector defaultSelector = (workers1, rule) -> workers1.take(1);
 
     @Setter
@@ -42,74 +38,18 @@ public class ClusterLocalScheduler implements Scheduler {
     //本地调度中的任务
     private final Map<String/*规则实例ID*/, Map<String/*nodeId*/, List<Task>>> localTasks = new ConcurrentHashMap<>();
 
-    public ClusterLocalScheduler(String id, RpcService rpcService) {
-        this.rpcService = rpcService;
+    private final LocalSchedulerRpcService rpcService;
+
+    public ClusterLocalScheduler(String id, RpcServiceFactory serviceFactory) {
         this.id = id;
+        rpcService = new LocalSchedulerRpcService(this, serviceFactory);
     }
 
-    public void setup() {
-
-        disposables.add(
-                rpcService.listen(
-                        SchedulerRpc.canSchedule(getId()),
-                        (addr, job) -> canSchedule(job)
-                )
-        );
-
-        disposables.add(
-                rpcService.listen(
-                        SchedulerRpc.getTotalTasks(getId()),
-                        (addr) -> totalTask()
-                )
-        );
-
-        disposables.add(
-                rpcService.listen(
-                        SchedulerRpc.getWorkers(getId()),
-                        (addr) -> getWorkers()
-                                .map(worker -> new SchedulerRpc.WorkerInfo(worker.getId(), worker.getName()))
-                )
-        );
-
-        disposables.add(
-                rpcService.listen(
-                        SchedulerRpc.schedule(getId()),
-                        (addr, job) -> schedule(job)
-                                .map(task -> new TaskRpc.TaskInfo(task.getId(), task.getName(), task.getWorkerId(), task.getJob()))
-                )
-        );
-
-        disposables.add(
-                rpcService.listen(
-                        SchedulerRpc.shutdown(getId()),
-                        (addr, id) -> shutdown(id)
-                )
-        );
-
-        disposables.add(
-                rpcService.listen(
-                        SchedulerRpc.getSchedulingJobs(getId()),
-                        (addr, id) -> getSchedulingTask(id)
-                                .map(task -> new TaskRpc.TaskInfo(task.getId(), task.getName(), task.getWorkerId(), task.getJob()))
-                )
-        );
-
-        disposables.add(
-                rpcService.listen(
-                        SchedulerRpc.getSchedulingAllJobs(getId()),
-                        (addr, id) -> getSchedulingTasks()
-                                .map(task -> new TaskRpc.TaskInfo(task.getId(), task.getName(), task.getWorkerId(), task.getJob()))
-                )
-        );
-
-    }
 
     public void cleanup() {
         disposables.forEach(Disposable::dispose);
         disposables.clear();
-        for (Worker localWorker : localWorkers) {
-            ((ClusterLocalWorker) localWorker).cleanup();
-        }
+        rpcService.shutdown();
     }
 
     public void addWorker(Worker worker) {
@@ -117,9 +57,7 @@ public class ClusterLocalScheduler implements Scheduler {
     }
 
     private Worker wrapLocalWorker(Worker localWorker) {
-        ClusterLocalWorker worker = new ClusterLocalWorker(localWorker, rpcService);
-        worker.setup();
-        return worker;
+        return localWorker;
     }
 
     @Override

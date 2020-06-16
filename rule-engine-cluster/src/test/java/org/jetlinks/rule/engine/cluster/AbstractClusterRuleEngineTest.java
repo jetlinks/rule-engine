@@ -7,8 +7,9 @@ import org.jetlinks.rule.engine.api.model.RuleLink;
 import org.jetlinks.rule.engine.api.model.RuleModel;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 import org.jetlinks.rule.engine.api.rpc.RpcService;
-import org.jetlinks.rule.engine.cluster.rpc.TestTaskSnapshotRepository;
+import org.jetlinks.rule.engine.api.rpc.RpcServiceFactory;
 import org.jetlinks.rule.engine.cluster.scheduler.ClusterLocalScheduler;
+import org.jetlinks.rule.engine.defaults.DefaultRpcServiceFactory;
 import org.jetlinks.rule.engine.defaults.LambdaTaskExecutorProvider;
 import org.jetlinks.rule.engine.defaults.LocalWorker;
 import org.junit.Assert;
@@ -30,7 +31,9 @@ public abstract class AbstractClusterRuleEngineTest {
         EventBus eventBus = getEventBus();
         RpcService rpcService = getRpcService();
 
-        ClusterSchedulerRegistry registry = new ClusterSchedulerRegistry(eventBus, rpcService);
+        RpcServiceFactory factory=new DefaultRpcServiceFactory(rpcService);
+
+        ClusterSchedulerRegistry registry = new ClusterSchedulerRegistry(eventBus, factory);
         registry.setup();
 
         AtomicLong counter = new AtomicLong();
@@ -38,8 +41,7 @@ public abstract class AbstractClusterRuleEngineTest {
 
         //模拟集群节点1
         {
-            ClusterLocalScheduler scheduler = new ClusterLocalScheduler("test", rpcService);
-            scheduler.setup();
+            ClusterLocalScheduler scheduler = new ClusterLocalScheduler("test", factory);
             registry.register(scheduler);
 
             LocalWorker worker = new LocalWorker("local", "Local", eventBus, (c, d) -> true);
@@ -53,11 +55,10 @@ public abstract class AbstractClusterRuleEngineTest {
 
         //模拟集群节点2
         {
-            ClusterSchedulerRegistry registry2 = new ClusterSchedulerRegistry(eventBus, rpcService);
+            ClusterSchedulerRegistry registry2 = new ClusterSchedulerRegistry(eventBus, factory);
             registry2.setup();
 
-            ClusterLocalScheduler scheduler = new ClusterLocalScheduler("test2", rpcService);
-            scheduler.setup();
+            ClusterLocalScheduler scheduler = new ClusterLocalScheduler("test2", factory);
             registry2.register(scheduler);
 
 
@@ -129,7 +130,7 @@ public abstract class AbstractClusterRuleEngineTest {
         engine.getTasks("test")
                 .filter(task -> task.getJob().getNodeId().equals("createWorld"))
                 .take(1)
-                .flatMap(task -> task.execute(Mono.just(RuleData.create("test"))))
+                .flatMap(task -> task.execute(RuleData.create("test")))
                 .as(StepVerifier::create)
                 .expectComplete()
                 .verify();
