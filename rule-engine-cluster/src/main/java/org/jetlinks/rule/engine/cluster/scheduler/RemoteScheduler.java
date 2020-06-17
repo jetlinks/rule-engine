@@ -9,8 +9,11 @@ import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.worker.Worker;
 import org.jetlinks.rule.engine.cluster.task.RemoteTask;
 import org.jetlinks.rule.engine.cluster.worker.RemoteWorker;
+import reactor.bool.BooleanUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.concurrent.TimeoutException;
 
 @AllArgsConstructor
 public class RemoteScheduler implements Scheduler {
@@ -32,13 +35,13 @@ public class RemoteScheduler implements Scheduler {
     }
 
     public Mono<Boolean> isAlive() {
-        //TODO
-        return Mono.just(true);
+        return rpcService
+                .isAlive()
+                .onErrorResume(TimeoutException.class, r -> Mono.just(false));
     }
 
     public Mono<Boolean> isNoAlive() {
-        //TODO
-        return Mono.just(false);
+        return BooleanUtils.not(isAlive());
     }
 
     @Override
@@ -50,9 +53,9 @@ public class RemoteScheduler implements Scheduler {
 
     @Override
     public Mono<Worker> getWorker(String workerId) {
-        return getWorkers()
-                .filter(worker -> worker.getId().equals(workerId))
-                .singleOrEmpty();
+        return rpcService
+                .getWorker(workerId)
+                .map(info -> new RemoteWorker(info.getId(), info.getName(), rpcService));
     }
 
     @Override

@@ -153,4 +153,9 @@ public class LocalSchedulerRpcService implements SchedulerRpcService {
         return localScheduler.getWorker(workerId)
                 .flatMap(Worker::getState);
     }
+
+    @Override
+    public Mono<Boolean> isAlive() {
+        return Mono.just(true);
+    }
 }

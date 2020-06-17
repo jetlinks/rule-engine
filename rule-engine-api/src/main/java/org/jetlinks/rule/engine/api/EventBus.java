@@ -13,7 +13,7 @@ import reactor.core.publisher.Mono;
  * </pre>
  *
  * @author zhouhao
- * @see 1.0.4
+ * @see 1.1.0
  * @see org.jetlinks.core.topic.Topic
  */
 public interface EventBus {

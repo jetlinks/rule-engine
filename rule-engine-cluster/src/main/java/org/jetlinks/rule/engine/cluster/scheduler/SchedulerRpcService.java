@@ -28,7 +28,6 @@ public interface SchedulerRpcService {
 
     Mono<Boolean> canSchedule(ScheduleJob job);
 
-
     Mono<Void> executeTask(String taskId, RuleData data);
 
     Mono<Task.State> getTaskState(String taskId);
@@ -46,4 +45,6 @@ public interface SchedulerRpcService {
     Mono<List<String>> getSupportExecutors(String workerId);
 
     Mono<Worker.State> getWorkerState(String workerId);
+
+    Mono<Boolean> isAlive();
 }

@@ -34,6 +34,7 @@ public class DefaultSchedulerLoadBalancer implements SchedulerLoadBalancer {
 
     private final TaskSnapshotRepository snapshotRepository;
 
+
     public DefaultSchedulerLoadBalancer(EventBus eventBus,
                                         SchedulerRegistry registry,
                                         TaskSnapshotRepository snapshotRepository) {
@@ -80,6 +81,10 @@ public class DefaultSchedulerLoadBalancer implements SchedulerLoadBalancer {
     }
 
     public void cleanup() {
+
+    }
+
+    public void tryReBalance(List<Scheduler> aliveSchedulers) {
 
     }
 
