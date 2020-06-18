@@ -23,7 +23,7 @@ public class DefaultTask implements Task {
     @Getter
     private final String schedulerId;
 
-    private final DefaultExecutionContext context;
+    private final AbstractExecutionContext context;
 
     private final TaskExecutor executor;
 
@@ -33,7 +33,7 @@ public class DefaultTask implements Task {
 
     public DefaultTask(String schedulerId,
                        String workerId,
-                       DefaultExecutionContext context,
+                       AbstractExecutionContext context,
                        TaskExecutor executor) {
         this.schedulerId = schedulerId;
         this.workerId = workerId;
