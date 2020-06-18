@@ -9,7 +9,7 @@ import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 import org.jetlinks.rule.engine.api.rpc.RpcService;
 import org.jetlinks.rule.engine.api.rpc.RpcServiceFactory;
 import org.jetlinks.rule.engine.cluster.scheduler.ClusterLocalScheduler;
-import org.jetlinks.rule.engine.defaults.DefaultRpcServiceFactory;
+import org.jetlinks.rule.engine.defaults.rpc.DefaultRpcServiceFactory;
 import org.jetlinks.rule.engine.defaults.LambdaTaskExecutorProvider;
 import org.jetlinks.rule.engine.defaults.LocalWorker;
 import org.junit.Assert;

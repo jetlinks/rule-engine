@@ -9,6 +9,7 @@ import org.jetlinks.rule.engine.api.model.Condition;
 import javax.annotation.Nonnull;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -76,7 +77,7 @@ public class ScheduleJob implements Serializable {
     /**
      * 上下文
      */
-    private Map<String, Object> context;
+    private Map<String, Object> context = new HashMap<>();
 
     /**
      * 调度规则

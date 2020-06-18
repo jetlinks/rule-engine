@@ -6,7 +6,7 @@ import org.jetlinks.rule.engine.api.task.ExecutionContext;
 import org.jetlinks.rule.engine.api.task.TaskExecutor;
 import org.jetlinks.rule.engine.api.task.TaskExecutorProvider;
 import org.jetlinks.rule.engine.api.worker.Worker;
-import org.jetlinks.rule.engine.defaults.DefaultRpcServiceFactory;
+import org.jetlinks.rule.engine.defaults.rpc.DefaultRpcServiceFactory;
 import org.jetlinks.rule.engine.defaults.rpc.EventBusRcpService;
 import org.jetlinks.rule.engine.defaults.AbstractTaskExecutor;
 import org.jetlinks.rule.engine.defaults.LocalEventBus;

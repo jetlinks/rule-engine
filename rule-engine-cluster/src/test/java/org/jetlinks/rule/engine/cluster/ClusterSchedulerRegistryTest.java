@@ -3,7 +3,7 @@ package org.jetlinks.rule.engine.cluster;
 import org.jetlinks.rule.engine.api.EventBus;
 import org.jetlinks.rule.engine.api.rpc.RpcService;
 import org.jetlinks.rule.engine.api.rpc.RpcServiceFactory;
-import org.jetlinks.rule.engine.defaults.DefaultRpcServiceFactory;
+import org.jetlinks.rule.engine.defaults.rpc.DefaultRpcServiceFactory;
 import org.jetlinks.rule.engine.defaults.rpc.EventBusRcpService;
 import org.jetlinks.rule.engine.cluster.scheduler.ClusterLocalScheduler;
 import org.jetlinks.rule.engine.defaults.LocalEventBus;

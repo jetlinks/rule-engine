@@ -30,7 +30,6 @@ public interface Task {
     String getWorkerId();
 
     /**
-     *
      * @return 调度器ID
      */
     String getSchedulerId();
@@ -133,8 +132,7 @@ public interface Task {
     }
 
     default boolean isSameTask(TaskSnapshot snapshot) {
-        return this.getWorkerId().equals(snapshot.getWorkerId())
-                && this.getJob().getNodeId().equals(snapshot.getJob().getNodeId());
+        return this.getId().equals(snapshot.getId());
     }
 
     enum State {

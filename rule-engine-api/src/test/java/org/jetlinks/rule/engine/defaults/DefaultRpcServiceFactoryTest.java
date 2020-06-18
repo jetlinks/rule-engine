@@ -1,5 +1,7 @@
 package org.jetlinks.rule.engine.defaults;
 
+import lombok.*;
+import org.jetlinks.rule.engine.defaults.rpc.DefaultRpcServiceFactory;
 import org.jetlinks.rule.engine.defaults.rpc.EventBusRcpService;
 import org.junit.Test;
 import reactor.core.Disposable;
@@ -45,6 +47,12 @@ public class DefaultRpcServiceFactoryTest {
                 .expectNext(Arrays.asList("1","2"))
                 .verifyComplete();
 
+        service.getObjs()
+                .as(StepVerifier::create)
+                .expectNext(Arrays.asList(new TestObj("test")))
+                .verifyComplete();
+
+
 
         disposable.dispose();
     }
@@ -57,7 +65,18 @@ public class DefaultRpcServiceFactoryTest {
 
         Mono<List<String>> createList(String... args);
 
+        Mono<List<TestObj>> getObjs();
+
         Flux<Integer> genericNumber(int numbers);
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @EqualsAndHashCode
+    public static class TestObj{
+        private String id;
     }
 
     public class TestServiceConsumer implements TestService {
@@ -83,6 +102,11 @@ public class DefaultRpcServiceFactoryTest {
         public Mono<List<String>> createList(String... args) {
             return Flux.fromArray(args)
                     .collectList();
+        }
+
+        @Override
+        public Mono<List<TestObj>> getObjs() {
+            return Mono.just(Arrays.asList(new TestObj("test")));
         }
     }
 }

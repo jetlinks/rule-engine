@@ -7,26 +7,34 @@ import org.jetlinks.rule.engine.api.codec.Codec;
 
 import javax.annotation.Nonnull;
 import java.util.List;
+import java.util.function.Function;
 
-public class JsonArrayCodec<T> implements Codec<List<T>> {
+public class JsonArrayCodec<T, R> implements Codec<R> {
 
     private final Class<T> type;
 
-    private JsonArrayCodec(Class<T> type) {
+    private final Function<List<T>, R> mapper;
+
+    private JsonArrayCodec(Class<T> type, Function<List<T>, R> mapper) {
         this.type = type;
+        this.mapper = mapper;
     }
 
-    public static <T> JsonArrayCodec<T> of(Class<T> type) {
-        return new JsonArrayCodec<>(type);
+    public static <T> JsonArrayCodec<T, List<T>> of(Class<T> type) {
+        return of(type, Function.identity());
+    }
+
+    public static <T, R> JsonArrayCodec<T, R> of(Class<T> type, Function<List<T>, R> function) {
+        return new JsonArrayCodec<>(type, function);
     }
 
     @Override
-    public List<T> decode(@Nonnull Payload payload) {
-        return JSON.parseArray(payload.bodyAsString(), type);
+    public R decode(@Nonnull Payload payload) {
+        return mapper.apply(JSON.parseArray(payload.bodyAsString(), type));
     }
 
     @Override
-    public Payload encode(List<T> body) {
+    public Payload encode(R body) {
         return () -> Unpooled.wrappedBuffer(JSON.toJSONBytes(body));
     }
 

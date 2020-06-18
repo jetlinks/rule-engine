@@ -1,4 +1,4 @@
-package org.jetlinks.rule.engine.defaults;
+package org.jetlinks.rule.engine.defaults.rpc;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -71,7 +71,7 @@ public class DefaultRpcServiceFactory implements RpcServiceFactory {
         Map<String, Function<Payload, Publisher<Payload>>> handlers = new HashMap<>();
 
         for (Method declaredMethod : serviceInterface.getDeclaredMethods()) {
-            RpcDefinition<MethodRpcRequest, ?> definition = createRpcDefinition(serviceInterface, declaredMethod);
+            RpcDefinition<MethodRpcRequest, ?> definition = createRpcDefinition(instance.getClass(), declaredMethod);
 
             handlers.put(definition.getAddress(), new Function<Payload, Publisher<Payload>>() {
                 @Override
@@ -110,13 +110,7 @@ public class DefaultRpcServiceFactory implements RpcServiceFactory {
         for (int i = 0; i < count; i++) {
             ResolvableType resolvableType = ResolvableType.forMethodParameter(method, i);
             Class<?> paramType = resolvableType.resolve(Object.class);
-            if (Collection.class.isAssignableFrom(paramType)) {
-                codecs.add(Codecs.lookupForList(resolvableType.getGeneric(0).toClass()));
-            } else if (Publisher.class.isAssignableFrom(paramType)) {
-                codecs.add(Codecs.lookup(resolvableType.getGeneric(0).toClass()));
-            } else {
-                codecs.add(Codecs.lookup(resolvableType.toClass()));
-            }
+            codecs.add(Codecs.lookup(resolvableType));
             methodName
                     .append(paramType.getSimpleName())
                     .append(",");
@@ -124,11 +118,12 @@ public class DefaultRpcServiceFactory implements RpcServiceFactory {
 
         MethodRpcRequestCodec codec = new MethodRpcRequestCodec(methodName.toString().getBytes(), codecs);
 
-        ResolvableType returnType = ResolvableType.forMethodReturnType(method);
+        ResolvableType returnType = ResolvableType.forMethodReturnType(method,type);
         if (!Publisher.class.isAssignableFrom(returnType.toClass())) {
             throw new UnsupportedOperationException("unsupported return type:" + returnType);
         }
-        return RpcDefinition.of(methodName.toString(), codec, Codecs.lookup(returnType.getGeneric(0).toClass()));
+
+        return RpcDefinition.of(methodName.toString(), codec, Codecs.lookup(returnType));
     }
 
     static RpcRequestCodec requestCodec = new RpcRequestCodec();

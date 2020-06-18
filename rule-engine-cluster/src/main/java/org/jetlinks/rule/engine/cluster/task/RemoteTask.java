@@ -5,6 +5,7 @@ import lombok.Getter;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.task.Task;
+import org.jetlinks.rule.engine.api.task.TaskSnapshot;
 import org.jetlinks.rule.engine.cluster.scheduler.SchedulerRpcService;
 import reactor.core.publisher.Mono;
 
@@ -35,29 +36,29 @@ public class RemoteTask implements Task {
                 .setTaskJob(id,job);
     }
 
-    private Mono<Void> operation(TaskRpc.TaskOperation operation) {
+    private Mono<Void> operation(SchedulerRpcService.TaskOperation operation) {
         return rpcService
                 .taskOperation(id,operation);
     }
 
     @Override
     public Mono<Void> reload() {
-        return operation(TaskRpc.TaskOperation.RELOAD);
+        return operation(SchedulerRpcService.TaskOperation.RELOAD);
     }
 
     @Override
     public Mono<Void> start() {
-        return operation(TaskRpc.TaskOperation.START);
+        return operation(SchedulerRpcService.TaskOperation.START);
     }
 
     @Override
     public Mono<Void> pause() {
-        return operation(TaskRpc.TaskOperation.PAUSE);
+        return operation(SchedulerRpcService.TaskOperation.PAUSE);
     }
 
     @Override
     public Mono<Void> shutdown() {
-        return operation(TaskRpc.TaskOperation.SHUTDOWN);
+        return operation(SchedulerRpcService.TaskOperation.SHUTDOWN);
     }
 
     @Override
@@ -73,7 +74,7 @@ public class RemoteTask implements Task {
 
     @Override
     public Mono<Void> debug(boolean debug) {
-        return operation(debug ? TaskRpc.TaskOperation.ENABLE_DEBUG : TaskRpc.TaskOperation.DISABLE_DEBUG);
+        return operation(debug ? SchedulerRpcService.TaskOperation.ENABLE_DEBUG : SchedulerRpcService.TaskOperation.DISABLE_DEBUG);
     }
 
     @Override
@@ -84,5 +85,10 @@ public class RemoteTask implements Task {
     @Override
     public Mono<Long> getStartTime() {
         return rpcService.getStartTime(id);
+    }
+
+    @Override
+    public Mono<TaskSnapshot> dump() {
+        return rpcService.dumpTask(id);
     }
 }

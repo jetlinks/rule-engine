@@ -2,20 +2,19 @@ package org.jetlinks.rule.engine.cluster;
 
 import lombok.AllArgsConstructor;
 import org.jetlinks.rule.engine.api.RuleEngine;
+import org.jetlinks.rule.engine.api.model.RuleModel;
+import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
+import org.jetlinks.rule.engine.api.scheduler.SchedulerSelector;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.task.TaskSnapshot;
-import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
-import org.jetlinks.rule.engine.api.model.RuleModel;
 import org.jetlinks.rule.engine.api.worker.Worker;
 import org.jetlinks.rule.engine.defaults.ScheduleJobCompiler;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -31,6 +30,12 @@ public class ClusterRuleEngine implements RuleEngine {
     private final SchedulerRegistry schedulerRegistry;
 
     private final TaskSnapshotRepository repository;
+
+    private final SchedulerSelector schedulerSelector;
+
+    public ClusterRuleEngine(SchedulerRegistry schedulerRegistry, TaskSnapshotRepository repository) {
+        this(schedulerRegistry, repository, SchedulerSelector.selectAll);
+    }
 
     @Override
     public Mono<Void> shutdown(String instanceId) {
@@ -56,7 +61,7 @@ public class ClusterRuleEngine implements RuleEngine {
                                 .then(task.reload())
                                 .thenReturn(task)
                         ).switchIfEmpty(Flux.defer(() -> //没有worker调度此任务? 重新调度
-                               doStart(Collections.singleton(jobs.get(snapshot.getJob().getNodeId())))
+                                doStart(Collections.singleton(jobs.get(snapshot.getJob().getNodeId())))
                                         .flatMap(task -> repository
                                                 .saveTaskSnapshots(task.dump())
                                                 .thenReturn(task))))
@@ -86,14 +91,10 @@ public class ClusterRuleEngine implements RuleEngine {
     }
 
     private Flux<Task> scheduleTask(ScheduleJob job) {
-        return schedulerRegistry
-                .getSchedulers()
-                .filterWhen(scheduler -> scheduler.canSchedule(job))
-                .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("no worker for " + job.getExecutor())))
-                .flatMap(scheduler -> Mono.just(scheduler).zipWhen(Scheduler::totalTask))
-                .sort(Comparator.comparing(Tuple2::getT2))
-                .take(1)
-                .flatMap(tp2 -> tp2.getT1().schedule(job));
+        return schedulerSelector
+                .select(schedulerRegistry.getSchedulers(), job)
+                .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("no scheduler for " + job.getExecutor())))
+                .flatMap(scheduler -> scheduler.schedule(job));
     }
 
     @Override

@@ -4,6 +4,8 @@ import org.jetlinks.rule.engine.api.Payload;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.codec.Codec;
 import org.jetlinks.rule.engine.api.codec.CodecsSupport;
+import org.reactivestreams.Publisher;
+import org.springframework.core.ResolvableType;
 
 import java.util.*;
 
@@ -51,28 +53,31 @@ public class DefaultCodecsSupport implements CodecsSupport {
     }
 
     @Override
-    @SuppressWarnings("all")
-    public <T> Optional<Codec<T>> lookup(Class<T> target) {
-        Codec codec = staticCodec.get(target);
+    public <T> Optional<Codec<T>> lookup(ResolvableType type) {
+        ResolvableType ref = type;
+        if (Publisher.class.isAssignableFrom(ref.toClass())) {
+            ref = ref.getGeneric(0);
+        }
+        Class refType = ref.toClass();
+
+        Codec<T> codec = staticCodec.get(refType);
         if (codec == null) {
-            if (target.isEnum()) {
-                codec = EnumCodec.of((Enum[]) target.getEnumConstants());
-            }
-            if (Payload.class.isAssignableFrom(target)) {
-                codec = DirectCodec.INSTANCE;
+            if (List.class.isAssignableFrom(refType)) {
+                codec = (Codec<T>) JsonArrayCodec.of(ref.getGeneric(0).toClass());
+            } else if (ref.toClass().isEnum()) {
+                codec = (Codec<T>) EnumCodec.of((Enum[]) ref.toClass().getEnumConstants());
+            } else if (Payload.class.isAssignableFrom(refType)) {
+                codec = (Codec<T>) DirectCodec.INSTANCE;
+            } else if (Set.class.isAssignableFrom(ref.toClass())) {
+                codec = (Codec<T>) JsonArrayCodec.of(ref.getGeneric(0).toClass(), HashSet::new);
             }
         }
+
         if (codec == null) {
-            codec = JsonCodec.of(target);
+            codec = JsonCodec.of(refType);
         }
         return Optional.of(codec);
     }
-
-    @Override
-    public <T> Optional<Codec<List<T>>> lookupForList(Class<T> target) {
-        return Optional.of(JsonArrayCodec.of(target));
-    }
-
 
     @Override
     public int getOrder() {

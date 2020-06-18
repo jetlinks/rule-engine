@@ -1,9 +1,8 @@
 package org.jetlinks.rule.engine.api.codec;
 
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.reactivestreams.Publisher;
+import org.springframework.core.ResolvableType;
 
 import javax.annotation.Nonnull;
 import java.util.*;
@@ -14,7 +13,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Slf4j
 public final class Codecs {
 
-    private static Map<Cache, Codec<?>> mapping = new ConcurrentHashMap<>();
+    private static Map<ResolvableType, Codec<?>> mapping = new ConcurrentHashMap<>();
 
     private static List<CodecsSupport> allCodec = new CopyOnWriteArrayList<>();
 
@@ -32,16 +31,12 @@ public final class Codecs {
     }
 
     @Nonnull
-    private static Codec<?> resolve(Cache target) {
+    private static Codec<?> resolve(ResolvableType target) {
         for (CodecsSupport support : allCodec) {
-            Optional<Codec<?>> lookup;
-            if (target.getType() == Type.ARR) {
-                lookup = support.lookupForList(target.clazz);
-            } else {
-                lookup = support.lookup(target.clazz);
-            }
+            Optional<Codec<?>> lookup = (Optional) support.lookup(target);
+
             if (lookup.isPresent()) {
-                log.debug("lookup codec [{}] for [{}]",lookup.get(),target.getClazz());
+                log.debug("lookup codec [{}] for [{}]", lookup.get(), target);
                 return lookup.get();
             }
         }
@@ -49,23 +44,14 @@ public final class Codecs {
     }
 
     public static <T> Codec<T> lookup(@Nonnull Class<? extends T> target) {
-        return (Codec<T>) mapping.computeIfAbsent(new Cache(Type.OBJ, target), t -> resolve(t));
+        return lookup(ResolvableType.forType(target));
     }
 
-    public static <T> Codec<List<T>> lookupForList(@Nonnull Class<? extends T> target) {
-        return (Codec<List<T>>) mapping.computeIfAbsent(new Cache(Type.ARR, target), t -> resolve(t));
-    }
-
-    @Getter
-    @AllArgsConstructor
-    @EqualsAndHashCode
-    private static class Cache {
-        private Type type;
-        private Class clazz;
-    }
-
-    private enum Type {
-        OBJ, ARR
+    public static <T> Codec<T> lookup(ResolvableType type) {
+        if (Publisher.class.isAssignableFrom(type.toClass())) {
+            type = type.getGeneric(0);
+        }
+        return (Codec<T>) mapping.computeIfAbsent(type,Codecs::resolve);
     }
 
 }

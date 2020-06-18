@@ -64,7 +64,7 @@ public class DefaultTask implements Task {
 
     @Override
     public String getId() {
-        return DigestUtils.md5Hex(context.getInstanceId() + ":" + context.getJob().getNodeId());
+        return DigestUtils.md5Hex(workerId + ":" + context.getInstanceId() + ":" + context.getJob().getNodeId());
     }
 
     @Override

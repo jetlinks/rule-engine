@@ -1,10 +1,14 @@
 package org.jetlinks.rule.engine.cluster.scheduler;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.task.Task;
+import org.jetlinks.rule.engine.api.task.TaskSnapshot;
 import org.jetlinks.rule.engine.api.worker.Worker;
-import org.jetlinks.rule.engine.cluster.task.TaskRpc;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -12,17 +16,17 @@ import java.util.List;
 
 public interface SchedulerRpcService {
 
-    Flux<SchedulerRpc.WorkerInfo> getWorkers();
+    Flux<WorkerInfo> getWorkers();
 
-    Mono<SchedulerRpc.WorkerInfo> getWorker(String id);
+    Mono<WorkerInfo> getWorker(String id);
 
-    Flux<TaskRpc.TaskInfo> schedule(ScheduleJob job);
+    Flux<TaskInfo> schedule(ScheduleJob job);
 
     Mono<Void> shutdown(String instanceId);
 
-    Flux<TaskRpc.TaskInfo> getSchedulingTask(String instanceId);
+    Flux<TaskInfo> getSchedulingTask(String instanceId);
 
-    Flux<TaskRpc.TaskInfo> getSchedulingTasks();
+    Flux<TaskInfo> getSchedulingTasks();
 
     Mono<Long> totalTask();
 
@@ -32,7 +36,7 @@ public interface SchedulerRpcService {
 
     Mono<Task.State> getTaskState(String taskId);
 
-    Mono<Void> taskOperation(String taskId, TaskRpc.TaskOperation operation);
+    Mono<Void> taskOperation(String taskId, TaskOperation operation);
 
     Mono<Void> setTaskJob(String taskId, ScheduleJob job);
 
@@ -40,11 +44,47 @@ public interface SchedulerRpcService {
 
     Mono<Long> getStartTime(String taskId);
 
-    Mono<TaskRpc.TaskInfo> createTask(String workerId, ScheduleJob job);
+    Mono<TaskInfo> createTask(String workerId, ScheduleJob job);
 
     Mono<List<String>> getSupportExecutors(String workerId);
 
     Mono<Worker.State> getWorkerState(String workerId);
 
     Mono<Boolean> isAlive();
+
+    Mono<TaskSnapshot> dumpTask(String taskId);
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @NoArgsConstructor
+    class WorkerInfo {
+        private String id;
+
+        private String name;
+    }
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @NoArgsConstructor
+    class TaskInfo {
+        private String id;
+
+        private String name;
+
+        private String workerId;
+
+        private ScheduleJob job;
+
+    }
+
+    enum TaskOperation {
+        START,
+        PAUSE,
+        RELOAD,
+        SHUTDOWN,
+        ENABLE_DEBUG,
+        DISABLE_DEBUG
+    }
 }
