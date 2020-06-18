@@ -91,8 +91,10 @@ public class ClusterRuleEngine implements RuleEngine {
     }
 
     private Flux<Task> scheduleTask(ScheduleJob job) {
-        return schedulerSelector
-                .select(schedulerRegistry.getSchedulers(), job)
+        return schedulerRegistry
+                .getSchedulers()
+                .filterWhen(scheduler -> scheduler.canSchedule(job))
+                .as(supports -> schedulerSelector.select(supports, job))
                 .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("no scheduler for " + job.getExecutor())))
                 .flatMap(scheduler -> scheduler.schedule(job));
     }
