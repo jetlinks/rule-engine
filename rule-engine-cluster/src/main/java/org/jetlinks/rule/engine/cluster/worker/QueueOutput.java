@@ -41,8 +41,13 @@ public class QueueOutput implements Output {
                 ;
     }
 
+    @Override
+    public Mono<Void> write(String nodeId, Publisher<RuleData> data) {
+        return clusterManager.<RuleData>getQueue(createTopic(nodeId)).add(data).then();
+    }
+
     private String createTopic(String node) {
-        return RuleConstants.Topics.input(instanceId,node);
+        return RuleConstants.Topics.input(instanceId, node);
     }
 
 }

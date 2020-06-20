@@ -26,6 +26,8 @@ public interface ExecutionContext {
 
     Mono<Void> shutdown(String code, String message);
 
+    RuleData newRuleData(Object data);
+
     void onShutdown(Runnable runnable);
 
     boolean isDebug();
