@@ -19,4 +19,5 @@ public interface Output {
      */
     Mono<Boolean> write(Publisher<RuleData> data);
 
+    Mono<Void> write(String nodeId, Publisher<RuleData> data);
 }

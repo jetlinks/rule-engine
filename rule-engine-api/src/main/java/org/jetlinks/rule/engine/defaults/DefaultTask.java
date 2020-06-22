@@ -54,7 +54,7 @@ public class DefaultTask implements Task {
                     context.getEventBus()
                             .publish(RuleConstants.Topics.state(context.getInstanceId(), context.getJob().getNodeId()), data),
                     context.getEventBus()
-                            .publish(RuleConstants.Topics.event(context.getInstanceId(), context.getJob().getNodeId(), to.name()), RuleData.create(data))
+                            .publish(RuleConstants.Topics.event(context.getInstanceId(), context.getJob().getNodeId(), to.name()), context.newRuleData(data))
             )
                     .doOnError(err -> log.error(err.getMessage(), err))
                     .subscribe();

@@ -12,6 +12,7 @@ import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.task.ExecutionContext;
 import org.jetlinks.rule.engine.api.task.Input;
 import org.jetlinks.rule.engine.api.task.Output;
+import org.springframework.util.ClassUtils;
 import reactor.core.publisher.Mono;
 
 import javax.annotation.Nonnull;
@@ -21,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public abstract class AbstractExecutionContext  implements ExecutionContext {
+public abstract class AbstractExecutionContext implements ExecutionContext {
 
     @Getter
     private final Logger logger;
@@ -52,9 +53,9 @@ public abstract class AbstractExecutionContext  implements ExecutionContext {
                                     Output output) {
         this.job = job;
         this.eventBus = eventBus;
-        this.logger=logger;
-        this.input=input;
-        this.output=output;
+        this.logger = logger;
+        this.input = input;
+        this.output = output;
     }
 
     @Override
@@ -84,7 +85,16 @@ public abstract class AbstractExecutionContext  implements ExecutionContext {
             obj.put("stack", StringUtils.throwable2String(e));
         }
         obj.put("source", source);
-        return source == null ? RuleData.create(obj) : source.newData(obj);
+        return source == null ? newRuleData(obj) : newRuleData(source);
+    }
+
+    @Override
+    public RuleData newRuleData(Object data) {
+        RuleData ruleData = RuleData.create(data);
+
+        ruleData.setHeader("sourceNode", getJob().getNodeId());
+
+        return ruleData;
     }
 
     @Override
@@ -93,7 +103,7 @@ public abstract class AbstractExecutionContext  implements ExecutionContext {
         data.put("code", code);
         data.put("message", message);
         return eventBus
-                .publish(RuleConstants.Topics.shutdown(job.getInstanceId(), job.getNodeId()),data)
+                .publish(RuleConstants.Topics.shutdown(job.getInstanceId(), job.getNodeId()), data)
                 .then();
     }
 

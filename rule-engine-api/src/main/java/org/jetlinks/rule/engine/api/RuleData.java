@@ -70,7 +70,14 @@ public class RuleData implements Serializable {
         if (data == null) {
             return;
         } else if (data instanceof byte[]) {
-            data = JSON.parse(((byte[]) data));
+            byte[] bytes = ((byte[]) data);
+            if (bytes.length > 2) {
+                if (/* { }*/(bytes[0] == 123 && bytes[bytes.length - 1] == 125)
+                        || /* [ ] */(bytes[0] == 91 && bytes[bytes.length - 1] == 93)
+                ) {
+                    data = JSON.parse(bytes);
+                }
+            }
         } else if (data instanceof String) {
             String stringData = (String) data;
             if (stringData.startsWith("{") || stringData.startsWith("[")) {
@@ -91,6 +98,9 @@ public class RuleData implements Serializable {
 
     @SuppressWarnings("all")
     private void doAcceptMap(Object data, Consumer<Map<String, Object>> consumer) {
+        if (data == null) {
+            return;
+        }
         if (data instanceof Map) {
             consumer.accept(((Map) data));
         } else {

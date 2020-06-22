@@ -39,8 +39,13 @@ public class EventBusOutput implements Output {
                 ;
     }
 
+    @Override
+    public Mono<Void> write(String nodeId, Publisher<RuleData> data) {
+        return eventBus.publish(createTopic(nodeId), data).then();
+    }
+
     private String createTopic(String node) {
-        return RuleConstants.Topics.input(instanceId,node);
+        return RuleConstants.Topics.input(instanceId, node);
     }
 
 }
