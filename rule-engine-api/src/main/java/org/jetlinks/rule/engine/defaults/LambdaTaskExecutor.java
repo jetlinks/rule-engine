@@ -41,7 +41,7 @@ public class LambdaTaskExecutor extends FunctionTaskExecutor {
                     if (t instanceof RuleData) {
                         return ((RuleData) t);
                     }
-                    return context.newRuleData(input);
+                    return context.newRuleData(t);
                 });
     }
 }
