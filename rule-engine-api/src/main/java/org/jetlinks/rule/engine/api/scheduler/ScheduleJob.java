@@ -70,6 +70,11 @@ public class ScheduleJob implements Serializable {
     private List<Event> events = new ArrayList<>();
 
     /**
+     * 监听事件输出
+     */
+    private List<Event> eventOutputs = new ArrayList<>();
+
+    /**
      * 输出节点
      */
     private List<Output> outputs = new ArrayList<>();

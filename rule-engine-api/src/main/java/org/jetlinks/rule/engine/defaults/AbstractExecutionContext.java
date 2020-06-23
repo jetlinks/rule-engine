@@ -12,7 +12,6 @@ import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.task.ExecutionContext;
 import org.jetlinks.rule.engine.api.task.Input;
 import org.jetlinks.rule.engine.api.task.Output;
-import org.springframework.util.ClassUtils;
 import reactor.core.publisher.Mono;
 
 import javax.annotation.Nonnull;
@@ -40,6 +39,8 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
     @Getter
     private final Output output;
 
+    private final Map<String, Output> eventOutputs;
+
     private final List<Runnable> shutdownListener = new CopyOnWriteArrayList<>();
 
     @Setter
@@ -50,12 +51,15 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
                                     EventBus eventBus,
                                     Logger logger,
                                     Input input,
-                                    Output output) {
+                                    Output output,
+                                    Map<String, Output> eventOutputs
+    ) {
         this.job = job;
         this.eventBus = eventBus;
         this.logger = logger;
         this.input = input;
         this.output = output;
+        this.eventOutputs = eventOutputs;
     }
 
     @Override
@@ -65,11 +69,17 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
 
     @Override
     public Mono<Void> fireEvent(@Nonnull String event, @Nonnull RuleData data) {
-
-        return eventBus
+        Mono<Void> then = eventBus
                 .publish(RuleConstants.Topics.event(job.getInstanceId(), job.getNodeId(), event), Codecs.lookup(RuleData.class), data)
                 .doOnSubscribe(ignore -> logger.debug("fire job task [{}] event [{}] ", job, event))
                 .then();
+        Output output = eventOutputs.get(event);
+        if (output != null) {
+            return output
+                    .write(Mono.just(data))
+                    .then(then);
+        }
+        return then;
     }
 
     @Override
@@ -85,7 +95,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
             obj.put("stack", StringUtils.throwable2String(e));
         }
         obj.put("source", source);
-        return source == null ? newRuleData(obj) : newRuleData(source);
+        return newRuleData(obj);
     }
 
     @Override

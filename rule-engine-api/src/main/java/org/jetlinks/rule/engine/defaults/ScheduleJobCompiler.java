@@ -64,8 +64,12 @@ public class ScheduleJobCompiler {
 
         {
             for (RuleLink event : node.getEvents()) {
-                getJob(event.getTarget().getId()).getEvents()
+                //事件输入
+                getJob(event.getTarget().getId())
+                        .getEvents()
                         .add(new ScheduleJob.Event(event.getType(), node.getId()));
+                //事件输出
+                job.getEventOutputs().add(new ScheduleJob.Event(event.getType(), event.getTarget().getId()));
             }
         }
 

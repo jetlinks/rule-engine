@@ -77,7 +77,7 @@ public class ClusterLocalScheduler implements Scheduler {
     @Override
     public Flux<Task> schedule(ScheduleJob job) {
         //判断调度中的任务
-        List<Task> tasks = getExecutor(job.getInstanceId(), job.getNodeId());
+        List<Task> tasks = getTasks(job.getInstanceId(), job.getNodeId());
         if (tasks.isEmpty()) {
             return createExecutor(job);
         }
@@ -92,19 +92,20 @@ public class ClusterLocalScheduler implements Scheduler {
         return findWorker(job.getExecutor(), job)
                 .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("unsupported executor:" + job.getExecutor())))
                 .flatMap(worker -> worker.createTask(id, job))
-                .doOnNext(task -> getExecutor(job.getInstanceId(), job.getNodeId()).add(task));
+                .doOnNext(task -> getTasks(job.getInstanceId(), job.getNodeId()).add(task));
     }
 
     @Override
     public Mono<Void> shutdown(String instanceId) {
+
         return getSchedulingTask(instanceId)
                 .flatMap(Task::shutdown)
-                .then();
+                .then(Mono.fromRunnable(() -> getTasks(instanceId).clear()));
     }
 
     @Override
     public Flux<Task> getSchedulingTask(String instanceId) {
-        return Flux.fromIterable(getExecutor(instanceId).values())
+        return Flux.fromIterable(getTasks(instanceId).values())
                 .flatMapIterable(Function.identity());
     }
 
@@ -134,11 +135,11 @@ public class ClusterLocalScheduler implements Scheduler {
                                 .defaultIfEmpty(false)), job);
     }
 
-    private List<Task> getExecutor(String instanceId, String nodeId) {
-        return getExecutor(instanceId).computeIfAbsent(nodeId, ignore -> new CopyOnWriteArrayList<>());
+    private List<Task> getTasks(String instanceId, String nodeId) {
+        return getTasks(instanceId).computeIfAbsent(nodeId, ignore -> new CopyOnWriteArrayList<>());
     }
 
-    private Map<String, List<Task>> getExecutor(String instanceId) {
+    private Map<String, List<Task>> getTasks(String instanceId) {
         return localTasks.computeIfAbsent(instanceId, ignore -> new ConcurrentHashMap<>());
     }
 

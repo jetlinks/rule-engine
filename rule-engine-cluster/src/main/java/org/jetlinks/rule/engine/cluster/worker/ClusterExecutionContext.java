@@ -6,8 +6,11 @@ import org.jetlinks.core.cluster.ClusterManager;
 import org.jetlinks.rule.engine.api.EventBus;
 import org.jetlinks.rule.engine.api.Slf4jLogger;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
+import org.jetlinks.rule.engine.api.task.CompositeOutput;
 import org.jetlinks.rule.engine.api.task.ConditionEvaluator;
 import org.jetlinks.rule.engine.defaults.AbstractExecutionContext;
+
+import java.util.stream.Collectors;
 
 @Getter
 @Slf4j
@@ -21,8 +24,13 @@ public class ClusterExecutionContext extends AbstractExecutionContext {
                 job,
                 eventBus,
                 new Slf4jLogger("rule.engine." + job.getInstanceId() + "." + job.getNodeId()),
-                new QueueInput(job.getInstanceId(), job.getNodeId(), job.getEvents(), clusterManager),
-                new QueueOutput(job.getInstanceId(), clusterManager, job.getOutputs(), evaluator)
+                new QueueInput(job.getInstanceId(), job.getNodeId(), clusterManager),
+                new QueueOutput(job.getInstanceId(), clusterManager, job.getOutputs(), evaluator),
+                job.getEventOutputs()
+                        .stream()
+                        .map(event -> new QueueEventOutput(job.getInstanceId(), clusterManager, event.getType(), event.getSource()))
+                        .collect(Collectors.groupingBy(QueueEventOutput::getEvent, Collectors.collectingAndThen(Collectors.toList(), CompositeOutput::of)))
+
         );
     }
 
