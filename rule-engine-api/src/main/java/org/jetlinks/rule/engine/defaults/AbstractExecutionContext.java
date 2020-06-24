@@ -94,8 +94,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
             obj.put("message", e.getMessage());
             obj.put("stack", StringUtils.throwable2String(e));
         }
-        obj.put("source", job.getNodeId());
-        return newRuleData(source.newData(obj));
+        return newRuleData(source == null ? obj : source.newData(obj));
     }
 
     @Override
