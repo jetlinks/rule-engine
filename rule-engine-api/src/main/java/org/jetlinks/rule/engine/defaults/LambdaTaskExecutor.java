@@ -39,9 +39,9 @@ public class LambdaTaskExecutor extends FunctionTaskExecutor {
         return Flux.from(function.apply(input))
                 .map(t -> {
                     if (t instanceof RuleData) {
-                        return ((RuleData) t);
+                        return context.newRuleData(t);
                     }
-                    return context.newRuleData(t);
+                    return context.newRuleData(input.newData(t));
                 });
     }
 }
