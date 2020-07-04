@@ -14,8 +14,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class DefaultExecutionContext extends AbstractExecutionContext {
 
-    public DefaultExecutionContext(ScheduleJob job, EventBus eventBus, ConditionEvaluator evaluator) {
-        super(job,
+    public DefaultExecutionContext(String workerId,ScheduleJob job, EventBus eventBus, ConditionEvaluator evaluator) {
+        super( workerId,job,
                 eventBus,
                 new Slf4jLogger("rule.engine." + job.getInstanceId() + "." + job.getNodeId()),
                 new EventBusInput(job.getInstanceId(), job.getNodeId(),  eventBus),

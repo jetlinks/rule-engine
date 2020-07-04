@@ -30,6 +30,11 @@ public interface RuleConstants {
             return prefix(instanceId, nodeId) + "/event/" + event;
         }
 
+        static String logger(String instanceId, String nodeId, String level) {
+            return prefix(instanceId, nodeId) + "/logger/" + level;
+        }
+
+
         static String state(String instanceId, String nodeId) {
             return prefix(instanceId, nodeId) + "/state";
         }

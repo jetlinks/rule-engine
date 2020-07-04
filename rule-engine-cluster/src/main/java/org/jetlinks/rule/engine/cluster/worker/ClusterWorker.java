@@ -52,7 +52,7 @@ public class ClusterWorker implements Worker {
     }
 
     protected ClusterExecutionContext createContext(ScheduleJob job) {
-        return new ClusterExecutionContext(job, eventBus, clusterManager, conditionEvaluator);
+        return new ClusterExecutionContext(getId(), job, eventBus, clusterManager, conditionEvaluator);
     }
 
     @Override

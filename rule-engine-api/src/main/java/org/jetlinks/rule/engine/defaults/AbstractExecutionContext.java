@@ -3,10 +3,7 @@ package org.jetlinks.rule.engine.defaults;
 import lombok.Getter;
 import lombok.Setter;
 import org.hswebframework.utils.StringUtils;
-import org.jetlinks.rule.engine.api.EventBus;
-import org.jetlinks.rule.engine.api.Logger;
-import org.jetlinks.rule.engine.api.RuleConstants;
-import org.jetlinks.rule.engine.api.RuleData;
+import org.jetlinks.rule.engine.api.*;
 import org.jetlinks.rule.engine.api.codec.Codecs;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.task.ExecutionContext;
@@ -47,19 +44,20 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
     @Getter
     private boolean debug;
 
-    public AbstractExecutionContext(ScheduleJob job,
+    public AbstractExecutionContext(String workerId,
+                                    ScheduleJob job,
                                     EventBus eventBus,
                                     Logger logger,
                                     Input input,
                                     Output output,
-                                    Map<String, Output> eventOutputs
-    ) {
+                                    Map<String, Output> eventOutputs) {
+
         this.job = job;
         this.eventBus = eventBus;
-        this.logger = logger;
         this.input = input;
         this.output = output;
         this.eventOutputs = eventOutputs;
+        this.logger = CompositeLogger.of(logger, new EventLogger(eventBus, job.getInstanceId(), job.getNodeId(), workerId));
     }
 
     @Override

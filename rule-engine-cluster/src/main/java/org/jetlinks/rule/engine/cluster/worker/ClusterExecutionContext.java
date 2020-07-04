@@ -16,11 +16,12 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ClusterExecutionContext extends AbstractExecutionContext {
 
-    public ClusterExecutionContext(ScheduleJob job,
+    public ClusterExecutionContext(String workerId,
+                                   ScheduleJob job,
                                    EventBus eventBus,
                                    ClusterManager clusterManager,
                                    ConditionEvaluator evaluator) {
-        super(
+        super(workerId,
                 job,
                 eventBus,
                 new Slf4jLogger("rule.engine." + job.getInstanceId() + "." + job.getNodeId()),

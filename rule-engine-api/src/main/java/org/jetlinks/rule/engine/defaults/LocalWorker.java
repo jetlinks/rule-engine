@@ -47,7 +47,7 @@ public class LocalWorker implements Worker {
     }
 
     protected DefaultExecutionContext createContext(ScheduleJob job) {
-        return new DefaultExecutionContext(job, eventBus, conditionEvaluator);
+        return new DefaultExecutionContext(getId(),job, eventBus, conditionEvaluator);
     }
 
     @Override
