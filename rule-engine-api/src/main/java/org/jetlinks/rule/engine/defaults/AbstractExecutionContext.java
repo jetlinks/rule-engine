@@ -2,6 +2,7 @@ package org.jetlinks.rule.engine.defaults;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.hswebframework.utils.StringUtils;
 import org.jetlinks.rule.engine.api.*;
 import org.jetlinks.rule.engine.api.codec.Codecs;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+@Slf4j
 public abstract class AbstractExecutionContext implements ExecutionContext {
 
     @Getter
@@ -69,7 +71,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
     public Mono<Void> fireEvent(@Nonnull String event, @Nonnull RuleData data) {
         Mono<Void> then = eventBus
                 .publish(RuleConstants.Topics.event(job.getInstanceId(), job.getNodeId(), event), Codecs.lookup(RuleData.class), data)
-                .doOnSubscribe(ignore -> logger.debug("fire job task [{}] event [{}] ", job, event))
+                .doOnSubscribe(ignore -> log.debug("fire job task [{}] event [{}] ", job, event))
                 .then();
         Output output = eventOutputs.get(event);
         if (output != null) {
