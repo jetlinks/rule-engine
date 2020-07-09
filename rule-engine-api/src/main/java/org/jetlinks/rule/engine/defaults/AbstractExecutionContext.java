@@ -68,11 +68,11 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
     }
 
     @Override
-    public Mono<Void> fireEvent(@Nonnull String event, @Nonnull RuleData data) {
-        Mono<Void> then = eventBus
+    public <T> Mono<T> fireEvent(@Nonnull String event, @Nonnull RuleData data) {
+        Mono<T> then = eventBus
                 .publish(RuleConstants.Topics.event(job.getInstanceId(), job.getNodeId(), event), Codecs.lookup(RuleData.class), data)
                 .doOnSubscribe(ignore -> log.debug("fire job task [{}] event [{}] ", job, event))
-                .then();
+                .then(Mono.empty());
         Output output = eventOutputs.get(event);
         if (output != null) {
             return output
@@ -83,8 +83,8 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
     }
 
     @Override
-    public Mono<Void> onError(@Nullable Throwable e, @Nullable RuleData data) {
-        return fireEvent(RuleConstants.Event.error, createErrorData(e, data));
+    public <T> Mono<T> onError(@Nullable Throwable e, @Nullable RuleData sourceData) {
+        return fireEvent(RuleConstants.Event.error, createErrorData(e, sourceData));
     }
 
     private RuleData createErrorData(Throwable e, RuleData source) {
