@@ -7,6 +7,7 @@ import org.hswebframework.utils.StringUtils;
 import org.jetlinks.rule.engine.api.*;
 import org.jetlinks.rule.engine.api.codec.Codecs;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
+import org.jetlinks.rule.engine.api.scope.GlobalScope;
 import org.jetlinks.rule.engine.api.task.ExecutionContext;
 import org.jetlinks.rule.engine.api.task.Input;
 import org.jetlinks.rule.engine.api.task.Output;
@@ -42,6 +43,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
 
     private final List<Runnable> shutdownListener = new CopyOnWriteArrayList<>();
 
+    private final GlobalScope globalScope;
     @Setter
     @Getter
     private boolean debug;
@@ -52,7 +54,8 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
                                     Logger logger,
                                     Input input,
                                     Output output,
-                                    Map<String, Output> eventOutputs) {
+                                    Map<String, Output> eventOutputs,
+                                    GlobalScope globalScope) {
 
         this.job = job;
         this.eventBus = eventBus;
@@ -60,6 +63,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
         this.output = output;
         this.eventOutputs = eventOutputs;
         this.logger = CompositeLogger.of(logger, new EventLogger(eventBus, job.getInstanceId(), job.getNodeId(), workerId));
+        this.globalScope = globalScope;
     }
 
     @Override
@@ -131,4 +135,8 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
         shutdownListener.add(runnable);
     }
 
+    @Override
+    public GlobalScope global() {
+        return globalScope;
+    }
 }

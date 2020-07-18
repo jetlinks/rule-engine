@@ -38,6 +38,8 @@ public interface ExecutionContext {
 
     boolean isDebug();
 
+    GlobalScope global();
+
     default <T> Mono<T> onError(@NotNull Supplier<Throwable> e, @Nullable RuleData sourceData) {
         return Mono.defer(() -> onError(e.get(), sourceData));
     }
@@ -48,10 +50,6 @@ public interface ExecutionContext {
 
     default ContextScope scope(RuleData ruleData) {
         return scope(ruleData.getContextId());
-    }
-
-    default GlobalScope global() {
-        throw new UnsupportedOperationException();
     }
 
     default NodeScope node() {

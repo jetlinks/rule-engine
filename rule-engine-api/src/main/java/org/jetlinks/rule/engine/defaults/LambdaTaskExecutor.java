@@ -9,9 +9,9 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class LambdaTaskExecutor extends FunctionTaskExecutor {
-    Supplier<Function<RuleData, Publisher<?>>> supplier;
+    private final Supplier<Function<RuleData, Publisher<?>>> supplier;
 
-    Function<RuleData, Publisher<?>> function;
+    private Function<RuleData, Publisher<?>> function;
 
     public LambdaTaskExecutor(String name,
                               ExecutionContext context,

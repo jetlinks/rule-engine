@@ -1,19 +1,20 @@
-package org.jetlinks.rule.engine.defaults.scope;
+package org.jetlinks.rule.engine.cluster.scope;
 
+import lombok.AllArgsConstructor;
 import org.jetlinks.core.cluster.ClusterManager;
-import org.jetlinks.rule.engine.api.scope.ScropeCounter;
 import org.jetlinks.rule.engine.api.scope.PersistenceScope;
+import org.jetlinks.rule.engine.api.scope.ScropeCounter;
 import reactor.core.publisher.Mono;
 
 import java.util.Arrays;
 import java.util.Map;
 
-public class ClusterPersistenceScope implements PersistenceScope {
+@AllArgsConstructor
+class ClusterPersistenceScope implements PersistenceScope {
 
-    private ClusterManager clusterManager;
+    protected final String id;
 
-    private String id;
-
+    protected final ClusterManager clusterManager;
 
     private String getKey() {
         return "rule-engine:" + id;
@@ -66,6 +67,6 @@ public class ClusterPersistenceScope implements PersistenceScope {
 
     @Override
     public ScropeCounter counter(String key) {
-        return null;
+        return new ClusterScopeCounter(clusterManager.getCounter(getKey() + ":counter"));
     }
 }

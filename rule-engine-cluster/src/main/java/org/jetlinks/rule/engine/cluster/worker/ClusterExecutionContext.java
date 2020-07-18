@@ -8,6 +8,7 @@ import org.jetlinks.rule.engine.api.Slf4jLogger;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.task.CompositeOutput;
 import org.jetlinks.rule.engine.api.task.ConditionEvaluator;
+import org.jetlinks.rule.engine.cluster.scope.ClusterGlobalScope;
 import org.jetlinks.rule.engine.defaults.AbstractExecutionContext;
 
 import java.util.stream.Collectors;
@@ -30,8 +31,8 @@ public class ClusterExecutionContext extends AbstractExecutionContext {
                 job.getEventOutputs()
                         .stream()
                         .map(event -> new QueueEventOutput(job.getInstanceId(), clusterManager, event.getType(), event.getSource()))
-                        .collect(Collectors.groupingBy(QueueEventOutput::getEvent, Collectors.collectingAndThen(Collectors.toList(), CompositeOutput::of)))
-
+                        .collect(Collectors.groupingBy(QueueEventOutput::getEvent, Collectors.collectingAndThen(Collectors.toList(), CompositeOutput::of))),
+                new ClusterGlobalScope(clusterManager)
         );
     }
 
