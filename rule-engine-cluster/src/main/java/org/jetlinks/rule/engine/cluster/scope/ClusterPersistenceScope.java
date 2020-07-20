@@ -1,6 +1,7 @@
 package org.jetlinks.rule.engine.cluster.scope;
 
 import lombok.AllArgsConstructor;
+import org.jetlinks.core.cluster.ClusterCache;
 import org.jetlinks.core.cluster.ClusterManager;
 import org.jetlinks.rule.engine.api.scope.PersistenceScope;
 import org.jetlinks.rule.engine.api.scope.ScropeCounter;
@@ -28,40 +29,56 @@ class ClusterPersistenceScope implements PersistenceScope {
                 .then();
     }
 
+    protected ClusterCache<String, Object> getCache() {
+        return clusterManager.getCache(getKey());
+    }
+
     @Override
     public Mono<Map<String, Object>> all(String... key) {
 
         if (key.length == 0) {
-            return clusterManager.<String, Object>getCache(getKey())
+            return getCache()
                     .entries()
                     .collectMap(Map.Entry::getKey, Map.Entry::getValue);
         }
 
-        return clusterManager.<String, Object>getCache(getKey())
+        return getCache()
                 .get(Arrays.asList(key))
                 .collectMap(Map.Entry::getKey, Map.Entry::getValue);
     }
 
     @Override
     public Mono<Void> put(String key, Object value) {
-
-        return clusterManager
-                .<String, Object>getCache(getKey())
+        if (value == null) {
+            return getCache()
+                    .remove(key)
+                    .then();
+        }
+        return getCache()
                 .put(key, value)
                 .then();
     }
 
+
+    @Override
+    public Mono<Object> remove(String key) {
+        return getCache()
+                .get(key)
+                .flatMap(v -> getCache()
+                        .remove(key)
+                        .thenReturn(v)
+                );
+    }
+
     @Override
     public Mono<Object> get(String key) {
-        return clusterManager
-                .<String, Object>getCache(getKey())
+        return getCache()
                 .get(key);
     }
 
     @Override
     public Mono<Void> clear() {
-        return clusterManager
-                .<String, Object>getCache(getKey())
+        return getCache()
                 .clear();
     }
 
