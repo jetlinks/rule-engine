@@ -1,12 +1,13 @@
 package org.jetlinks.rule.engine.defaults;
 
 import lombok.Getter;
+import org.jetlinks.rule.engine.api.EventBus;
+import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.task.ConditionEvaluator;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.task.TaskExecutorProvider;
 import org.jetlinks.rule.engine.api.worker.Worker;
-import org.jetlinks.rule.engine.api.EventBus;
-import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
+import org.jetlinks.rule.engine.defaults.scope.InMemoryGlobalScope;
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
@@ -28,7 +29,9 @@ public class LocalWorker implements Worker {
 
     private final ConditionEvaluator conditionEvaluator;
 
-    public LocalWorker(String id, String name,   EventBus eventBus, ConditionEvaluator evaluator) {
+    private static final InMemoryGlobalScope scope = new InMemoryGlobalScope();
+
+    public LocalWorker(String id, String name, EventBus eventBus, ConditionEvaluator evaluator) {
         this.id = id;
         this.name = name;
         this.eventBus = eventBus;
@@ -36,18 +39,18 @@ public class LocalWorker implements Worker {
     }
 
     @Override
-    public Mono<Task> createTask(String schedulerId,ScheduleJob job) {
+    public Mono<Task> createTask(String schedulerId, ScheduleJob job) {
         return Mono.justOrEmpty(executors.get(job.getExecutor()))
                 .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("unsupported executor:" + job.getExecutor())))
                 .flatMap(provider -> {
                     DefaultExecutionContext context = createContext(job);
                     return provider.createTask(context)
-                            .map(executor -> new DefaultTask(schedulerId,this.getId(), context, executor));
+                            .map(executor -> new DefaultTask(schedulerId, this.getId(), context, executor));
                 });
     }
 
     protected DefaultExecutionContext createContext(ScheduleJob job) {
-        return new DefaultExecutionContext(getId(),job, eventBus, conditionEvaluator);
+        return new DefaultExecutionContext(getId(), job, eventBus, conditionEvaluator, scope);
     }
 
     @Override

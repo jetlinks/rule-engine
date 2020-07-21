@@ -5,9 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.rule.engine.api.EventBus;
 import org.jetlinks.rule.engine.api.Slf4jLogger;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
+import org.jetlinks.rule.engine.api.scope.GlobalScope;
 import org.jetlinks.rule.engine.api.task.CompositeOutput;
 import org.jetlinks.rule.engine.api.task.ConditionEvaluator;
-import org.jetlinks.rule.engine.defaults.scope.InMemoryGlobalScope;
 
 import java.util.stream.Collectors;
 
@@ -15,9 +15,11 @@ import java.util.stream.Collectors;
 @Slf4j
 public class DefaultExecutionContext extends AbstractExecutionContext {
 
-    private static final InMemoryGlobalScope scope = new InMemoryGlobalScope();
-
-    public DefaultExecutionContext(String workerId, ScheduleJob job, EventBus eventBus, ConditionEvaluator evaluator) {
+    public DefaultExecutionContext(String workerId,
+                                   ScheduleJob job,
+                                   EventBus eventBus,
+                                   ConditionEvaluator evaluator,
+                                   GlobalScope scope) {
         super(workerId, job,
                 eventBus,
                 new Slf4jLogger("rule.engine." + job.getInstanceId() + "." + job.getNodeId()),

@@ -32,14 +32,6 @@ public interface Worker {
      */
     Mono<Task> createTask(String schedulerId, ScheduleJob job);
 
-//    /**
-//     * 获取executor定义
-//     *
-//     * @param executor executor
-//     * @return ExecutorDefinition
-//     */
-//    Mono<ExecutorDefinition> getExecutorDef(String executor);
-
     /**
      * @return 支持的执行器ID
      */
