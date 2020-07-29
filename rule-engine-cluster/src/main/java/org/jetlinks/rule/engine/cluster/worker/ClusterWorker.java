@@ -2,7 +2,7 @@ package org.jetlinks.rule.engine.cluster.worker;
 
 import lombok.Getter;
 import org.jetlinks.core.cluster.ClusterManager;
-import org.jetlinks.rule.engine.api.EventBus;
+import org.jetlinks.core.event.EventBus;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.task.ConditionEvaluator;
 import org.jetlinks.rule.engine.api.task.Task;

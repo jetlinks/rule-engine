@@ -2,7 +2,8 @@ package org.jetlinks.rule.engine.cluster.scheduler;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.jetlinks.rule.engine.api.rpc.RpcServiceFactory;
+import org.jetlinks.core.rpc.DisposableService;
+import org.jetlinks.core.rpc.RpcServiceFactory;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.api.task.Task;
@@ -10,13 +11,14 @@ import org.jetlinks.rule.engine.api.worker.Worker;
 import org.jetlinks.rule.engine.cluster.task.RemoteTask;
 import org.jetlinks.rule.engine.cluster.worker.RemoteWorker;
 import reactor.bool.BooleanUtils;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.concurrent.TimeoutException;
 
 @AllArgsConstructor
-public class RemoteScheduler implements Scheduler {
+public class RemoteScheduler implements Scheduler, Disposable {
 
     @Getter
     private final String id;
@@ -25,13 +27,17 @@ public class RemoteScheduler implements Scheduler {
 
     private final RpcServiceFactory factory;
 
+    private Disposable disposable;
+
     public RemoteScheduler(String id, RpcServiceFactory factory) {
         this.id = id;
         this.factory = factory;
     }
 
     public void init() {
-        this.rpcService = factory.createProducer("/rule-engine/cluster-scheduler:" + id, SchedulerRpcService.class);
+        DisposableService<SchedulerRpcService> service = factory.createProducer("/rule-engine/cluster-scheduler:" + id, SchedulerRpcService.class);
+        this.disposable = service;
+        this.rpcService = service.getService();
     }
 
     public Mono<Boolean> isAlive() {
@@ -96,5 +102,17 @@ public class RemoteScheduler implements Scheduler {
     public Mono<Boolean> canSchedule(ScheduleJob job) {
         return rpcService
                 .canSchedule(job);
+    }
+
+    @Override
+    public void dispose() {
+        if (disposable != null) {
+            disposable.dispose();
+        }
+    }
+
+    @Override
+    public boolean isDisposed() {
+        return disposable == null || disposable.isDisposed();
     }
 }

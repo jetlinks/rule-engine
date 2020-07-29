@@ -1,24 +1,25 @@
 package org.jetlinks.rule.engine.cluster;
 
-import org.jetlinks.rule.engine.api.EventBus;
-import org.jetlinks.rule.engine.api.rpc.RpcService;
-import org.jetlinks.rule.engine.api.rpc.RpcServiceFactory;
-import org.jetlinks.rule.engine.defaults.rpc.DefaultRpcServiceFactory;
-import org.jetlinks.rule.engine.defaults.rpc.EventBusRcpService;
+import org.jetlinks.core.rpc.RpcService;
+import org.jetlinks.core.rpc.RpcServiceFactory;
 import org.jetlinks.rule.engine.cluster.scheduler.ClusterLocalScheduler;
-import org.jetlinks.rule.engine.defaults.LocalEventBus;
+import org.jetlinks.supports.event.BrokerEventBus;
+import org.jetlinks.supports.rpc.DefaultRpcServiceFactory;
+import org.jetlinks.supports.rpc.EventBusRcpService;
 import org.junit.Test;
+import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 
 public class ClusterSchedulerRegistryTest {
 
 
-    EventBus eventBus = new LocalEventBus();
-    RpcService rpcService = new EventBusRcpService(new LocalEventBus());
+    BrokerEventBus eventBus = new BrokerEventBus();
+    RpcService rpcService = new EventBusRcpService(eventBus);
 
 
     @Test
     public void test() {
+        eventBus.setPublishScheduler(Schedulers.immediate());
         RpcServiceFactory factory=new DefaultRpcServiceFactory(rpcService);
 
         {

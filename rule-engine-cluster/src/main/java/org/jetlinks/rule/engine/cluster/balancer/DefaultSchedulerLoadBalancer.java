@@ -2,7 +2,7 @@ package org.jetlinks.rule.engine.cluster.balancer;
 
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.jetlinks.rule.engine.api.EventBus;
+import org.jetlinks.core.event.EventBus;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.cluster.SchedulerRegistry;

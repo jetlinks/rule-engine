@@ -4,8 +4,11 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.hswebframework.utils.StringUtils;
-import org.jetlinks.rule.engine.api.*;
-import org.jetlinks.rule.engine.api.codec.Codecs;
+import org.jetlinks.core.event.EventBus;
+import org.jetlinks.rule.engine.api.CompositeLogger;
+import org.jetlinks.rule.engine.api.Logger;
+import org.jetlinks.rule.engine.api.RuleConstants;
+import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scope.GlobalScope;
 import org.jetlinks.rule.engine.api.task.ExecutionContext;
@@ -74,8 +77,8 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
     @Override
     public <T> Mono<T> fireEvent(@Nonnull String event, @Nonnull RuleData data) {
         Mono<T> then = eventBus
-                .publish(RuleConstants.Topics.event(job.getInstanceId(), job.getNodeId(), event), Codecs.lookup(RuleData.class), data)
-                .doOnSubscribe(ignore -> log.debug("fire job task [{}] event [{}] ", job, event))
+                .publish(RuleConstants.Topics.event(job.getInstanceId(), job.getNodeId(), event), data)
+                .doOnSubscribe(ignore -> log.trace("fire job task [{}] event [{}] ", job, event))
                 .then(Mono.empty());
         Output output = eventOutputs.get(event);
         if (output != null) {

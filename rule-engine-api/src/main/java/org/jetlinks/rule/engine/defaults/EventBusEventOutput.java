@@ -3,7 +3,7 @@ package org.jetlinks.rule.engine.defaults;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.jetlinks.rule.engine.api.EventBus;
+import org.jetlinks.core.event.EventBus;
 import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.task.Output;

@@ -1,8 +1,9 @@
 package org.jetlinks.rule.engine.cluster;
 
 import lombok.extern.slf4j.Slf4j;
-import org.jetlinks.rule.engine.api.EventBus;
-import org.jetlinks.rule.engine.api.rpc.RpcServiceFactory;
+import org.jetlinks.core.event.EventBus;
+import org.jetlinks.core.event.Subscription;
+import org.jetlinks.core.rpc.RpcServiceFactory;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.cluster.scheduler.RemoteScheduler;
 import reactor.core.Disposable;
@@ -52,7 +53,7 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
         leaveProcessor.subscribe(scheduler -> log.debug("remote scheduler leaved:{}", scheduler.getId()));
 
         disposables.add(
-                eventBus.subscribe("/rule-engine/cluster-scheduler/join", String.class)
+                eventBus.subscribe(Subscription.of("rule-engine.register", "/rule-engine/cluster-scheduler/keepalive", Subscription.Feature.broker), String.class)
                         .map(id -> new RemoteScheduler(id, serviceFactory))
                         .filter(scheduler -> !localSchedulers.contains(scheduler) && !remoteSchedulers.contains(scheduler))
                         .doOnNext(remoteScheduler -> {
@@ -67,7 +68,7 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
         );
 
         disposables.add(
-                eventBus.subscribe("/rule-engine/cluster-scheduler/leave", String.class)
+                eventBus.subscribe(Subscription.of("rule-engine.register", "/rule-engine/cluster-scheduler/leave", Subscription.Feature.broker), String.class)
                         .map(id -> new RemoteScheduler(id, serviceFactory))
                         .filter(scheduler -> !localSchedulers.contains(scheduler))
                         .doOnNext(leaveSink::next)
@@ -78,8 +79,11 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
                 Flux.interval(Duration.ofSeconds(10))
                         .subscribe(ignore ->
                                 Flux.fromIterable(remoteSchedulers)
-                                        .filterWhen(RemoteScheduler::isNoAlive)
+                                        .filterWhen(scheduler -> scheduler
+                                                .isNoAlive()
+                                                .onErrorResume((err)->Mono.just(true)))
                                         .doOnNext(scheduler -> {
+                                            scheduler.dispose();
                                             remoteSchedulers.remove(scheduler);
                                             leaveSink.next(scheduler);
                                         })
@@ -92,7 +96,7 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
 
     private Mono<Void> publishLocal() {
         return eventBus
-                .publish("/rule-engine/cluster-scheduler/join", Flux.fromIterable(localSchedulers).map(Scheduler::getId))
+                .publish("/rule-engine/cluster-scheduler/keepalive", Flux.fromIterable(localSchedulers).map(Scheduler::getId))
                 .then();
     }
 
@@ -102,6 +106,7 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
                 Flux.fromIterable(localSchedulers).map(Scheduler::getId))
                 .subscribe();
 
+        remoteSchedulers.forEach(Disposable::dispose);
         disposables.forEach(Disposable::dispose);
         disposables.clear();
 

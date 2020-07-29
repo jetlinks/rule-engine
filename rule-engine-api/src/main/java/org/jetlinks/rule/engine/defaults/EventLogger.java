@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import org.hswebframework.utils.StringUtils;
-import org.jetlinks.rule.engine.api.EventBus;
+import org.jetlinks.core.event.EventBus;
 import org.jetlinks.rule.engine.api.Logger;
 import org.jetlinks.rule.engine.api.RuleConstants;
 import org.slf4j.helpers.MessageFormatter;

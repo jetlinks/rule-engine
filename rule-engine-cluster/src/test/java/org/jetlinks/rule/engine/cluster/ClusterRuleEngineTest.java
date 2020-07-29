@@ -1,17 +1,19 @@
 package org.jetlinks.rule.engine.cluster;
 
-import org.jetlinks.rule.engine.api.EventBus;
-import org.jetlinks.rule.engine.api.rpc.RpcService;
-import org.jetlinks.rule.engine.defaults.rpc.EventBusRcpService;
-import org.jetlinks.rule.engine.defaults.LocalEventBus;
+import org.jetlinks.core.event.EventBus;
+import org.jetlinks.core.rpc.RpcService;
+import org.jetlinks.supports.event.BrokerEventBus;
+import org.jetlinks.supports.rpc.EventBusRcpService;
+import reactor.core.scheduler.Schedulers;
 
 public class ClusterRuleEngineTest extends AbstractClusterRuleEngineTest{
 
-    EventBus eventBus = new LocalEventBus();
+    BrokerEventBus eventBus = new BrokerEventBus();
     RpcService rpcService = new EventBusRcpService(eventBus);
 
     @Override
     public EventBus getEventBus() {
+        eventBus.setPublishScheduler(Schedulers.immediate());
         return eventBus;
     }
 

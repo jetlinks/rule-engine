@@ -1,16 +1,16 @@
 package org.jetlinks.rule.engine.cluster.scheduler;
 
-import org.jetlinks.rule.engine.api.*;
-import org.jetlinks.rule.engine.api.rpc.RpcService;
+import org.jetlinks.core.event.EventBus;
+import org.jetlinks.core.rpc.RpcService;
 import org.jetlinks.rule.engine.api.task.ExecutionContext;
 import org.jetlinks.rule.engine.api.task.TaskExecutor;
 import org.jetlinks.rule.engine.api.task.TaskExecutorProvider;
 import org.jetlinks.rule.engine.api.worker.Worker;
-import org.jetlinks.rule.engine.defaults.rpc.DefaultRpcServiceFactory;
-import org.jetlinks.rule.engine.defaults.rpc.EventBusRcpService;
 import org.jetlinks.rule.engine.defaults.AbstractTaskExecutor;
-import org.jetlinks.rule.engine.defaults.LocalEventBus;
 import org.jetlinks.rule.engine.defaults.LocalWorker;
+import org.jetlinks.supports.event.BrokerEventBus;
+import org.jetlinks.supports.rpc.DefaultRpcServiceFactory;
+import org.jetlinks.supports.rpc.EventBusRcpService;
 import org.junit.Test;
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
@@ -20,8 +20,8 @@ import java.util.function.Function;
 
 public class ClusterSchedulerTest {
 
-    EventBus eventBus = new LocalEventBus();
-    RpcService rpcService = new EventBusRcpService(new LocalEventBus());
+    EventBus eventBus = new BrokerEventBus();
+    RpcService rpcService = new EventBusRcpService(eventBus);
 
     @Test
     public void test() {
