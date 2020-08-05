@@ -1,5 +1,6 @@
 package org.jetlinks.rule.engine.cluster.redis;
 
+import lombok.SneakyThrows;
 import org.jetlinks.core.event.EventBus;
 import org.jetlinks.core.rpc.RpcService;
 import org.jetlinks.rule.engine.cluster.AbstractClusterRuleEngineTest;
@@ -18,10 +19,12 @@ public class RedisClusterRuleEngineTest extends AbstractClusterRuleEngineTest {
     RpcService rpcService = new EventBusRcpService(eventBus);
 
     @Before
+    @SneakyThrows
     public void init() {
         ReactiveRedisConnectionFactory factory = RedisHelper.connectionFactory();
 
         eventBus.addBroker(new RedisClusterEventBroker(new RedisClusterManager("test", "test", new ReactiveRedisTemplate<>(factory, RedisSerializationContext.java())), factory));
+        Thread.sleep(1000);
     }
 
     @Override

@@ -25,6 +25,10 @@ public abstract class AbstractClusterRuleEngineTest {
 
     public abstract RpcService getRpcService();
 
+    protected SchedulerRegistry newRegistry(){
+        return new ClusterSchedulerRegistry(getEventBus(), new DefaultRpcServiceFactory(getRpcService()));
+    }
+
     @Test
     @SneakyThrows
     public void test() {
