@@ -2,12 +2,11 @@ package org.jetlinks.rule.engine.defaults;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.worker.Worker;
 import org.jetlinks.rule.engine.api.worker.WorkerSelector;
-import org.jetlinks.rule.engine.api.scheduler.SchedulingRule;
-import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -78,7 +77,7 @@ public class LocalScheduler implements Scheduler {
     public Mono<Void> shutdown(String instanceId) {
         return getSchedulingTask(instanceId)
                 .flatMap(Task::shutdown)
-                .then();
+                .then(Mono.fromRunnable(() -> getExecutor(instanceId).clear()));
     }
 
     private Flux<Task> createExecutor(ScheduleJob job) {
