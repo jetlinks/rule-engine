@@ -12,34 +12,28 @@ import org.jetlinks.rule.engine.cluster.scheduler.ClusterLocalScheduler;
 import org.jetlinks.rule.engine.defaults.LambdaTaskExecutorProvider;
 import org.jetlinks.rule.engine.defaults.LocalWorker;
 import org.jetlinks.supports.rpc.DefaultRpcServiceFactory;
+import org.jetlinks.supports.rpc.EventBusRcpService;
 import org.junit.Assert;
 import org.junit.Test;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
 
 public abstract class AbstractClusterRuleEngineTest {
 
     public abstract EventBus getEventBus();
 
-    public abstract RpcService getRpcService();
-
-    protected SchedulerRegistry newRegistry(){
-        return new ClusterSchedulerRegistry(getEventBus(), new DefaultRpcServiceFactory(getRpcService()));
-    }
 
     @Test
     @SneakyThrows
     public void test() {
         EventBus eventBus = getEventBus();
-        RpcService rpcService = getRpcService();
-
-        RpcServiceFactory factory=new DefaultRpcServiceFactory(rpcService);
+        RpcServiceFactory factory=new DefaultRpcServiceFactory(new EventBusRcpService(eventBus));
 
         ClusterSchedulerRegistry registry = new ClusterSchedulerRegistry(eventBus, factory);
-        registry.setup();
-
+        registry.setKeepaliveInterval(Duration.ofSeconds(1));
         AtomicLong counter = new AtomicLong();
         AtomicLong event = new AtomicLong();
 
@@ -55,27 +49,34 @@ public abstract class AbstractClusterRuleEngineTest {
                 return Mono.just(ruleData.newData("boom"));
             }));
             scheduler.addWorker(worker);
+            registry.setup();
         }
+        Thread.sleep(1200);
 
         //模拟集群节点2
         {
-            ClusterSchedulerRegistry registry2 = new ClusterSchedulerRegistry(eventBus, factory);
-            registry2.setup();
+            EventBus eventBus2 = getEventBus();
+            RpcService rpcService2 = new EventBusRcpService(eventBus2);
+            RpcServiceFactory factory2=new DefaultRpcServiceFactory(rpcService2);
 
-            ClusterLocalScheduler scheduler = new ClusterLocalScheduler("test2", factory);
+            ClusterSchedulerRegistry registry2 = new ClusterSchedulerRegistry(eventBus2, factory2);
+            registry2.setKeepaliveInterval(Duration.ofSeconds(1));
+            ClusterLocalScheduler scheduler = new ClusterLocalScheduler("test2", factory2);
             registry2.register(scheduler);
 
-
-            LocalWorker worker = new LocalWorker("local2", "Local2", eventBus, (c, d) -> true);
+            LocalWorker worker = new LocalWorker("local2", "Local2", eventBus2, (c, d) -> true);
             worker.addExecutor(new LambdaTaskExecutorProvider("createWorld", ruleData -> Mono.just(ruleData.newData("world"))));
             worker.addExecutor(new LambdaTaskExecutorProvider("event", ruleData -> {
                 event.incrementAndGet();
                 return Mono.just(ruleData.newData("event"));
             }));
             scheduler.addWorker(worker);
+
+            registry2.setup();
+
         }
 
-        Thread.sleep(1000);
+        Thread.sleep(1200);
 
         ClusterRuleEngine engine = new ClusterRuleEngine(registry, new TestTaskSnapshotRepository());
 

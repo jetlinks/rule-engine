@@ -1,5 +1,6 @@
 package org.jetlinks.rule.engine.cluster;
 
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.core.event.EventBus;
 import org.jetlinks.core.event.Subscription;
@@ -40,6 +41,9 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
     private final EventBus eventBus;
     private final RpcServiceFactory serviceFactory;
 
+    @Setter
+    private Duration keepaliveInterval = Duration.ofSeconds(10);
+
     public ClusterSchedulerRegistry(EventBus eventBus, RpcServiceFactory serviceFactory) {
         this.eventBus = eventBus;
         this.serviceFactory = serviceFactory;
@@ -76,7 +80,7 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
         );
 
         disposables.add(
-                Flux.interval(Duration.ofSeconds(10))
+                Flux.interval(keepaliveInterval)
                         .subscribe(ignore ->
                                 Flux.fromIterable(remoteSchedulers)
                                         .filterWhen(scheduler -> scheduler
