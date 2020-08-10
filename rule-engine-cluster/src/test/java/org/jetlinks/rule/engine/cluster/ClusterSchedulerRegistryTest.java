@@ -7,12 +7,14 @@ import org.jetlinks.rule.engine.cluster.scheduler.ClusterLocalScheduler;
 import org.jetlinks.supports.event.BrokerEventBus;
 import org.jetlinks.supports.rpc.DefaultRpcServiceFactory;
 import org.jetlinks.supports.rpc.EventBusRcpService;
+import org.junit.Ignore;
 import org.junit.Test;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 
 import java.time.Duration;
 
+@Ignore
 public class ClusterSchedulerRegistryTest {
 
 
