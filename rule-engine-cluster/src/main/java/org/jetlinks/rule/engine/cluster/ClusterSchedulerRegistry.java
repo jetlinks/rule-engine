@@ -82,17 +82,20 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
         disposables.add(
                 Flux.interval(keepaliveInterval)
                         .subscribe(ignore ->
-                                Flux.fromIterable(remoteSchedulers)
-                                        .filterWhen(scheduler -> scheduler
-                                                .isNoAlive()
-                                                .onErrorResume((err)->Mono.just(true)))
-                                        .doOnNext(scheduler -> {
-                                            scheduler.dispose();
-                                            remoteSchedulers.remove(scheduler);
-                                            leaveSink.next(scheduler);
-                                        })
-                                        .then(publishLocal())
-                                        .subscribe())
+                                publishLocal()
+                                        .then(Flux
+                                                .fromIterable(remoteSchedulers)
+                                                .filterWhen(scheduler -> scheduler
+                                                        .isNoAlive()
+                                                        .onErrorResume((err) -> Mono.just(true)))
+                                                .doOnNext(scheduler -> {
+                                                    scheduler.dispose();
+                                                    remoteSchedulers.remove(scheduler);
+                                                    leaveSink.next(scheduler);
+                                                })
+                                                .then())
+                                        .subscribe()
+                        )
         );
 
         publishLocal().subscribe();

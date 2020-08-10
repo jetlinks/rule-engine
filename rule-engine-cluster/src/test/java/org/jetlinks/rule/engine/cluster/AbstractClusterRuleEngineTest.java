@@ -25,7 +25,6 @@ public abstract class AbstractClusterRuleEngineTest {
 
     public abstract EventBus getEventBus();
 
-
     @Test
     @SneakyThrows
     public void test() {
@@ -33,15 +32,13 @@ public abstract class AbstractClusterRuleEngineTest {
         RpcServiceFactory factory=new DefaultRpcServiceFactory(new EventBusRcpService(eventBus));
 
         ClusterSchedulerRegistry registry = new ClusterSchedulerRegistry(eventBus, factory);
-        registry.setKeepaliveInterval(Duration.ofSeconds(1));
+        registry.setKeepaliveInterval(Duration.ofMillis(2000));
         AtomicLong counter = new AtomicLong();
         AtomicLong event = new AtomicLong();
 
         //模拟集群节点1
         {
             ClusterLocalScheduler scheduler = new ClusterLocalScheduler("test", factory);
-            registry.register(scheduler);
-
             LocalWorker worker = new LocalWorker("local", "Local", eventBus, (c, d) -> true);
 
             worker.addExecutor(new LambdaTaskExecutorProvider("createBoom", ruleData -> {
@@ -49,9 +46,9 @@ public abstract class AbstractClusterRuleEngineTest {
                 return Mono.just(ruleData.newData("boom"));
             }));
             scheduler.addWorker(worker);
+            registry.register(scheduler);
             registry.setup();
         }
-        Thread.sleep(1200);
 
         //模拟集群节点2
         {
@@ -60,9 +57,8 @@ public abstract class AbstractClusterRuleEngineTest {
             RpcServiceFactory factory2=new DefaultRpcServiceFactory(rpcService2);
 
             ClusterSchedulerRegistry registry2 = new ClusterSchedulerRegistry(eventBus2, factory2);
-            registry2.setKeepaliveInterval(Duration.ofSeconds(1));
+            registry2.setKeepaliveInterval(Duration.ofMillis(2000));
             ClusterLocalScheduler scheduler = new ClusterLocalScheduler("test2", factory2);
-            registry2.register(scheduler);
 
             LocalWorker worker = new LocalWorker("local2", "Local2", eventBus2, (c, d) -> true);
             worker.addExecutor(new LambdaTaskExecutorProvider("createWorld", ruleData -> Mono.just(ruleData.newData("world"))));
@@ -71,12 +67,11 @@ public abstract class AbstractClusterRuleEngineTest {
                 return Mono.just(ruleData.newData("event"));
             }));
             scheduler.addWorker(worker);
-
+            registry2.register(scheduler);
             registry2.setup();
-
         }
 
-        Thread.sleep(1200);
+        Thread.sleep(1000);
 
         ClusterRuleEngine engine = new ClusterRuleEngine(registry, new TestTaskSnapshotRepository());
 

@@ -15,8 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class RedisClusterRuleEngineTest extends AbstractClusterRuleEngineTest {
 
 
-    AtomicInteger inc=new AtomicInteger(1);
-
+    AtomicInteger inc = new AtomicInteger(1);
 
 
     @Override
@@ -24,12 +23,15 @@ public class RedisClusterRuleEngineTest extends AbstractClusterRuleEngineTest {
     public EventBus getEventBus() {
         BrokerEventBus eventBus = new BrokerEventBus();
         ReactiveRedisConnectionFactory factory = RedisHelper.connectionFactory();
-        RedisClusterManager clusterManager=   new RedisClusterManager(
-                "test", "test-"+inc.getAndIncrement(), new ReactiveRedisTemplate<>(factory, RedisSerializationContext.java()));
-        clusterManager.startup();;
-
-        eventBus.addBroker(new RedisClusterEventBroker(clusterManager,factory));
+        RedisClusterManager clusterManager = new RedisClusterManager(
+                "test2", "test-" + inc.getAndIncrement(), new ReactiveRedisTemplate<>(factory, RedisSerializationContext.java()));
+        clusterManager.startup();
         Thread.sleep(1000);
+        RedisClusterEventBroker broker = new RedisClusterEventBroker(clusterManager, factory);
+
+        eventBus.addBroker(broker);
+        broker.startup();
+
         return eventBus;
     }
 
