@@ -98,7 +98,7 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
                         )
         );
 
-        publishLocal().subscribe();
+        publishLocal().block();
     }
 
     private Mono<Void> publishLocal() {
