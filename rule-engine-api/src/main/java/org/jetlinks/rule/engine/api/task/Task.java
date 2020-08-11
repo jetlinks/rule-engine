@@ -5,7 +5,7 @@ import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import reactor.core.publisher.Mono;
 
 /**
- * 任务,对应运行中规则的一个节点。
+ * 可运行到任务,对应运行中规则的一个节点。
  *
  * @author zhouhao
  * @since 1.0.4
@@ -42,7 +42,7 @@ public interface Task {
     ScheduleJob getJob();
 
     /**
-     * 设置任务信息,请设置配套的任务信息
+     * 设置任务信息,通常用于热更新任务.
      *
      * @param job 任务信息
      * @return empty Mono

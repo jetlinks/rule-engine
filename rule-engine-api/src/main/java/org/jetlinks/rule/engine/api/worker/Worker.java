@@ -25,10 +25,10 @@ public interface Worker {
     String getName();
 
     /**
-     * 创建一个执行器
+     * 创建一个Task
      *
      * @param job 任务
-     * @return 任务执行器
+     * @return Task
      */
     Mono<Task> createTask(String schedulerId, ScheduleJob job);
 
