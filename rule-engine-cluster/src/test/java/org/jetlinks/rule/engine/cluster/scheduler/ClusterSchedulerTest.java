@@ -10,7 +10,7 @@ import org.jetlinks.rule.engine.defaults.AbstractTaskExecutor;
 import org.jetlinks.rule.engine.defaults.LocalWorker;
 import org.jetlinks.supports.event.BrokerEventBus;
 import org.jetlinks.supports.rpc.DefaultRpcServiceFactory;
-import org.jetlinks.supports.rpc.EventBusRcpService;
+import org.jetlinks.supports.rpc.EventBusRpcService;
 import org.junit.Test;
 import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
@@ -21,7 +21,7 @@ import java.util.function.Function;
 public class ClusterSchedulerTest {
 
     EventBus eventBus = new BrokerEventBus();
-    RpcService rpcService = new EventBusRcpService(eventBus);
+    RpcService rpcService = new EventBusRpcService(eventBus);
 
     @Test
     public void test() {

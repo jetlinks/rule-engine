@@ -6,7 +6,7 @@ import org.jetlinks.core.rpc.RpcServiceFactory;
 import org.jetlinks.rule.engine.cluster.scheduler.ClusterLocalScheduler;
 import org.jetlinks.supports.event.BrokerEventBus;
 import org.jetlinks.supports.rpc.DefaultRpcServiceFactory;
-import org.jetlinks.supports.rpc.EventBusRcpService;
+import org.jetlinks.supports.rpc.EventBusRpcService;
 import org.junit.Ignore;
 import org.junit.Test;
 import reactor.core.scheduler.Schedulers;
@@ -19,7 +19,7 @@ public class ClusterSchedulerRegistryTest {
 
 
     BrokerEventBus eventBus = new BrokerEventBus();
-    RpcService rpcService = new EventBusRcpService(eventBus);
+    RpcService rpcService = new EventBusRpcService(eventBus);
 
 
     @Test

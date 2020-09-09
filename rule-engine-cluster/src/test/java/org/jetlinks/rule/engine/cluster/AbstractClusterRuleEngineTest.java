@@ -12,7 +12,7 @@ import org.jetlinks.rule.engine.cluster.scheduler.ClusterLocalScheduler;
 import org.jetlinks.rule.engine.defaults.LambdaTaskExecutorProvider;
 import org.jetlinks.rule.engine.defaults.LocalWorker;
 import org.jetlinks.supports.rpc.DefaultRpcServiceFactory;
-import org.jetlinks.supports.rpc.EventBusRcpService;
+import org.jetlinks.supports.rpc.EventBusRpcService;
 import org.junit.Assert;
 import org.junit.Test;
 import reactor.core.publisher.Mono;
@@ -29,7 +29,7 @@ public abstract class AbstractClusterRuleEngineTest {
     @SneakyThrows
     public void test() {
         EventBus eventBus = getEventBus();
-        RpcServiceFactory factory=new DefaultRpcServiceFactory(new EventBusRcpService(eventBus));
+        RpcServiceFactory factory=new DefaultRpcServiceFactory(new EventBusRpcService(eventBus));
 
         ClusterSchedulerRegistry registry = new ClusterSchedulerRegistry(eventBus, factory);
         registry.setKeepaliveInterval(Duration.ofMillis(2000));
@@ -53,7 +53,7 @@ public abstract class AbstractClusterRuleEngineTest {
         //模拟集群节点2
         {
             EventBus eventBus2 = getEventBus();
-            RpcService rpcService2 = new EventBusRcpService(eventBus2);
+            RpcService rpcService2 = new EventBusRpcService(eventBus2);
             RpcServiceFactory factory2=new DefaultRpcServiceFactory(rpcService2);
 
             ClusterSchedulerRegistry registry2 = new ClusterSchedulerRegistry(eventBus2, factory2);
