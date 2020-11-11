@@ -42,11 +42,13 @@ public class ClusterWorker implements Worker {
 
     @Override
     public Mono<Task> createTask(String schedulerId, ScheduleJob job) {
-        return Mono.justOrEmpty(executors.get(job.getExecutor()))
+        return Mono
+                .justOrEmpty(executors.get(job.getExecutor()))
                 .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("unsupported executor:" + job.getExecutor())))
                 .flatMap(provider -> {
                     ClusterExecutionContext context = createContext(job);
-                    return provider.createTask(context)
+                    return provider
+                            .createTask(context)
                             .map(executor -> new DefaultTask(schedulerId, this.getId(), context, executor));
                 });
     }

@@ -19,5 +19,20 @@ public interface Output {
      */
     Mono<Boolean> write(Publisher<RuleData> data);
 
+    default Mono<Boolean> write(RuleData data) {
+        return write(Mono.just(data));
+    }
+
+    /**
+     * 写出数据到指定到节点
+     *
+     * @param nodeId 节点ID
+     * @param data   数据流
+     * @return void
+     */
     Mono<Void> write(String nodeId, Publisher<RuleData> data);
+
+    default Mono<Void> write(String nodeId, RuleData data) {
+        return write(nodeId, Mono.just(data));
+    }
 }

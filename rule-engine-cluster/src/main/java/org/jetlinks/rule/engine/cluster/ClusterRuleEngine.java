@@ -40,14 +40,15 @@ public class ClusterRuleEngine implements RuleEngine {
     @Override
     public Mono<Void> shutdown(String instanceId) {
         return schedulerRegistry.getSchedulers()
-                .flatMap(scheduler -> scheduler.shutdown(instanceId))
-                .then(repository.removeTaskByInstanceId(instanceId))
-                .then();
+                                .flatMap(scheduler -> scheduler.shutdown(instanceId))
+                                .then(repository.removeTaskByInstanceId(instanceId))
+                                .then();
     }
 
     public Flux<Task> startRule(String instanceId, RuleModel model) {
         //编译
-        Map<String, ScheduleJob> jobs = new ScheduleJobCompiler(instanceId, model).compile()
+        Map<String, ScheduleJob> jobs = new ScheduleJobCompiler(instanceId, model)
+                .compile()
                 .stream()
                 .collect(Collectors.toMap(ScheduleJob::getNodeId, Function.identity()));
 
@@ -56,25 +57,30 @@ public class ClusterRuleEngine implements RuleEngine {
                 .findByInstanceId(instanceId)
                 .flatMap(snapshot -> this
                         .getTaskBySnapshot(snapshot)
-                        .flatMap(task -> task //重新加载任务
+                        //重新加载任务
+                        .flatMap(task -> task
                                 .setJob(jobs.get(task.getJob().getNodeId()))
                                 .then(task.reload())
                                 .thenReturn(task)
-                        ).switchIfEmpty(Flux.defer(() -> //没有worker调度此任务? 重新调度
-                                doStart(Collections.singleton(jobs.get(snapshot.getJob().getNodeId())))
-                                        .flatMap(task -> repository
-                                                .saveTaskSnapshots(task.dump())
-                                                .thenReturn(task))))
+                        )
+                        //没有worker调度此任务? 重新调度
+                        .switchIfEmpty(Flux.defer(() -> this
+                                .doStart(Collections.singleton(jobs.get(snapshot.getJob().getNodeId())))
+                                .flatMap(task -> repository
+                                        .saveTaskSnapshots(task.dump())
+                                        .thenReturn(task))))
                 )
                 .switchIfEmpty(doStart(jobs.values()));
     }
 
     protected Flux<Task> doStart(Collection<ScheduleJob> jobs) {
-        return Flux.defer(() -> Flux.fromIterable(jobs)
-                .flatMap(this::scheduleTask)
-                .collectList()
-                .flatMapIterable(Function.identity())
-                .flatMap(task -> task.start().thenReturn(task)))
+        return Flux
+                .defer(() -> Flux
+                        .fromIterable(jobs)
+                        .flatMap(this::scheduleTask)
+                        .collectList()
+                        .flatMapIterable(Function.identity())
+                        .flatMap(task -> task.start().thenReturn(task)))
                 .collectList()
                 .map(Flux::fromIterable)
                 .flatMapMany(tasks -> repository
@@ -102,13 +108,12 @@ public class ClusterRuleEngine implements RuleEngine {
     @Override
     public Flux<Task> getTasks(String instance) {
         return schedulerRegistry.getSchedulers()
-                .flatMap(scheduler -> scheduler.getSchedulingTask(instance));
+                                .flatMap(scheduler -> scheduler.getSchedulingTask(instance));
     }
 
     @Override
     public Flux<Worker> getWorkers() {
         return schedulerRegistry.getSchedulers()
-                .flatMap(Scheduler::getWorkers)
-                ;
+                                .flatMap(Scheduler::getWorkers);
     }
 }
