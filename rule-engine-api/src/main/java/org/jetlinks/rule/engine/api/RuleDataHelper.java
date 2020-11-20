@@ -69,18 +69,18 @@ public class RuleDataHelper {
 
     public static boolean isSync(RuleData data) {
         return data.getHeader(SYNC_RETURN)
-                .map(Boolean.class::cast)
-                .orElse(false);
+                   .map(Boolean.class::cast)
+                   .orElse(false);
     }
 
     public static Optional<String> getStartWithNodeId(RuleData data) {
         return data.getHeader(START_WITH_NODE)
-                .map(String::valueOf);
+                   .map(String::valueOf);
     }
 
     public static Optional<String> getEndWithNodeId(RuleData data) {
         return data.getHeader(END_WITH_NODE)
-                .map(String::valueOf);
+                   .map(String::valueOf);
     }
 
     public static RuleData markSyncReturn(RuleData data) {
@@ -128,10 +128,17 @@ public class RuleDataHelper {
         ruleData.acceptMap(_map -> {
             map.putAll(_map);
         });
-        if(map.isEmpty()){
+        if (map.isEmpty()) {
             map.put("data", ruleData.getData());
         }
-        map.put("headers", ruleData.getHeaders());
+        map.compute("headers", (key, value) -> {
+            if (value instanceof Map) {
+                Map<String, Object> newHeader = new HashMap<>(ruleData.getHeaders());
+                newHeader.putAll((Map) value);
+                return newHeader;
+            }
+            return ruleData.getHeaders();
+        });
         return map;
     }
 }
