@@ -8,6 +8,7 @@ import org.jetlinks.core.event.EventBus;
 import org.jetlinks.rule.engine.api.Logger;
 import org.jetlinks.rule.engine.api.RuleConstants;
 import org.slf4j.helpers.MessageFormatter;
+import reactor.core.publisher.Mono;
 
 import java.util.Arrays;
 import java.util.stream.Collectors;
@@ -46,19 +47,23 @@ public class EventLogger implements Logger {
     }
 
     private void publishLog(String level, String message, Object... args) {
-        eventBus.publish(RuleConstants.Topics.logger(instanceId, nodeId, level), createLog(level, message, args))
+        eventBus
+                .publish(RuleConstants.Topics.logger(instanceId, nodeId, level),
+                         Mono.fromSupplier(() -> createLog(level, message, args)))
                 .subscribe();
     }
 
     private LogEvent createLog(String level, String message, Object... args) {
 
-        String exception = Arrays.stream(args)
+        String exception = Arrays
+                .stream(args)
                 .filter(Throwable.class::isInstance)
                 .map(Throwable.class::cast)
                 .map(StringUtils::throwable2String)
                 .collect(Collectors.joining());
 
-        return LogEvent.builder()
+        return LogEvent
+                .builder()
                 .level(level)
                 .message(MessageFormatter.arrayFormat(message, args).getMessage())
                 .instanceId(instanceId)
