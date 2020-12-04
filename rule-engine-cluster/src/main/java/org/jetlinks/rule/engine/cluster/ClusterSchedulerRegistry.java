@@ -76,7 +76,10 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
                         .map(id -> new RemoteScheduler(id, serviceFactory))
                         .filter(scheduler -> !localSchedulers.contains(scheduler))
                         .doOnNext(leaveSink::next)
-                        .subscribe(remoteSchedulers::remove)
+                        .subscribe(scheduler->{
+                            scheduler.dispose();
+                            remoteSchedulers.remove(scheduler);
+                        })
         );
 
         disposables.add(
