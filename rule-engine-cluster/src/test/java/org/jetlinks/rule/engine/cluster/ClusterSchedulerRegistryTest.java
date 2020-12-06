@@ -1,12 +1,15 @@
 package org.jetlinks.rule.engine.cluster;
 
 import lombok.SneakyThrows;
+import org.jetlinks.core.ipc.IpcService;
 import org.jetlinks.core.rpc.RpcService;
 import org.jetlinks.core.rpc.RpcServiceFactory;
 import org.jetlinks.rule.engine.cluster.scheduler.ClusterLocalScheduler;
 import org.jetlinks.supports.event.BrokerEventBus;
+import org.jetlinks.supports.ipc.EventBusIpcService;
 import org.jetlinks.supports.rpc.DefaultRpcServiceFactory;
 import org.jetlinks.supports.rpc.EventBusRpcService;
+import org.jetlinks.supports.rpc.IpcRpcServiceFactory;
 import org.junit.Ignore;
 import org.junit.Test;
 import reactor.core.scheduler.Schedulers;
@@ -19,14 +22,14 @@ public class ClusterSchedulerRegistryTest {
 
 
     BrokerEventBus eventBus = new BrokerEventBus();
-    RpcService rpcService = new EventBusRpcService(eventBus);
+    IpcService rpcService = new EventBusIpcService(1, eventBus);
 
 
     @Test
     @SneakyThrows
     public void test() {
         eventBus.setPublishScheduler(Schedulers.immediate());
-        RpcServiceFactory factory=new DefaultRpcServiceFactory(rpcService);
+        RpcServiceFactory factory = new IpcRpcServiceFactory(rpcService);
 
         {
             ClusterSchedulerRegistry registry = new ClusterSchedulerRegistry(eventBus, factory);

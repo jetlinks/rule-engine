@@ -6,6 +6,7 @@ import org.jetlinks.rule.engine.cluster.AbstractClusterRuleEngineTest;
 import org.jetlinks.supports.cluster.event.RedisClusterEventBroker;
 import org.jetlinks.supports.cluster.redis.RedisClusterManager;
 import org.jetlinks.supports.event.BrokerEventBus;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
@@ -22,6 +23,7 @@ public class RedisClusterRuleEngineTest extends AbstractClusterRuleEngineTest {
     @SneakyThrows
     public EventBus getEventBus() {
         BrokerEventBus eventBus = new BrokerEventBus();
+        eventBus.setLog(LoggerFactory.getLogger("org.jetlinks.eventbus."+inc));
         ReactiveRedisConnectionFactory factory = RedisHelper.connectionFactory();
         RedisClusterManager clusterManager = new RedisClusterManager(
                 "test2", "test-" + inc.getAndIncrement(), new ReactiveRedisTemplate<>(factory, RedisSerializationContext.java()));
@@ -31,7 +33,7 @@ public class RedisClusterRuleEngineTest extends AbstractClusterRuleEngineTest {
 
         eventBus.addBroker(broker);
         broker.startup();
-
+        Thread.sleep(1000);
         return eventBus;
     }
 

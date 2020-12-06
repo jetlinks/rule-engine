@@ -5,6 +5,11 @@
     <logger name="io.lettuce" level="info"/>
 <!--    <logger name="rule.engine" level="info"/>-->
     <logger name="org.hswebframework" level="info" />
+    <logger name="org.springframework" level="warn" />
+    <logger name="org.apache" level="warn" />
+    <logger name="rpc" level="trace" />
+
+
 
     　
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">

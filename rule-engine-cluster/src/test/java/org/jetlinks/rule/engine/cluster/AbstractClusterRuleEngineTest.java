@@ -2,7 +2,6 @@ package org.jetlinks.rule.engine.cluster;
 
 import lombok.SneakyThrows;
 import org.jetlinks.core.event.EventBus;
-import org.jetlinks.core.rpc.RpcService;
 import org.jetlinks.core.rpc.RpcServiceFactory;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.model.RuleLink;
@@ -11,8 +10,8 @@ import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 import org.jetlinks.rule.engine.cluster.scheduler.ClusterLocalScheduler;
 import org.jetlinks.rule.engine.defaults.LambdaTaskExecutorProvider;
 import org.jetlinks.rule.engine.defaults.LocalWorker;
-import org.jetlinks.supports.rpc.DefaultRpcServiceFactory;
-import org.jetlinks.supports.rpc.EventBusRpcService;
+import org.jetlinks.supports.ipc.EventBusIpcService;
+import org.jetlinks.supports.rpc.IpcRpcServiceFactory;
 import org.junit.Assert;
 import org.junit.Test;
 import reactor.core.publisher.Mono;
@@ -29,7 +28,7 @@ public abstract class AbstractClusterRuleEngineTest {
     @SneakyThrows
     public void test() {
         EventBus eventBus = getEventBus();
-        RpcServiceFactory factory=new DefaultRpcServiceFactory(new EventBusRpcService(eventBus));
+        RpcServiceFactory factory = new IpcRpcServiceFactory(new EventBusIpcService(1, eventBus));
 
         ClusterSchedulerRegistry registry = new ClusterSchedulerRegistry(eventBus, factory);
         registry.setKeepaliveInterval(Duration.ofMillis(2000));
@@ -53,8 +52,7 @@ public abstract class AbstractClusterRuleEngineTest {
         //模拟集群节点2
         {
             EventBus eventBus2 = getEventBus();
-            RpcService rpcService2 = new EventBusRpcService(eventBus2);
-            RpcServiceFactory factory2=new DefaultRpcServiceFactory(rpcService2);
+            RpcServiceFactory factory2 = new IpcRpcServiceFactory(new EventBusIpcService(2, eventBus2));
 
             ClusterSchedulerRegistry registry2 = new ClusterSchedulerRegistry(eventBus2, factory2);
             registry2.setKeepaliveInterval(Duration.ofMillis(2000));
@@ -119,21 +117,21 @@ public abstract class AbstractClusterRuleEngineTest {
         }
 
         engine.startRule("test", model)
-                .doOnNext(task -> {
-                    System.out.println(task.getSchedulerId());
-                    System.out.println(task.getWorkerId());
-                })
-                .as(StepVerifier::create)
-                .expectNextCount(3)
-                .verifyComplete();
+              .doOnNext(task -> {
+                  System.out.println(task.getSchedulerId());
+                  System.out.println(task.getWorkerId());
+              })
+              .as(StepVerifier::create)
+              .expectNextCount(3)
+              .verifyComplete();
 
         engine.getTasks("test")
-                .filter(task -> task.getJob().getNodeId().equals("createWorld"))
-                .take(1)
-                .flatMap(task -> task.execute(RuleData.create("test")))
-                .as(StepVerifier::create)
-                .expectComplete()
-                .verify();
+              .filter(task -> task.getJob().getNodeId().equals("createWorld"))
+              .take(1)
+              .flatMap(task -> task.execute(RuleData.create("test")))
+              .as(StepVerifier::create)
+              .expectComplete()
+              .verify();
 
         Thread.sleep(2000);
         Assert.assertEquals(counter.get(), 1);
