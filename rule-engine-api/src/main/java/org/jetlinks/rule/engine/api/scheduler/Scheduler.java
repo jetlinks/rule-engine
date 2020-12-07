@@ -2,6 +2,7 @@ package org.jetlinks.rule.engine.api.scheduler;
 
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.worker.Worker;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -11,7 +12,7 @@ import reactor.core.publisher.Mono;
  * @author zhouhao
  * @since 1.0.4
  */
-public interface Scheduler {
+public interface Scheduler extends Disposable {
 
     /**
      * @return 调度器ID
@@ -73,4 +74,9 @@ public interface Scheduler {
      * @return 是否可以调度
      */
     Mono<Boolean> canSchedule(ScheduleJob job);
+
+    @Override
+    default void dispose(){
+
+    }
 }
