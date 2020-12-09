@@ -60,6 +60,10 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
         });
         leaveProcessor.subscribe(scheduler -> {
             log.debug("remote scheduler leave:{}", scheduler.getId());
+            Scheduler old = remoteSchedulers.remove(scheduler.getId());
+            if (old != null && old != scheduler) {
+                old.dispose();
+            }
             scheduler.dispose();
         });
 
