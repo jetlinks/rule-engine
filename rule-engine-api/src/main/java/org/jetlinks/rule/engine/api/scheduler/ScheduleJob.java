@@ -10,6 +10,7 @@ import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 import org.jetlinks.rule.engine.api.task.TaskExecutorProvider;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -145,7 +146,6 @@ public class ScheduleJob implements Serializable {
         /**
          * 输出条件,满足条件才输出
          */
-        @Nonnull
         private Condition condition;
     }
 
