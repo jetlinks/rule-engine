@@ -8,6 +8,12 @@ package org.jetlinks.rule.engine.api.scope;
  */
 public interface GlobalScope extends PersistenceScope {
 
+    /**
+     * 获取流程作用域
+     *
+     * @param id ID
+     * @return 流程作用域
+     */
     FlowScope flow(String id);
 
 }

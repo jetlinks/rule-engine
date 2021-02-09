@@ -1,11 +1,11 @@
 package org.jetlinks.rule.engine.defaults.scope;
 
-import org.jetlinks.rule.engine.api.scope.ScropeCounter;
+import org.jetlinks.rule.engine.api.scope.ScopeCounter;
 import reactor.core.publisher.Mono;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-public class InMemoryScopeCounter implements ScropeCounter {
+class InMemoryScopeCounter implements ScopeCounter {
 
     AtomicReference<Double> ref = new AtomicReference<>(0D);
 

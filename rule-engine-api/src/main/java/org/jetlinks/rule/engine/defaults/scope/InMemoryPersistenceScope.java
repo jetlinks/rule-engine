@@ -1,7 +1,7 @@
 package org.jetlinks.rule.engine.defaults.scope;
 
 import org.jetlinks.rule.engine.api.scope.PersistenceScope;
-import org.jetlinks.rule.engine.api.scope.ScropeCounter;
+import org.jetlinks.rule.engine.api.scope.ScopeCounter;
 import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
@@ -13,7 +13,7 @@ public class InMemoryPersistenceScope implements PersistenceScope {
 
     private final ConcurrentMap<String, Object> store = new ConcurrentHashMap<>();
 
-    private final Map<String, ScropeCounter> counter = new ConcurrentHashMap<>();
+    private final Map<String, ScopeCounter> counter = new ConcurrentHashMap<>();
 
     @Override
     public Mono<Void> put(String key, Object value) {
@@ -55,7 +55,7 @@ public class InMemoryPersistenceScope implements PersistenceScope {
     }
 
     @Override
-    public ScropeCounter counter(String key) {
+    public ScopeCounter counter(String key) {
         return counter.computeIfAbsent(key, (k) -> new InMemoryScopeCounter());
     }
 }

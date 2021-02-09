@@ -15,7 +15,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * 规则数据
+ * 规则数据,用于在规则之间传递数据
  *
  * @author zhouhao
  * @since 1.0.0
@@ -24,12 +24,24 @@ import java.util.function.Consumer;
 @Setter
 public class RuleData implements Serializable {
 
+    /**
+     * 数据ID
+     */
     private String id;
 
+    /**
+     * 上下文ID,在一条数据创建时生成,在传递过程中此ID不变
+     */
     private String contextId;
 
+    /**
+     * 真实数据
+     */
     private Object data;
 
+    /**
+     * 规则头信息,可以通过头信息来传递更多的拓展消息
+     */
     @Getter
     private Map<String, Object> headers = new HashMap<>();
 

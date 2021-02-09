@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import org.jetlinks.core.cluster.ClusterCache;
 import org.jetlinks.core.cluster.ClusterManager;
 import org.jetlinks.rule.engine.api.scope.PersistenceScope;
-import org.jetlinks.rule.engine.api.scope.ScropeCounter;
+import org.jetlinks.rule.engine.api.scope.ScopeCounter;
 import reactor.core.publisher.Mono;
 
 import java.util.Arrays;
@@ -83,7 +83,7 @@ class ClusterPersistenceScope implements PersistenceScope {
     }
 
     @Override
-    public ScropeCounter counter(String key) {
+    public ScopeCounter counter(String key) {
         return new ClusterScopeCounter(clusterManager.getCounter(getKey() + ":counter"));
     }
 }

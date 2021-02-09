@@ -7,7 +7,7 @@ import reactor.core.publisher.Mono;
  *
  * @author zhouhao
  */
-public interface ScropeCounter {
+public interface ScopeCounter {
 
     /**
      * 递增 1

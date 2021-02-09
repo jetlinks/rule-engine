@@ -5,6 +5,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.jetlinks.rule.engine.api.model.Condition;
+import org.jetlinks.rule.engine.api.model.RuleLink;
+import org.jetlinks.rule.engine.api.model.RuleNodeModel;
+import org.jetlinks.rule.engine.api.task.TaskExecutorProvider;
 
 import javax.annotation.Nonnull;
 import java.io.Serializable;
@@ -14,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 调度任务
+ * 调度任务,在规则发布时,会将规则节点{@link org.jetlinks.rule.engine.api.model.RuleNodeModel}转为任务,发送给对应的调度器{@link Scheduler}进行调度执行
  *
  * @author zhouhao
  * @since 1.0
@@ -33,12 +36,16 @@ public class ScheduleJob implements Serializable {
 
     /**
      * 规则ID
+     *
+     * @see RuleNodeModel#getRuleId()
      */
     @Nonnull
     private String ruleId;
 
     /**
      * 节点ID
+     *
+     * @see RuleNodeModel#getId()
      */
     @Nonnull
     private String nodeId;
@@ -50,17 +57,25 @@ public class ScheduleJob implements Serializable {
 
     /**
      * 执行器
+     *
+     * @see TaskExecutorProvider#getExecutor()
+     * @see RuleNodeModel#getExecutor()
      */
     @Nonnull
     private String executor;
 
     /**
      * 执行器配置信息
+     *
+     * @see RuleNodeModel#getConfiguration()
      */
     private Map<String, Object> configuration;
 
     /**
      * 输入节点
+     *
+     * @see RuleNodeModel#getId()
+     * @see RuleNodeModel#getInputs()
      */
     private List<String> inputs = new ArrayList<>();
 
@@ -95,8 +110,21 @@ public class ScheduleJob implements Serializable {
     @NoArgsConstructor
     public static class Event implements Serializable {
 
+        /**
+         * 事件类型
+         *
+         * @see RuleLink#getType()
+         */
+        @Nonnull
         private String type;
 
+        /**
+         * 事件源
+         *
+         * @see RuleNodeModel#getId()
+         * @see RuleLink#getSource()
+         */
+        @Nonnull
         private String source;
 
     }
@@ -106,8 +134,18 @@ public class ScheduleJob implements Serializable {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class Output implements Serializable {
+        /**
+         * 输出节点
+         *
+         * @see RuleNodeModel#getId()
+         */
+        @Nonnull
         private String output;
 
+        /**
+         * 输出条件,满足条件才输出
+         */
+        @Nonnull
         private Condition condition;
     }
 

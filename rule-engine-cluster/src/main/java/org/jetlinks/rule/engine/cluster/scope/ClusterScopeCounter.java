@@ -2,11 +2,11 @@ package org.jetlinks.rule.engine.cluster.scope;
 
 import lombok.AllArgsConstructor;
 import org.jetlinks.core.cluster.ClusterCounter;
-import org.jetlinks.rule.engine.api.scope.ScropeCounter;
+import org.jetlinks.rule.engine.api.scope.ScopeCounter;
 import reactor.core.publisher.Mono;
 
 @AllArgsConstructor
-class ClusterScopeCounter implements ScropeCounter {
+class ClusterScopeCounter implements ScopeCounter {
 
     private final ClusterCounter counter;
 

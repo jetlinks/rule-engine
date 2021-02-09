@@ -65,9 +65,9 @@ public interface PersistenceScope extends Scope {
      * @param key key
      * @return 计数器
      */
-    ScropeCounter counter(String key);
+    ScopeCounter counter(String key);
 
-    default ScropeCounter counter() {
+    default ScopeCounter counter() {
         return counter("_default");
     }
 

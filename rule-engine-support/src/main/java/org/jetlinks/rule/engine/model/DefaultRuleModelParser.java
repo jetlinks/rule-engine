@@ -11,7 +11,7 @@ import java.util.*;
  */
 public class DefaultRuleModelParser implements RuleEngineModelParser {
 
-    private Map<String, RuleModelParserStrategy> allStrategy = new HashMap<>();
+    private final Map<String, RuleModelParserStrategy> allStrategy = new HashMap<>();
 
     @Override
     public List<String> getAllSupportFormat() {
