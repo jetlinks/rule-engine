@@ -2,15 +2,17 @@ package org.jetlinks.rule.engine.defaults;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.jetlinks.rule.engine.api.RuleData;
+import org.jetlinks.rule.engine.api.task.ExecutableTaskExecutor;
 import org.jetlinks.rule.engine.api.task.ExecutionContext;
 import org.jetlinks.rule.engine.api.task.Task;
-import org.jetlinks.rule.engine.api.task.TaskExecutor;
 import reactor.core.Disposable;
+import reactor.core.publisher.Mono;
 
 import java.util.function.BiConsumer;
 
 @Slf4j
-public abstract class AbstractTaskExecutor implements TaskExecutor {
+public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
 
     @Getter
     protected ExecutionContext context;
@@ -21,10 +23,10 @@ public abstract class AbstractTaskExecutor implements TaskExecutor {
     protected Disposable disposable;
 
     private BiConsumer<Task.State, Task.State> stateListener = (from, to) -> {
-        log.debug("task [{}] state changed from {} to {}.",
-                context.getJob(),
-                from,
-                to);
+        AbstractTaskExecutor.log.debug("task [{}] state changed from {} to {}.",
+                                       context.getJob(),
+                                       from,
+                                       to);
     };
 
     public AbstractTaskExecutor(ExecutionContext context) {
@@ -75,5 +77,14 @@ public abstract class AbstractTaskExecutor implements TaskExecutor {
     @Override
     public void validate() {
 
+    }
+
+    @Override
+    public Mono<Void> execute(RuleData ruleData) {
+        return context
+                .getOutput()
+                .write(ruleData)
+                .then()
+                ;
     }
 }

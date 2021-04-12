@@ -6,6 +6,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
+import org.jetlinks.rule.engine.api.task.ExecutableTaskExecutor;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.task.TaskExecutor;
 import reactor.core.publisher.Flux;
@@ -121,10 +122,10 @@ public class DefaultTask implements Task {
     @Override
     public Mono<Void> execute(RuleData data) {
         log.debug("execute task[{}]:[{}]", getId(), getJob());
-        return context
-                .getEventBus()
-                .publish(RuleConstants.Topics.input(getJob().getInstanceId(), getJob().getNodeId()), data)
-                .then();
+        if(executor instanceof ExecutableTaskExecutor){
+            return ((ExecutableTaskExecutor) executor).execute(data);
+        }
+        return Mono.empty();
     }
 
     @Override
