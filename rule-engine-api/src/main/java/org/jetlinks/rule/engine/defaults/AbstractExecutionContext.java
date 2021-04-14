@@ -95,13 +95,36 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
     }
 
     private RuleData createErrorData(Throwable e, RuleData source) {
-        Map<String, Object> obj = new HashMap<>();
+        Map<String, Object> error = new HashMap<>();
+          /*
+          {
+             "error":{
+                "message":"",
+                "source": {
+                    "id":"",
+                    "type":"",
+                    "name":""
+                }
+             }
+          }
+        */
         if (e != null) {
-            obj.put("type", e.getClass().getSimpleName());
-            obj.put("message", e.getMessage());
-            obj.put("stack", StringUtils.throwable2String(e));
+            error.put("type", e.getClass().getSimpleName());
+            error.put("message", e.getMessage());
+            error.put("stack", StringUtils.throwable2String(e));
         }
-        return newRuleData(source == null ? obj : source.newData(obj));
+        Map<String, Object> sourceInfo = new HashMap<>();
+        sourceInfo.put("id", getJob().getNodeId());
+        sourceInfo.put("type", getJob().getExecutor());
+        sourceInfo.put("name", getJob().getName());
+        error.put("source", sourceInfo);
+
+        Map<String, Object> value = new HashMap<>();
+        if (source != null) {
+            source.acceptMap(value::putAll);
+        }
+        value.put(value.containsKey("error") ? "_error" : "error", error);
+        return newRuleData(source == null ? value : source.newData(value));
     }
 
     @Override
