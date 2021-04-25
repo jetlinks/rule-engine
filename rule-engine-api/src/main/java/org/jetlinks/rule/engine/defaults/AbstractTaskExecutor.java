@@ -63,10 +63,10 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
 
     @Override
     public void shutdown() {
+        changeState(Task.State.shutdown);
         if (disposable != null) {
             disposable.dispose();
         }
-        changeState(Task.State.shutdown);
     }
 
     @Override
