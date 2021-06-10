@@ -35,7 +35,7 @@ public interface ExecutionContext {
     Logger getLogger();
 
     /**
-     * 同{@link this#getLogger()}
+     * 同{@link ExecutionContext#getLogger()}
      *
      * @return 日志接口
      */
