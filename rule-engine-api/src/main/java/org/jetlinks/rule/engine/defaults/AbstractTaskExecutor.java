@@ -20,7 +20,7 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
     @Getter
     protected Task.State state = Task.State.shutdown;
 
-    protected Disposable disposable;
+    protected volatile Disposable disposable;
 
     private BiConsumer<Task.State, Task.State> stateListener = (from, to) -> {
         AbstractTaskExecutor.log.debug("task [{}] state changed from {} to {}.",
@@ -43,8 +43,9 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
     }
 
     @Override
-    public void start() {
-        if (state == Task.State.running && !disposable.isDisposed()) {
+    public synchronized void start() {
+        if (!disposable.isDisposed()) {
+            changeState(Task.State.running);
             return;
         }
         disposable = doStart();
@@ -62,7 +63,7 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
     }
 
     @Override
-    public void shutdown() {
+    public synchronized void shutdown() {
         changeState(Task.State.shutdown);
         if (disposable != null) {
             disposable.dispose();
