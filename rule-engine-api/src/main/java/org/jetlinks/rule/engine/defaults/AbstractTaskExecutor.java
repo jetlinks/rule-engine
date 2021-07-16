@@ -44,7 +44,7 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
 
     @Override
     public synchronized void start() {
-        if (!disposable.isDisposed()) {
+        if (disposable != null && !disposable.isDisposed()) {
             changeState(Task.State.running);
             return;
         }
