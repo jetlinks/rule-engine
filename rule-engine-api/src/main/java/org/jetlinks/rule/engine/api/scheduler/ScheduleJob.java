@@ -4,18 +4,16 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.apache.commons.collections.MapUtils;
 import org.jetlinks.rule.engine.api.model.Condition;
 import org.jetlinks.rule.engine.api.model.RuleLink;
+import org.jetlinks.rule.engine.api.model.RuleModel;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;
 import org.jetlinks.rule.engine.api.task.TaskExecutorProvider;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * 调度任务,在规则发布时,会将规则节点{@link org.jetlinks.rule.engine.api.model.RuleNodeModel}转为任务,发送给对应的调度器{@link Scheduler}进行调度执行
@@ -73,6 +71,13 @@ public class ScheduleJob implements Serializable {
     private Map<String, Object> configuration;
 
     /**
+     * 规则配置信息
+     *
+     * @see RuleModel#getConfiguration()
+     */
+    private Map<String, Object> ruleConfiguration;
+
+    /**
      * 输入节点
      *
      * @see RuleNodeModel#getId()
@@ -104,6 +109,20 @@ public class ScheduleJob implements Serializable {
      * 调度规则
      */
     private SchedulingRule schedulingRule;
+
+    public Optional<Object> getRuleConfiguration(String key) {
+        if (MapUtils.isEmpty(ruleConfiguration)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(ruleConfiguration.get(key));
+    }
+
+    public Optional<Object> getConfiguration(String key) {
+        if (MapUtils.isEmpty(configuration)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(configuration.get(key));
+    }
 
     @Getter
     @Setter
