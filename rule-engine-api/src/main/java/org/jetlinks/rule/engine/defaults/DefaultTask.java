@@ -11,6 +11,7 @@ import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.task.TaskExecutor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -95,14 +96,16 @@ public class DefaultTask implements Task {
     @Override
     public Mono<Void> reload() {
         log.debug("reload task[{}]:[{}]", getId(), getJob());
-        return Mono.fromRunnable(executor::reload);
+        return Mono.<Void>fromRunnable(executor::reload)
+                   .subscribeOn(Schedulers.boundedElastic());
     }
 
     @Override
     public Mono<Void> start() {
         log.debug("start task[{}]:[{}]", getId(), getJob());
         return Mono.<Void>fromRunnable(executor::start)
-                .doOnSuccess((v) -> startTime = System.currentTimeMillis());
+                .doOnSuccess((v) -> startTime = System.currentTimeMillis())
+                .subscribeOn(Schedulers.boundedElastic());
     }
 
     @Override
@@ -116,7 +119,8 @@ public class DefaultTask implements Task {
         log.debug("shutdown task[{}]:[{}]", getId(), getJob());
         return Mono
                 .fromRunnable(executor::shutdown)
-                .then(Mono.fromRunnable(context::doShutdown));
+                .then(Mono.<Void>fromRunnable(context::doShutdown))
+                .subscribeOn(Schedulers.boundedElastic());
     }
 
     @Override
