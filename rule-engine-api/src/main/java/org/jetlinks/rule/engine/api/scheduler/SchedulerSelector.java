@@ -1,6 +1,7 @@
 package org.jetlinks.rule.engine.api.scheduler;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * 调度器选择器,根据任务,从多个调度器中选择调度器来执行此任务
@@ -21,4 +22,17 @@ public interface SchedulerSelector {
      */
     Flux<Scheduler> select(Flux<Scheduler> schedulers, ScheduleJob job);
 
+    /**
+     * 测试调度器是否可以调度此任务
+     *
+     * @param scheduler 调度器
+     * @param job       任务
+     * @return 是否可以调度
+     * @since 1.1.7
+     */
+    default Mono<Boolean> test(Scheduler scheduler, ScheduleJob job) {
+        return this
+                .select(Flux.just(scheduler), job)
+                .hasElements();
+    }
 }

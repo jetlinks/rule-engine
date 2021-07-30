@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 public class RuleModel {
 
     /**
-     * 规则ID
+     * 规则模型ID
      */
     private String id;
 
@@ -43,7 +43,7 @@ public class RuleModel {
     private Map<String, Object> configuration = new HashMap<>();
 
     /**
-     * 规则事件
+     * 规则事件连接
      */
     private List<RuleLink> events = new ArrayList<>();
 

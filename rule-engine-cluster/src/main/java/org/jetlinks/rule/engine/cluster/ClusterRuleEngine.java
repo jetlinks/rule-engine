@@ -47,7 +47,7 @@ public class ClusterRuleEngine implements RuleEngine {
 
     public Flux<Task> startRule(String instanceId, RuleModel model) {
         //编译
-        Map<String, ScheduleJob> jobs = new ScheduleJobCompiler(instanceId, model)
+        Map</*nodeId*/String, /*Job*/ScheduleJob> jobs = new ScheduleJobCompiler(instanceId, model)
                 .compile()
                 .stream()
                 .collect(Collectors.toMap(ScheduleJob::getNodeId, Function.identity()));
@@ -69,8 +69,7 @@ public class ClusterRuleEngine implements RuleEngine {
                                 .flatMap(task -> repository
                                         .saveTaskSnapshots(task.dump())
                                         .thenReturn(task))))
-                )
-                .switchIfEmpty(doStart(jobs.values()));
+                ).switchIfEmpty(doStart(jobs.values()));
     }
 
     protected Flux<Task> doStart(Collection<ScheduleJob> jobs) {

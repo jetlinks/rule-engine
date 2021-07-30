@@ -54,9 +54,9 @@ public class TestTaskSnapshotRepository implements TaskSnapshotRepository {
     @Override
     public Mono<Void> saveTaskSnapshots(Publisher<TaskSnapshot> snapshots) {
         return Flux.from(snapshots)
-                .collectList()
-                .doOnNext(all::addAll)
-                .then();
+                   .collectList()
+                   .doOnNext(all::addAll)
+                   .then();
     }
 
     @Override
@@ -68,8 +68,16 @@ public class TestTaskSnapshotRepository implements TaskSnapshotRepository {
 
     @Override
     public Mono<Void> removeTaskByInstanceIdAndNodeId(String instanceId, String nodeId) {
-        return findByInstanceIdAndNodeId(instanceId,nodeId)
+        return findByInstanceIdAndNodeId(instanceId, nodeId)
                 .doOnNext(all::remove)
                 .then();
+    }
+
+    @Override
+    public Mono<Void> removeTaskById(String id) {
+        TaskSnapshot snapshot = new TaskSnapshot();
+        snapshot.setId(id);
+        all.remove(snapshot);
+        return Mono.empty();
     }
 }
