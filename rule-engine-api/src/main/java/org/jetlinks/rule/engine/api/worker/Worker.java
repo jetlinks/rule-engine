@@ -10,7 +10,7 @@ import java.util.List;
  * 工作器,通常是一个服务器节点
  *
  * @author zhouhao
- * @see 1.0.4
+ * @since  1.0.4
  */
 public interface Worker {
 

@@ -99,6 +99,13 @@ public interface TaskSnapshotRepository {
      */
     Mono<Void> removeTaskByInstanceIdAndNodeId(String instanceId, String nodeId);
 
+    /**
+     * 根据ID删除Task
+     * @param id ID
+     * @return void
+     */
+    Mono<Void> removeTaskById(String id);
+
 
 
 }
