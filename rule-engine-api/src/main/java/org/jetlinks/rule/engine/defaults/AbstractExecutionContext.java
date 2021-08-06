@@ -5,10 +5,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.hswebframework.utils.StringUtils;
 import org.jetlinks.core.event.EventBus;
-import org.jetlinks.rule.engine.api.CompositeLogger;
-import org.jetlinks.rule.engine.api.Logger;
-import org.jetlinks.rule.engine.api.RuleConstants;
-import org.jetlinks.rule.engine.api.RuleData;
+import org.jetlinks.rule.engine.api.*;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scope.GlobalScope;
 import org.jetlinks.rule.engine.api.task.ExecutionContext;
@@ -22,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 
 @Slf4j
 public abstract class AbstractExecutionContext implements ExecutionContext {
@@ -62,9 +60,12 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
 
         this.job = job;
         this.eventBus = eventBus;
-        this.input = input;
-        this.output = output;
-        this.eventOutputs = eventOutputs;
+        this.input = RuleEngineHooks.wrapInput(input);
+        this.output = RuleEngineHooks.wrapOutput(output);
+        this.eventOutputs = eventOutputs
+                .entrySet()
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> RuleEngineHooks.wrapOutput(output)));
         this.logger = CompositeLogger.of(logger, new EventLogger(eventBus, job.getInstanceId(), job.getNodeId(), workerId));
         this.globalScope = globalScope;
     }
