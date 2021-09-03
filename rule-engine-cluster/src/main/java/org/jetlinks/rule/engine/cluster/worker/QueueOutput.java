@@ -28,22 +28,31 @@ public class QueueOutput implements Output {
 
     @Override
     public Mono<Boolean> write(Publisher<RuleData> dataStream) {
-        return Flux.from(dataStream)
-                .flatMap(data -> Flux.fromIterable(outputs)
-                        .filterWhen(output ->
-                                Mono.fromCallable(() -> evaluator.evaluate(output.getCondition(), data))
-                                        .onErrorResume(error -> {
-                                            log.warn(error.getMessage(), error);
-                                            return Mono.just(false);
-                                        }))
-                        .flatMap(out -> clusterManager.getQueue(createTopic(out.getOutput())).add(Mono.just(data))))
+        return Flux
+                .from(dataStream)
+                .flatMap(data -> Flux
+                        .fromIterable(outputs)
+                        .filterWhen(output -> Mono
+                                .fromCallable(() -> evaluator.evaluate(output.getCondition(), data))
+                                .onErrorResume(error -> {
+                                    log.warn(error.getMessage(), error);
+                                    return Mono.just(false);
+                                }))
+                        .flatMap(out -> clusterManager
+                                         .getQueue(createTopic(out.getOutput()))
+                                         .add(Mono.just(data)),
+                                 Integer.MAX_VALUE)
+                )
                 .then(Mono.just(true))
                 ;
     }
 
     @Override
     public Mono<Void> write(String nodeId, Publisher<RuleData> data) {
-        return clusterManager.<RuleData>getQueue(createTopic(nodeId)).add(data).then();
+        return clusterManager
+                .<RuleData>getQueue(createTopic(nodeId))
+                .add(data)
+                .then();
     }
 
     private String createTopic(String node) {

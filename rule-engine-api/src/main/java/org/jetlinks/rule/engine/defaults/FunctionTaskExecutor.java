@@ -23,7 +23,7 @@ public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implemen
 
     protected abstract Publisher<RuleData> apply(RuleData input);
 
-    private  Mono<Void> doApply(RuleData input) {
+    private Mono<Void> doApply(RuleData input) {
         return context
                 .getOutput()
                 .write(Flux.from(this.apply(input))
@@ -46,7 +46,8 @@ public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implemen
                 .getInput()
                 .accept()
                 .filter(data -> state == Task.State.running)
-                .flatMap(this::doApply)
+                // FIXME: 2021/9/3 背压支持？
+                .flatMap(this::doApply, Integer.MAX_VALUE)
                 .onErrorResume(error -> context.onError(error, null))
                 .subscribe()
                 ;
