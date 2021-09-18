@@ -28,6 +28,11 @@ public class RuleModel {
     private String name;
 
     /**
+     * 模型类型
+     */
+    private String type;
+
+    /**
      * 描述
      */
     private String description;

@@ -77,6 +77,13 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
 
     @Override
     public <T> Mono<T> fireEvent(@Nonnull String event, @Nonnull RuleData data) {
+        //规则自定义配置
+        data.setHeader(RuleConstants.Headers.ruleConfiguration, getJob().getRuleConfiguration());
+        //任务执行器标识
+        data.setHeader(RuleConstants.Headers.jobExecutor, getJob().getExecutor());
+        //模型类型
+        data.setHeader(RuleConstants.Headers.modelType, getJob().getModelType());
+
         Mono<T> then = eventBus
                 .publish(RuleConstants.Topics.event(job.getInstanceId(), job.getNodeId(), event), data)
                 .doOnSubscribe(ignore -> log.trace("fire job task [{}] event [{}] ", job, event))
@@ -133,7 +140,6 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
         RuleData ruleData = RuleData.create(data);
 
         ruleData.setHeader("sourceNode", getJob().getNodeId());
-
         return ruleData;
     }
 

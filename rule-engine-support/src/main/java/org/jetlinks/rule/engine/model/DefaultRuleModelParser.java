@@ -4,6 +4,7 @@ import org.jetlinks.rule.engine.api.model.RuleEngineModelParser;
 import org.jetlinks.rule.engine.api.model.RuleModel;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author zhouhao
@@ -11,7 +12,7 @@ import java.util.*;
  */
 public class DefaultRuleModelParser implements RuleEngineModelParser {
 
-    private final Map<String, RuleModelParserStrategy> allStrategy = new HashMap<>();
+    private final Map<String, RuleModelParserStrategy> allStrategy = new ConcurrentHashMap<>();
 
     @Override
     public List<String> getAllSupportFormat() {
@@ -20,8 +21,13 @@ public class DefaultRuleModelParser implements RuleEngineModelParser {
 
     @Override
     public RuleModel parse(String format, String modelDefineString) {
-        return Optional.ofNullable(allStrategy.get(format))
-                .map(strategy -> strategy.parse(modelDefineString))
+        return Optional
+                .ofNullable(allStrategy.get(format))
+                .map(strategy -> {
+                    RuleModel model = strategy.parse(modelDefineString);
+                    model.setType(format);
+                    return model;
+                })
                 .orElseThrow(() -> new UnsupportedOperationException("不支持的模型格式:" + format));
     }
 

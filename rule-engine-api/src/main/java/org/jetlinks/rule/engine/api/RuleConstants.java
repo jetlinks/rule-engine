@@ -1,6 +1,27 @@
 package org.jetlinks.rule.engine.api;
 
+import org.jetlinks.rule.engine.api.model.RuleModel;
+import org.jetlinks.rule.engine.api.model.RuleNodeModel;
+
 public interface RuleConstants {
+
+
+    interface Headers {
+        /**
+         * @see RuleModel#getConfiguration()
+         */
+        String ruleConfiguration = "ruleConf";
+
+        /**
+         * @see RuleNodeModel#getExecutor()
+         */
+        String jobExecutor = "jobExecutor";
+
+        /**
+         * @see RuleModel#getType()
+         */
+        String modelType = "modelType";
+    }
 
     interface Event {
         String error = "error";
