@@ -65,7 +65,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
         this.eventOutputs = eventOutputs
                 .entrySet()
                 .stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> RuleEngineHooks.wrapOutput(output)));
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> RuleEngineHooks.wrapOutput(e.getValue())));
         this.logger = CompositeLogger.of(logger, new EventLogger(eventBus, job.getInstanceId(), job.getNodeId(), workerId));
         this.globalScope = globalScope;
     }
