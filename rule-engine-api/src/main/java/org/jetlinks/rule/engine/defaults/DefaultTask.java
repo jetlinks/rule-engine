@@ -33,6 +33,8 @@ public class DefaultTask implements Task {
 
     private long startTime;
 
+    private final String id;
+
     public DefaultTask(String schedulerId,
                        String workerId,
                        AbstractExecutionContext context,
@@ -41,6 +43,7 @@ public class DefaultTask implements Task {
         this.workerId = workerId;
         this.context = context;
         this.executor = executor;
+        this.id = DigestUtils.md5Hex(workerId + ":" + context.getInstanceId() + ":" + context.getJob().getNodeId());
         //监听状态切换事件
         executor.onStateChanged((from, to) -> {
             lastStateTime = System.currentTimeMillis();
@@ -51,22 +54,25 @@ public class DefaultTask implements Task {
             data.put("instanceId", context.getInstanceId());
             data.put("nodeId", context.getJob().getNodeId());
             data.put("timestamp", System.currentTimeMillis());
-
             Flux.merge(
-                    context.getEventBus()
-                            .publish(RuleConstants.Topics.state(context.getInstanceId(), context.getJob().getNodeId()), data),
-                    context.getEventBus()
-                            .publish(RuleConstants.Topics.event(context.getInstanceId(), context.getJob().getNodeId(), to.name()), context.newRuleData(data))
-            )
-                    .doOnError(err -> log.error(err.getMessage(), err))
-                    .subscribe();
+                        context.getEventBus()
+                               .publish(RuleConstants.Topics.state(context.getInstanceId(), context
+                                       .getJob()
+                                       .getNodeId()), data),
+                        context.getEventBus()
+                               .publish(RuleConstants.Topics.event(context.getInstanceId(), context
+                                       .getJob()
+                                       .getNodeId(), to.name()), context.newRuleData(data))
+                )
+                .doOnError(err -> log.error(err.getMessage(), err))
+                .subscribe();
 
         });
     }
 
     @Override
     public String getId() {
-        return DigestUtils.md5Hex(workerId + ":" + context.getInstanceId() + ":" + context.getJob().getNodeId());
+        return id;
     }
 
     @Override
@@ -104,8 +110,8 @@ public class DefaultTask implements Task {
     public Mono<Void> start() {
         log.debug("start task[{}]:[{}]", getId(), getJob());
         return Mono.<Void>fromRunnable(executor::start)
-                .doOnSuccess((v) -> startTime = System.currentTimeMillis())
-                .subscribeOn(Schedulers.boundedElastic());
+                   .doOnSuccess((v) -> startTime = System.currentTimeMillis())
+                   .subscribeOn(Schedulers.boundedElastic());
     }
 
     @Override
@@ -126,7 +132,7 @@ public class DefaultTask implements Task {
     @Override
     public Mono<Void> execute(RuleData data) {
         log.debug("execute task[{}]:[{}]", getId(), getJob());
-        if(executor instanceof ExecutableTaskExecutor){
+        if (executor instanceof ExecutableTaskExecutor) {
             return ((ExecutableTaskExecutor) executor).execute(data);
         }
         return Mono.empty();
