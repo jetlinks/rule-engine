@@ -1,6 +1,7 @@
 package org.jetlinks.rule.engine.cluster;
 
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.rule.engine.api.RuleEngine;
 import org.jetlinks.rule.engine.api.model.RuleModel;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
@@ -13,9 +14,7 @@ import org.jetlinks.rule.engine.defaults.ScheduleJobCompiler;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -25,6 +24,7 @@ import java.util.stream.Collectors;
  * @author zhouhao
  */
 @AllArgsConstructor
+@Slf4j
 public class ClusterRuleEngine implements RuleEngine {
 
     private final SchedulerRegistry schedulerRegistry;
@@ -39,10 +39,11 @@ public class ClusterRuleEngine implements RuleEngine {
 
     @Override
     public Mono<Void> shutdown(String instanceId) {
-        return schedulerRegistry.getSchedulers()
-                                .flatMap(scheduler -> scheduler.shutdown(instanceId))
-                                .then(repository.removeTaskByInstanceId(instanceId))
-                                .then();
+        return schedulerRegistry
+                .getSchedulers()
+                .flatMap(scheduler -> scheduler.shutdown(instanceId))
+                .then(repository.removeTaskByInstanceId(instanceId))
+                .then();
     }
 
     public Flux<Task> startRule(String instanceId, RuleModel model) {
@@ -51,25 +52,44 @@ public class ClusterRuleEngine implements RuleEngine {
                 .compile()
                 .stream()
                 .collect(Collectors.toMap(ScheduleJob::getNodeId, Function.identity()));
-
+        List<Task> startedTask = new ArrayList<>(jobs.size());
         //获取调度记录
         return repository
                 .findByInstanceId(instanceId)
-                .flatMap(snapshot -> this
-                        .getTaskBySnapshot(snapshot)
-                        //重新加载任务
-                        .flatMap(task -> task
-                                .setJob(jobs.get(task.getJob().getNodeId()))
-                                .then(task.reload())
-                                .thenReturn(task)
-                        )
-                        //没有worker调度此任务? 重新调度
-                        .switchIfEmpty(Flux.defer(() -> this
-                                .doStart(Collections.singleton(jobs.get(snapshot.getJob().getNodeId())))
-                                .flatMap(task -> repository
-                                        .saveTaskSnapshots(task.dump())
-                                        .thenReturn(task))))
-                ).switchIfEmpty(doStart(jobs.values()));
+                .flatMap(snapshot -> {
+                    ScheduleJob job = jobs.get(snapshot.getJob().getNodeId());
+                    //新的任务减少了task
+                    if (job == null) {
+                        return this
+                                .getTaskBySnapshot(snapshot)
+                                .flatMap(Task::shutdown)
+                                .then(repository.removeTaskById(snapshot.getId()))
+                                .then(Mono.empty());
+                    }
+                    return this
+                            .getTaskBySnapshot(snapshot)
+                            //重新加载任务
+                            .flatMap(task -> task
+                                    .setJob(job)
+                                    .then(task.reload())
+                                    .thenReturn(task))
+                            //没有worker调度此任务? 重新调度
+                            .switchIfEmpty(Flux.defer(() -> this
+                                    .doStart(Collections.singleton(job))
+                                    .flatMap(task -> repository
+                                            .saveTaskSnapshots(task.dump())
+                                            .thenReturn(task))));
+
+                })
+                .switchIfEmpty(doStart(jobs.values()))
+                .doOnNext(startedTask::add)
+                .onErrorResume(err -> {
+                    //失败时停止全部任务
+                    return Flux
+                            .fromIterable(startedTask)
+                            .flatMap(Task::shutdown)
+                            .then(Mono.error(err));
+                });
     }
 
     protected Flux<Task> doStart(Collection<ScheduleJob> jobs) {
