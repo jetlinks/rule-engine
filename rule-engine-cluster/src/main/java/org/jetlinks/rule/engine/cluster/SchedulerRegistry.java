@@ -36,6 +36,6 @@ public interface SchedulerRegistry {
      *
      * @param worker scheduler
      */
-    void register(Scheduler worker);
+    void register(Scheduler scheduler);
 
 }

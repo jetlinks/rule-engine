@@ -21,6 +21,7 @@ import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 
+@Deprecated
 public class ClusterLocalScheduler implements Scheduler {
 
     @Getter

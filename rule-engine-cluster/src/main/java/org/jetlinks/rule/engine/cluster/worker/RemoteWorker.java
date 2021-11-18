@@ -25,7 +25,7 @@ public class RemoteWorker implements Worker {
     @Override
     public Mono<Task> createTask(String schedulerId, ScheduleJob job) {
         return rpcService
-                .createTask(id,job)
+                .createTask(SchedulerRpcService.CreateTaskRequest.of(id,job))
                 .map(response -> new RemoteTask(
                         response.getId(),
                         response.getName(),

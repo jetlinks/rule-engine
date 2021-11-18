@@ -33,12 +33,12 @@ public class RemoteTask implements Task {
     public Mono<Void> setJob(ScheduleJob job) {
         this.job = job;
         return rpcService
-                .setTaskJob(id,job);
+                .setTaskJob(SchedulerRpcService.TaskJobRequest.of(id, job));
     }
 
     private Mono<Void> operation(SchedulerRpcService.TaskOperation operation) {
         return rpcService
-                .taskOperation(id,operation);
+                .taskOperation(SchedulerRpcService.OperateTaskRequest.of(id, operation));
     }
 
     @Override
@@ -63,7 +63,7 @@ public class RemoteTask implements Task {
 
     @Override
     public Mono<Void> execute(RuleData data) {
-        return rpcService.executeTask(id, data).then();
+        return rpcService.executeTask(SchedulerRpcService.ExecuteTaskRequest.of(id, data)).then();
     }
 
     @Override

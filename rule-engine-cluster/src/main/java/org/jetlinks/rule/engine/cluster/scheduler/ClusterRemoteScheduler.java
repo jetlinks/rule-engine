@@ -1,9 +1,8 @@
 package org.jetlinks.rule.engine.cluster.scheduler;
 
+import io.scalecube.services.exceptions.ServiceException;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.jetlinks.core.rpc.DisposableService;
-import org.jetlinks.core.rpc.RpcServiceFactory;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.api.task.Task;
@@ -15,34 +14,29 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
 @AllArgsConstructor
-public class RemoteScheduler implements Scheduler, Disposable {
+public class ClusterRemoteScheduler implements Scheduler, Disposable {
 
     @Getter
     private final String id;
 
     private SchedulerRpcService rpcService;
 
-    private final RpcServiceFactory factory;
-
     private Disposable disposable;
 
-    public RemoteScheduler(String id, RpcServiceFactory factory) {
+    public ClusterRemoteScheduler(String id, SchedulerRpcService rpcService) {
         this.id = id;
-        this.factory = factory;
-    }
-
-    public void init() {
-        DisposableService<SchedulerRpcService> service = factory.createConsumer("/rule-engine/cluster-scheduler:" + id, SchedulerRpcService.class);
-        this.disposable = service;
-        this.rpcService = service.getService();
+        this.rpcService = rpcService;
     }
 
     public Mono<Boolean> isAlive() {
         return rpcService
                 .isAlive()
+                .onErrorResume(IOException.class, r -> Mono.just(false))
+                .onErrorResume(ServiceException.class, r -> Mono.just(false))
                 .onErrorResume(TimeoutException.class, r -> Mono.just(false));
     }
 

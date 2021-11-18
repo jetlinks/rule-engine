@@ -8,6 +8,9 @@
     <logger name="org.springframework" level="warn" />
     <logger name="org.apache" level="warn" />
     <logger name="rpc" level="trace" />
+    <logger name="io.scalecube" level="warn" />
+    <logger name="reactor.netty" level="warn" />
+    <logger name="io.rsocket" level="warn" />
 
 
 

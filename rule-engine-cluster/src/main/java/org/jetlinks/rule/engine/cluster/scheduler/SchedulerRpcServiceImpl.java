@@ -1,12 +1,10 @@
 package org.jetlinks.rule.engine.cluster.scheduler;
 
-import org.jetlinks.core.rpc.RpcServiceFactory;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.task.TaskSnapshot;
 import org.jetlinks.rule.engine.api.worker.Worker;
-import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -15,14 +13,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-@Deprecated
-public class LocalSchedulerRpcService implements SchedulerRpcService {
+public class SchedulerRpcServiceImpl implements SchedulerRpcService {
 
     private final Scheduler localScheduler;
 
     private final static Map<TaskOperation, Function<Task, Mono<Void>>> operationMapping = new HashMap<>();
-
-    private final Disposable disposable;
 
     static {
         operationMapping.put(TaskOperation.PAUSE, Task::pause);
@@ -33,13 +28,8 @@ public class LocalSchedulerRpcService implements SchedulerRpcService {
         operationMapping.put(TaskOperation.DISABLE_DEBUG, task -> task.debug(false));
     }
 
-    public LocalSchedulerRpcService(Scheduler localScheduler, RpcServiceFactory serviceFactory) {
+    public SchedulerRpcServiceImpl(Scheduler localScheduler) {
         this.localScheduler = localScheduler;
-        disposable = serviceFactory.createProducer("/rule-engine/cluster-scheduler:" + localScheduler.getId(), SchedulerRpcService.class, this);
-    }
-
-    public void shutdown() {
-        disposable.dispose();
     }
 
     public Scheduler getLocalScheduler() {
@@ -48,19 +38,22 @@ public class LocalSchedulerRpcService implements SchedulerRpcService {
 
     @Override
     public Flux<WorkerInfo> getWorkers() {
-        return localScheduler.getWorkers()
+        return localScheduler
+                .getWorkers()
                 .map(worker -> new WorkerInfo(worker.getId(), worker.getName()));
     }
 
     @Override
     public Mono<WorkerInfo> getWorker(String id) {
-        return localScheduler.getWorker(id)
+        return localScheduler
+                .getWorker(id)
                 .map(worker -> new WorkerInfo(worker.getId(), worker.getName()));
     }
 
     @Override
     public Flux<TaskInfo> schedule(ScheduleJob job) {
-        return localScheduler.schedule(job)
+        return localScheduler
+                .schedule(job)
                 .map(task -> new TaskInfo(task.getId(), task.getName(), task.getWorkerId(), task.getJob()));
     }
 
@@ -71,13 +64,15 @@ public class LocalSchedulerRpcService implements SchedulerRpcService {
 
     @Override
     public Flux<TaskInfo> getSchedulingTask(String instanceId) {
-        return localScheduler.getSchedulingTask(instanceId)
+        return localScheduler
+                .getSchedulingTask(instanceId)
                 .map(task -> new TaskInfo(task.getId(), task.getName(), task.getWorkerId(), task.getJob()));
     }
 
     @Override
     public Flux<TaskInfo> getSchedulingTasks() {
-        return localScheduler.getSchedulingTasks()
+        return localScheduler
+                .getSchedulingTasks()
                 .map(task -> new TaskInfo(task.getId(), task.getName(), task.getWorkerId(), task.getJob()));
     }
 
@@ -100,8 +95,8 @@ public class LocalSchedulerRpcService implements SchedulerRpcService {
 
     private Mono<Task> getTask(String taskId) {
         return localScheduler.getSchedulingTasks()
-                .filter(task -> task.getId().equals(taskId))
-                .singleOrEmpty();
+                             .filter(task -> task.getId().equals(taskId))
+                             .singleOrEmpty();
     }
 
     @Override
@@ -138,20 +133,20 @@ public class LocalSchedulerRpcService implements SchedulerRpcService {
     @Override
     public Mono<TaskInfo> createTask(CreateTaskRequest request) {
         return localScheduler.getWorker(request.getWorkerId())
-                .flatMap(worker -> worker.createTask(localScheduler.getId(), request.getJob()))
-                .map(task -> new TaskInfo(task.getId(), task.getName(), task.getWorkerId(), task.getJob()));
+                             .flatMap(worker -> worker.createTask(localScheduler.getId(), request.getJob()))
+                             .map(task -> new TaskInfo(task.getId(), task.getName(), task.getWorkerId(), task.getJob()));
     }
 
     @Override
     public Mono<List<String>> getSupportExecutors(String workerId) {
         return localScheduler.getWorker(workerId)
-                .flatMap(Worker::getSupportExecutors);
+                             .flatMap(Worker::getSupportExecutors);
     }
 
     @Override
     public Mono<Worker.State> getWorkerState(String workerId) {
         return localScheduler.getWorker(workerId)
-                .flatMap(Worker::getState);
+                             .flatMap(Worker::getState);
     }
 
     @Override

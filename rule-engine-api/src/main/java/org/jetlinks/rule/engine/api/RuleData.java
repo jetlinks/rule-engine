@@ -24,6 +24,8 @@ import java.util.function.Consumer;
 @Setter
 public class RuleData implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+
     /**
      * 数据ID
      */
