@@ -8,10 +8,9 @@ import org.jetlinks.core.rpc.RpcServiceFactory;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.cluster.scheduler.RemoteScheduler;
 import reactor.core.Disposable;
-import reactor.core.publisher.EmitterProcessor;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
 
 import java.time.Duration;
 import java.util.*;
@@ -28,11 +27,9 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
     //远程调度器,在集群其他节点上的调度器
     private final Map<String, RemoteScheduler> remoteSchedulers = new ConcurrentHashMap<>();
 
-    private final EmitterProcessor<Scheduler> joinProcessor = EmitterProcessor.create(Integer.MAX_VALUE, false);
-    private final EmitterProcessor<Scheduler> leaveProcessor = EmitterProcessor.create(Integer.MAX_VALUE, false);
+    private final Sinks.Many<Scheduler> joinSinksMany =   Sinks.many().multicast().onBackpressureBuffer(Integer.MAX_VALUE, false);
+    private final Sinks.Many<Scheduler> leaveSinksMany =  Sinks.many().multicast().onBackpressureBuffer(Integer.MAX_VALUE, false);
 
-    private final FluxSink<Scheduler> joinSink = joinProcessor.sink();
-    private final FluxSink<Scheduler> leaveSink = leaveProcessor.sink();
 
     private final List<Disposable> disposables = new CopyOnWriteArrayList<>();
 
@@ -51,14 +48,14 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
         if (!disposables.isEmpty()) {
             return;
         }
-        joinProcessor.subscribe(scheduler -> {
+        joinSinksMany.asFlux().subscribe(scheduler -> {
             RemoteScheduler old = remoteSchedulers.put(scheduler.getId(), ((RemoteScheduler) scheduler));
             if (old != null) {
                 old.dispose();
             }
             log.debug("remote scheduler join:{}", scheduler.getId());
         });
-        leaveProcessor.subscribe(scheduler -> {
+        leaveSinksMany.asFlux().subscribe(scheduler -> {
             log.debug("remote scheduler leave:{}", scheduler.getId());
             Scheduler old = remoteSchedulers.remove(scheduler.getId());
             if (old != null && old != scheduler) {
@@ -74,7 +71,7 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
                         .doOnNext(id -> {
                             RemoteScheduler scheduler = new RemoteScheduler(id, serviceFactory);
                             scheduler.init();
-                            joinSink.next(scheduler);
+                            joinSinksMany.tryEmitNext(scheduler);
                             publishLocal().subscribe(); //有节点上线，广播本地节点。
                         })
                         .subscribe()
@@ -85,7 +82,7 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
                         .subscribe(Subscription.of("rule-engine.register", "/rule-engine/cluster-scheduler/leave", Subscription.Feature.broker), String.class)
                         .filter(remoteSchedulers::containsKey)
                         .flatMap(id -> Mono.justOrEmpty(remoteSchedulers.remove(id)))
-                        .doOnNext(leaveSink::next)
+                        .doOnNext(leaveSinksMany::tryEmitNext)
                         .subscribe()
         );
 
@@ -97,7 +94,7 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
                                       .filterWhen(scheduler -> scheduler
                                               .isNoAlive()
                                               .onErrorResume((err) -> Mono.just(true)))
-                                      .doOnNext(leaveSink::next)
+                                      .doOnNext(leaveSinksMany::tryEmitNext)
                                       .then())
                             .subscribe()
                     )
@@ -136,12 +133,12 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
 
     @Override
     public Flux<Scheduler> handleSchedulerJoin() {
-        return joinProcessor;
+        return joinSinksMany.asFlux();
     }
 
     @Override
     public Flux<Scheduler> handleSchedulerLeave() {
-        return leaveProcessor;
+        return leaveSinksMany.asFlux();
     }
 
     @Override
