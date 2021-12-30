@@ -27,10 +27,13 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ClusterRuleEngine implements RuleEngine {
 
+    //调度器注册中心
     private final SchedulerRegistry schedulerRegistry;
 
+    //任务快照仓库
     private final TaskSnapshotRepository repository;
 
+    //调度器选择器
     private final SchedulerSelector schedulerSelector;
 
     public ClusterRuleEngine(SchedulerRegistry schedulerRegistry, TaskSnapshotRepository repository) {
@@ -39,6 +42,7 @@ public class ClusterRuleEngine implements RuleEngine {
 
     @Override
     public Mono<Void> shutdown(String instanceId) {
+        //从注册中心中获取调度器来停止指定的规则实例
         return schedulerRegistry
                 .getSchedulers()
                 .flatMap(scheduler -> scheduler.shutdown(instanceId))
@@ -58,7 +62,7 @@ public class ClusterRuleEngine implements RuleEngine {
                 .findByInstanceId(instanceId)
                 .flatMap(snapshot -> {
                     ScheduleJob job = jobs.get(snapshot.getJob().getNodeId());
-                    //新的任务减少了task
+                    //新的规则减少了任务,则尝试移除旧的任务
                     if (job == null) {
                         return this
                                 .getTaskBySnapshot(snapshot)
@@ -81,6 +85,7 @@ public class ClusterRuleEngine implements RuleEngine {
                                             .thenReturn(task))));
 
                 })
+                //没有任务调度信息说明可能是新启动的规则
                 .switchIfEmpty(doStart(jobs.values()))
                 .doOnNext(startedTask::add)
                 .onErrorResume(err -> {
@@ -97,11 +102,14 @@ public class ClusterRuleEngine implements RuleEngine {
                 .defer(() -> Flux
                         .fromIterable(jobs)
                         .flatMap(this::scheduleTask)
+                        //将所有Task创建好之后再统一启动
                         .collectList()
                         .flatMapIterable(Function.identity())
+                        //统一启动
                         .flatMap(task -> task.start().thenReturn(task)))
                 .collectList()
                 .map(Flux::fromIterable)
+                //保存快照信息
                 .flatMapMany(tasks -> repository
                         .saveTaskSnapshots(tasks.flatMap(Task::dump))
                         .thenMany(tasks));
