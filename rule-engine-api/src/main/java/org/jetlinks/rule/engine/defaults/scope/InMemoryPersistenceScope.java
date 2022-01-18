@@ -45,6 +45,11 @@ public class InMemoryPersistenceScope implements PersistenceScope {
     }
 
     @Override
+    public Mono<Object> getAndRemove(String key) {
+        return get(key).then(remove(key));
+    }
+
+    @Override
     public Mono<Object> remove(String key) {
         return Mono.fromSupplier(() -> store.remove(key));
     }

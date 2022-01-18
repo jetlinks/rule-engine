@@ -17,14 +17,13 @@ class ClusterPersistenceScope implements PersistenceScope {
 
     protected final ClusterManager clusterManager;
 
-    private String getKey() {
+    protected String getKey() {
         return "rule-engine:" + id;
     }
 
     @Override
     public Mono<Void> putAll(Map<String, Object> keyValue) {
-        return clusterManager
-                .getCache(getKey())
+        return getCache()
                 .putAll(keyValue)
                 .then();
     }
@@ -74,6 +73,11 @@ class ClusterPersistenceScope implements PersistenceScope {
     public Mono<Object> get(String key) {
         return getCache()
                 .get(key);
+    }
+
+    @Override
+    public Mono<Object> getAndRemove(String key) {
+        return getCache().getAndRemove(key);
     }
 
     @Override

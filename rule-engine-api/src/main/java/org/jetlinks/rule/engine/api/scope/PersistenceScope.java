@@ -46,7 +46,16 @@ public interface PersistenceScope extends Scope {
     Mono<Object> get(String key);
 
     /**
+     * 获取配置然后删除
+     *
+     * @param key Key
+     * @return 值
+     */
+    Mono<Object> getAndRemove(String key);
+
+    /**
      * 删除值
+     *
      * @param key key
      * @return 被删除的值
      */
