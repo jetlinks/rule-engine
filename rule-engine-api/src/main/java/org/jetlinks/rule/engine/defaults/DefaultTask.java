@@ -19,9 +19,11 @@ import java.util.Map;
 @Slf4j
 public class DefaultTask implements Task {
 
+    //工作器ID
     @Getter
     private final String workerId;
 
+    //调度器ID
     @Getter
     private final String schedulerId;
 
@@ -80,11 +82,22 @@ public class DefaultTask implements Task {
         return executor.getName();
     }
 
+    /**
+     * 获取任务信息
+     *
+     * @return 任务信息
+     */
     @Override
     public ScheduleJob getJob() {
         return context.getJob();
     }
 
+    /**
+     * 设置任务信息,用于热更新任务.
+     *
+     * @param job 任务信息
+     * @return empty Mono
+     */
     @Override
     public Mono<Void> setJob(ScheduleJob job) {
         return Mono.fromRunnable(() -> {
@@ -99,6 +112,11 @@ public class DefaultTask implements Task {
         });
     }
 
+    /**
+     * 重新加载任务,如果配置发生变化,将重启任务.
+     *
+     * @return empty Mono
+     */
     @Override
     public Mono<Void> reload() {
         log.debug("reload task[{}]:[{}]", getId(), getJob());
@@ -106,6 +124,12 @@ public class DefaultTask implements Task {
                    .subscribeOn(Schedulers.boundedElastic());
     }
 
+
+    /**
+     * 启动,开始执行任务
+     *
+     * @return empty Mono
+     */
     @Override
     public Mono<Void> start() {
         log.debug("start task[{}]:[{}]", getId(), getJob());
@@ -114,12 +138,22 @@ public class DefaultTask implements Task {
                    .subscribeOn(Schedulers.boundedElastic());
     }
 
+    /**
+     * 暂停执行任务
+     *
+     * @return empty Mono
+     */
     @Override
     public Mono<Void> pause() {
         log.debug("pause task[{}]:[{}]", getId(), getJob());
         return Mono.fromRunnable(executor::pause);
     }
 
+    /**
+     * 停止任务,与暂停不同等的是,停止后将进行清理资源等操作
+     *
+     * @return empty Mono
+     */
     @Override
     public Mono<Void> shutdown() {
         log.debug("shutdown task[{}]:[{}]", getId(), getJob());
@@ -129,6 +163,11 @@ public class DefaultTask implements Task {
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
+    /**
+     * 执行任务
+     *
+     * @return 结果
+     */
     @Override
     public Mono<Void> execute(RuleData data) {
         log.debug("execute task[{}]:[{}]", getId(), getJob());
@@ -138,22 +177,39 @@ public class DefaultTask implements Task {
         return Mono.empty();
     }
 
+    /**
+     * 获取任务状态
+     *
+     * @return 状态
+     */
     @Override
     public Mono<State> getState() {
         return Mono.just(executor.getState());
     }
 
+    /**
+     * 设置debug,开启debug后,会打印更多的日志信息。
+     *
+     * @param debug 是否开启debug
+     * @return empty Mono
+     */
     @Override
     public Mono<Void> debug(boolean debug) {
         log.debug("set task debug[{}] [{}]:[{}]", debug, getId(), getJob());
         return Mono.fromRunnable(() -> context.setDebug(debug));
     }
 
+    /**
+     * @return 上一次状态变更时间
+     */
     @Override
     public Mono<Long> getLastStateTime() {
         return Mono.just(lastStateTime);
     }
 
+    /**
+     * @return 启动时间
+     */
     @Override
     public Mono<Long> getStartTime() {
         return Mono.just(startTime);
