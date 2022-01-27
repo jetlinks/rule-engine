@@ -18,12 +18,14 @@ import java.util.function.Function;
 
 public class LocalScheduler implements Scheduler {
 
+    //调度器ID
     @Getter
     private final String id;
 
     @Setter
     private WorkerSelector workerSelector = defaultSelector;
 
+    //工作节点选择器,用来选择合适的节点来执行任务
     final static WorkerSelector defaultSelector = (workers1, rule) -> workers1.take(1);
 
     private final Map<String/*workerId*/, Worker> workers = new ConcurrentHashMap<>();
@@ -34,17 +36,32 @@ public class LocalScheduler implements Scheduler {
         this.id = id;
     }
 
+    /**
+     * @return 全部工作器
+     */
     @Override
     public Flux<Worker> getWorkers() {
         return Flux.fromIterable(workers.values());
     }
 
+    /**
+     * 获取指定ID的工作器
+     *
+     * @param workerId ID
+     * @return 工作器
+     */
     @Override
     public Mono<Worker> getWorker(String workerId) {
 
         return Mono.justOrEmpty(workers.get(workerId));
     }
 
+    /**
+     * 当前调度器是否可以调度此任务
+     *
+     * @param job 任务信息
+     * @return 是否可以调度
+     */
     @Override
     public Mono<Boolean> canSchedule(ScheduleJob job) {
         return findWorker(job.getExecutor(), job)

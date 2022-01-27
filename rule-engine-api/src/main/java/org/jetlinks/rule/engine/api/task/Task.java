@@ -71,7 +71,7 @@ public interface Task {
     Mono<Void> pause();
 
     /**
-     * 停止任务,于暂停不同等的是,停止后将进行清理资源等操作,
+     * 停止任务,与暂停不同等的是,停止后将进行清理资源等操作,
      * 通常在停止规则时或者调度器进行负载均衡时.
      *
      * @return empty Mono

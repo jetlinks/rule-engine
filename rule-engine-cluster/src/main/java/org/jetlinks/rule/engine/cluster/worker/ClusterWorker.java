@@ -20,16 +20,21 @@ public class ClusterWorker implements Worker {
 
     private final Map<String, TaskExecutorProvider> executors = new ConcurrentHashMap<>();
 
+    //工作器全局唯一ID
     @Getter
     private final String id;
 
+    //工作器名称
     @Getter
     private final String name;
 
+    //集群管理器
     private final ClusterManager clusterManager;
 
+    //基于订阅发布的事件总线,可用于事件传递,消息转发等
     private final EventBus eventBus;
 
+    //条件执行器，用于根据条件和规则数据来判断条件是否满足
     private final ConditionEvaluator conditionEvaluator;
 
     public ClusterWorker(String id, String name, EventBus eventBus, ClusterManager clusterManager, ConditionEvaluator evaluator) {
@@ -40,6 +45,13 @@ public class ClusterWorker implements Worker {
         this.clusterManager = clusterManager;
     }
 
+    /**
+     * 创建一个Task
+     *
+     * @param schedulerId 调度器ID
+     * @param job 任务
+     * @return Task
+     */
     @Override
     public Mono<Task> createTask(String schedulerId, ScheduleJob job) {
         return Mono
@@ -57,12 +69,18 @@ public class ClusterWorker implements Worker {
         return new ClusterExecutionContext(getId(), job, eventBus, clusterManager, conditionEvaluator);
     }
 
+    /**
+     * @return 支持的执行器ID集合
+     */
     @Override
     public Mono<List<String>> getSupportExecutors() {
 
         return Mono.just(new ArrayList<>(executors.keySet()));
     }
 
+    /**
+     * @return 工作器状态
+     */
     @Override
     public Mono<State> getState() {
         return Mono.just(State.working);

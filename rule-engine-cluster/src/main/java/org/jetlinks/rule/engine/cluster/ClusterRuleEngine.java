@@ -40,6 +40,12 @@ public class ClusterRuleEngine implements RuleEngine {
         this(schedulerRegistry, repository, SchedulerSelector.selectAll);
     }
 
+    /**
+     * 停止规则
+     *
+     * @param instanceId 实例ID
+     * @return void
+     */
     @Override
     public Mono<Void> shutdown(String instanceId) {
         //从注册中心中获取调度器来停止指定的规则实例
@@ -50,6 +56,14 @@ public class ClusterRuleEngine implements RuleEngine {
                 .then();
     }
 
+
+    /**
+     * 启动规则
+     *
+     * @param instanceId 实例ID
+     * @param model      规则模型
+     * @return 规则实例上下文
+     */
     public Flux<Task> startRule(String instanceId, RuleModel model) {
         //编译
         Map</*nodeId*/String, /*Job*/ScheduleJob> jobs = new ScheduleJobCompiler(instanceId, model)
@@ -132,12 +146,24 @@ public class ClusterRuleEngine implements RuleEngine {
                 .flatMap(scheduler -> scheduler.schedule(job));
     }
 
+    /**
+     * 获取运行中的任务
+     *
+     * @param instance 实例ID
+     * @return 规则实例上下文
+     */
     @Override
     public Flux<Task> getTasks(String instance) {
         return schedulerRegistry.getSchedulers()
                                 .flatMap(scheduler -> scheduler.getSchedulingTask(instance));
     }
 
+    /**
+     * 获取全部Worker
+     *
+     * @return worker
+     * @see ScheduleJob#getExecutor()
+     */
     @Override
     public Flux<Worker> getWorkers() {
         return schedulerRegistry.getSchedulers()
