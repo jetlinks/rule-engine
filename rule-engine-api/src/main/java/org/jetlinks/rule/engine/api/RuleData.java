@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
@@ -45,7 +46,7 @@ public class RuleData implements Serializable {
      * 规则头信息,可以通过头信息来传递更多的拓展消息
      */
     @Getter
-    private Map<String, Object> headers = new HashMap<>();
+    private Map<String, Object> headers = new ConcurrentHashMap<>();
 
     public void setHeader(String key, Object value) {
         headers.put(key, value);
@@ -128,7 +129,7 @@ public class RuleData implements Serializable {
             data = ((RuleData) data).getData();
         }
         ruleData.id = IDGenerator.SNOW_FLAKE_STRING.generate();
-        ruleData.headers = new HashMap<>(headers);
+        ruleData.headers.putAll(headers);
         ruleData.data = data;
         ruleData.contextId = contextId;
         RuleDataHelper.clearError(ruleData);
@@ -139,7 +140,7 @@ public class RuleData implements Serializable {
         RuleData ruleData = new RuleData();
         ruleData.id = id;
         ruleData.contextId = contextId;
-        ruleData.headers = new HashMap<>(headers);
+        ruleData.headers.putAll(headers);
         ruleData.data = data;
         return ruleData;
     }

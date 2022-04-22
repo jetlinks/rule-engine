@@ -57,6 +57,20 @@ public class RuleModel {
      */
     private List<RuleNodeModel> nodes = new ArrayList<>();
 
+    public RuleLink link(RuleNodeModel source, RuleNodeModel target) {
+        RuleLink link = new RuleLink();
+        link.setId(source.getId() + ":" + target.getId());
+        link.setName(source.getName() + ":" + target.getName());
+
+        link.setSource(source);
+        link.setTarget(target);
+
+        source.getOutputs().add(link);
+        source.getInputs().add(link);
+
+        return link;
+    }
+
     public List<RuleLink> getEvents(String type) {
         return events.stream()
                      .filter(link -> type.equals(link.getType()))
