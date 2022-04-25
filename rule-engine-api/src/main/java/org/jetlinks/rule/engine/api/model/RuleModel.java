@@ -66,7 +66,7 @@ public class RuleModel {
         link.setTarget(target);
 
         source.getOutputs().add(link);
-        source.getInputs().add(link);
+        target.getInputs().add(link);
 
         return link;
     }
@@ -94,9 +94,29 @@ public class RuleModel {
                     .findFirst();
     }
 
+    public List<RuleNodeModel> getStartNodes() {
+        return nodes
+                .stream()
+                .filter(RuleNodeModel::isStartNode)
+                .collect(Collectors.toList());
+    }
+
     public List<RuleNodeModel> getEndNodes() {
         return nodes.stream()
                     .filter(RuleNodeModel::isEnd)
                     .collect(Collectors.toList());
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder stringBuilder = new StringBuilder();
+        int index = 0;
+        for (RuleNodeModel node : getNodes()) {
+            if (index++ > 0) {
+                stringBuilder.append("\n");
+            }
+            node.appendMermaid(stringBuilder);
+        }
+        return stringBuilder.toString();
     }
 }

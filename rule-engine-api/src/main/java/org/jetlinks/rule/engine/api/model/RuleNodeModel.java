@@ -2,14 +2,13 @@ package org.jetlinks.rule.engine.api.model;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.collections.CollectionUtils;
 import org.jetlinks.rule.engine.api.scheduler.SchedulingRule;
 import org.jetlinks.rule.engine.api.task.ExecutionContext;
 import org.jetlinks.rule.engine.api.task.TaskExecutorProvider;
+import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -29,6 +28,7 @@ public class RuleNodeModel {
 
     /**
      * 规则ID
+     *
      * @see RuleModel#getId()
      */
     private String ruleId;
@@ -93,6 +93,7 @@ public class RuleNodeModel {
 
     /**
      * 是否并行执行
+     *
      * @deprecated 已弃用
      */
     @Deprecated
@@ -115,5 +116,50 @@ public class RuleNodeModel {
 
     public boolean isEndNode() {
         return end || outputs == null || outputs.isEmpty();
+    }
+
+    private void appendMermaidNode(StringBuilder builder) {
+        builder.append(getId());
+
+        builder.append(isStartNode() || isEndNode() ? "[" : "(");
+
+        if (StringUtils.hasText(name)) {
+            builder.append(name);
+        } else {
+            builder.append(executor);
+        }
+
+        builder.append(isStartNode() || isEndNode() ? "]" : ")");
+    }
+
+    public void appendMermaid(StringBuilder builder) {
+        if (CollectionUtils.isNotEmpty(outputs)) {
+            int index = 0;
+            for (RuleLink output : outputs) {
+                if (index++ > 0) {
+                    builder.append("\n");
+                }
+                appendMermaidNode(builder);
+                builder.append("-->");
+                if (StringUtils.hasText(output.getDescription())) {
+                    builder.append("|")
+                           .append(output.getDescription())
+                           .append("|");
+                }
+                output.getTarget()
+                      .appendMermaidNode(builder);
+
+            }
+        } else {
+            appendMermaidNode(builder);
+        }
+    }
+
+    @Override
+    public String toString() {
+        // timer(定时)-->
+        StringBuilder builder = new StringBuilder();
+        appendMermaid(builder);
+        return builder.toString();
     }
 }
