@@ -51,6 +51,7 @@ public class ClusterRuleEngine implements RuleEngine {
     }
 
     public Flux<Task> startRule(String instanceId, RuleModel model) {
+        log.debug("starting rule {}\n{}",instanceId,model.toString());
         //编译
         Map</*nodeId*/String, /*Job*/ScheduleJob> jobs = new ScheduleJobCompiler(instanceId, model)
                 .compile()
@@ -64,6 +65,7 @@ public class ClusterRuleEngine implements RuleEngine {
                     ScheduleJob job = jobs.get(snapshot.getJob().getNodeId());
                     //新的规则减少了任务,则尝试移除旧的任务
                     if (job == null) {
+                        log.debug("shutdown removed job:{}",snapshot.getJob().getNodeId());
                         return this
                                 .getTaskBySnapshot(snapshot)
                                 .flatMap(Task::shutdown)
