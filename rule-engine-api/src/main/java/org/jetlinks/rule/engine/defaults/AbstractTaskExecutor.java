@@ -18,7 +18,7 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
     protected ExecutionContext context;
 
     @Getter
-    protected Task.State state = Task.State.shutdown;
+    protected volatile Task.State state = Task.State.shutdown;
 
     protected volatile Disposable disposable;
 
