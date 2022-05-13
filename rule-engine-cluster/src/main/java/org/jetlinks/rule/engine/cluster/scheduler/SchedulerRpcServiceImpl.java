@@ -37,6 +37,11 @@ public class SchedulerRpcServiceImpl implements SchedulerRpcService {
     }
 
     @Override
+    public Mono<String> getId() {
+        return Mono.just(localScheduler.getId());
+    }
+
+    @Override
     public Flux<WorkerInfo> getWorkers() {
         return localScheduler
                 .getWorkers()

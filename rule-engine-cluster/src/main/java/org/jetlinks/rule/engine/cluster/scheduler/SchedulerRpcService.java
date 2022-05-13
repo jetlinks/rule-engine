@@ -21,6 +21,9 @@ import java.util.List;
 public interface SchedulerRpcService {
 
     @ServiceMethod
+    Mono<String >getId();
+
+    @ServiceMethod
     Flux<WorkerInfo> getWorkers();
 
     @ServiceMethod
