@@ -3,59 +3,73 @@ package org.jetlinks.rule.engine.cluster.scheduler;
 import lombok.extern.slf4j.Slf4j;
 import org.jctools.maps.NonBlockingHashMap;
 import org.jetlinks.core.rpc.RpcManager;
+import org.jetlinks.core.rpc.ServiceEvent;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.cluster.SchedulerRegistry;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 @Slf4j
 public class ClusterRpcSchedulerRegistry implements SchedulerRegistry {
 
-
     private final RpcManager rpcManager;
 
-    private final Scheduler localScheduler;
+    private final Map<String, Scheduler> locals = new NonBlockingHashMap<>();
 
     private final Map<String, Scheduler> remotes = new NonBlockingHashMap<>();
 
     private final Sinks.Many<Scheduler> joinListener = Sinks.many().multicast().onBackpressureBuffer();
     private final Sinks.Many<Scheduler> leaveListener = Sinks.many().multicast().onBackpressureBuffer();
 
-
-    public ClusterRpcSchedulerRegistry(RpcManager rpcManager,
-                                       Scheduler localScheduler) {
+    public ClusterRpcSchedulerRegistry(RpcManager rpcManager) {
         this.rpcManager = rpcManager;
-        this.localScheduler = localScheduler;
         init();
     }
 
     void init() {
 
-        rpcManager.registerService(
-                localScheduler.getId(),
-                new SchedulerRpcServiceImpl(localScheduler));
+        rpcManager
+                .getServices(SchedulerRpcService.class)
+                .subscribe(rpc -> remotes.put(rpc.id(), new ClusterRemoteScheduler(rpc.id(), rpc.service())));
 
-//        rpcManager
-//                .listen(SchedulerRpcService.class)
-//                .subscribe(e -> {
-//                    if (e.getType() == ServiceEvent.Type.added) {
-//                        rpcManager
-//                                .getService(e.getServerNodeId(), SchedulerRpcService.class)
-//                                .map(rpcService -> {
-//                                    return new ClusterRemoteScheduler(e.getService(),rpcService);
-//                                })
-//                    }
-//                })
+        rpcManager
+                .listen(SchedulerRpcService.class)
+                .flatMap(event -> handleEvent(event)
+                        .onErrorResume(err -> Mono.empty()))
+                .subscribe(e -> {
+
+                });
     }
 
+    private Mono<Void> handleEvent(ServiceEvent event) {
+        if (event.getType() == ServiceEvent.Type.added) {
+            return rpcManager
+                    .getService(event.getServerNodeId(), event.getServiceId(), SchedulerRpcService.class)
+                    .map(rpcService -> new ClusterRemoteScheduler(event.getServiceId(), rpcService))
+                    .doOnNext(scheduler -> {
+                        if (remotes.put(event.getServiceId(), scheduler) == null
+                                && joinListener.currentSubscriberCount() > 0) {
+                            joinListener.tryEmitNext(scheduler);
+                        }
+                    })
+                    .then();
+        } else if (event.getType() == ServiceEvent.Type.removed) {
+            Scheduler scheduler = remotes.remove(event.getServiceId());
+            if (null != scheduler && leaveListener.currentSubscriberCount() > 0) {
+                leaveListener.tryEmitNext(scheduler);
+            }
+        }
+        return Mono.empty();
+    }
 
     @Override
     public List<Scheduler> getLocalSchedulers() {
-        return Collections.singletonList(localScheduler);
+        return new ArrayList<>(locals.values());
     }
 
     @Override
@@ -78,7 +92,13 @@ public class ClusterRpcSchedulerRegistry implements SchedulerRegistry {
 
     @Override
     public void register(Scheduler scheduler) {
-        throw new UnsupportedOperationException();
+        if (locals.containsKey(scheduler.getId())) {
+            throw new IllegalStateException("scheduler " + scheduler.getId() + " already registered");
+        }
+        locals.put(scheduler.getId(), scheduler);
+
+        rpcManager.registerService(scheduler.getId(), new SchedulerRpcServiceImpl(scheduler));
+
     }
 
 }

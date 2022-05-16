@@ -34,7 +34,7 @@ public interface SchedulerRegistry {
     /**
      * 注册Scheduler到注册中心
      *
-     * @param worker scheduler
+     * @param scheduler scheduler
      */
     void register(Scheduler scheduler);
 
