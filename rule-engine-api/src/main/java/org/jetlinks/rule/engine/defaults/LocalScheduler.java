@@ -54,9 +54,10 @@ public class LocalScheduler implements Scheduler {
     protected Flux<Worker> findWorker(String executor, ScheduleJob schedulingRule) {
         return workerSelector
                 .select(Flux.fromIterable(workers.values())
-                        .filterWhen(exe -> exe.getSupportExecutors()
-                                .map(list -> list.contains(executor))
-                                .defaultIfEmpty(false)), schedulingRule);
+                            .filterWhen(exe -> exe
+                                    .getSupportExecutors()
+                                    .map(list -> list.contains(executor))
+                                    .defaultIfEmpty(false)), schedulingRule);
     }
 
     @Override
@@ -68,7 +69,8 @@ public class LocalScheduler implements Scheduler {
         }
         return Flux
                 .fromIterable(tasks)
-                .flatMap(task -> task.setJob(job)
+                .flatMap(task -> task
+                        .setJob(job)
                         .then(task.reload())
                         .thenReturn(task));
     }
@@ -77,7 +79,7 @@ public class LocalScheduler implements Scheduler {
     public Mono<Void> shutdown(String instanceId) {
         return getSchedulingTask(instanceId)
                 .flatMap(Task::shutdown)
-                .then(Mono.fromRunnable(() -> getExecutor(instanceId).clear()));
+                .then(Mono.fromRunnable(() -> clearExecutor(instanceId)));
     }
 
     private Flux<Task> createExecutor(ScheduleJob job) {
@@ -90,14 +92,14 @@ public class LocalScheduler implements Scheduler {
     @Override
     public Flux<Task> getSchedulingTask(String instanceId) {
         return Flux.fromIterable(getExecutor(instanceId).values())
-                .flatMapIterable(Function.identity());
+                   .flatMapIterable(Function.identity());
     }
 
     @Override
     public Flux<Task> getSchedulingTasks() {
         return Flux.fromIterable(executors.values())
-                .flatMapIterable(Map::values)
-                .flatMapIterable(Function.identity());
+                   .flatMapIterable(Map::values)
+                   .flatMapIterable(Function.identity());
     }
 
     @Override
@@ -107,6 +109,10 @@ public class LocalScheduler implements Scheduler {
 
     private List<Task> getExecutor(String instanceId, String nodeId) {
         return getExecutor(instanceId).computeIfAbsent(nodeId, ignore -> new CopyOnWriteArrayList<>());
+    }
+
+    private void clearExecutor(String instanceId) {
+        executors.remove(instanceId);
     }
 
     private Map<String, List<Task>> getExecutor(String instanceId) {
