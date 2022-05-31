@@ -65,19 +65,25 @@ public class ClusterRuleEngine implements RuleEngine {
      * @return 规则实例上下文
      */
     public Flux<Task> startRule(String instanceId, RuleModel model) {
+        log.debug("starting rule {}", instanceId);
         //编译
         Map</*nodeId*/String, /*Job*/ScheduleJob> jobs = new ScheduleJobCompiler(instanceId, model)
                 .compile()
                 .stream()
                 .collect(Collectors.toMap(ScheduleJob::getNodeId, Function.identity()));
         List<Task> startedTask = new ArrayList<>(jobs.size());
+        //新增调度的任务
+        Map</*nodeId*/String, /*Job*/ScheduleJob> newJobs = new LinkedHashMap<>(jobs);
+
         //获取调度记录
         return repository
                 .findByInstanceId(instanceId)
+                .doOnNext(snapshot -> newJobs.remove(snapshot.getJob().getNodeId()))
                 .flatMap(snapshot -> {
                     ScheduleJob job = jobs.get(snapshot.getJob().getNodeId());
                     //新的规则减少了任务,则尝试移除旧的任务
                     if (job == null) {
+                        log.debug("shutdown removed job:{}", snapshot.getJob().getNodeId());
                         return this
                                 .getTaskBySnapshot(snapshot)
                                 .flatMap(Task::shutdown)
@@ -90,14 +96,12 @@ public class ClusterRuleEngine implements RuleEngine {
                             .flatMap(task -> task
                                     .setJob(job)
                                     .then(task.reload())
+                                    .then(repository.saveTaskSnapshots(task.dump()))
                                     .thenReturn(task))
                             //没有worker调度此任务? 重新调度
-                            .switchIfEmpty(Flux.defer(() -> this
-                                    .doStart(Collections.singleton(job))
-                                    .flatMap(task -> repository
-                                            .saveTaskSnapshots(task.dump())
-                                            .thenReturn(task))));
-
+                            .switchIfEmpty(Mono.fromRunnable(() -> newJobs.put(job.getNodeId(), job)))
+                            //调度新增的任务
+                            .concatWith(Flux.defer(() -> doStart(newJobs.values())));
                 })
                 //没有任务调度信息说明可能是新启动的规则
                 .switchIfEmpty(doStart(jobs.values()))
