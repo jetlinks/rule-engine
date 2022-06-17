@@ -18,21 +18,21 @@ import java.util.stream.Collectors;
 public class ClusterExecutionContext extends AbstractExecutionContext {
 
     public ClusterExecutionContext(String workerId,
-                                   ScheduleJob job,
+                                   ScheduleJob scheduleJob,
                                    EventBus eventBus,
                                    ClusterManager clusterManager,
                                    ConditionEvaluator evaluator) {
         super(workerId,
-                job,
-                eventBus,
-                new Slf4jLogger("rule.engine." + job.getInstanceId() + "." + job.getNodeId()),
-                new QueueInput(job.getInstanceId(), job.getNodeId(), clusterManager),
-                new QueueOutput(job.getInstanceId(), clusterManager, job.getOutputs(), evaluator),
-                job.getEventOutputs()
+              scheduleJob,
+              eventBus,
+              new Slf4jLogger("rule.engine." + scheduleJob.getInstanceId() + "." + scheduleJob.getNodeId()),
+              job -> new QueueInput(job.getInstanceId(), job.getNodeId(), clusterManager),
+              job -> new QueueOutput(job.getInstanceId(), clusterManager, job.getOutputs(), evaluator),
+              job -> job.getEventOutputs()
                         .stream()
                         .map(event -> new QueueEventOutput(job.getInstanceId(), clusterManager, event.getType(), event.getSource()))
                         .collect(Collectors.groupingBy(QueueEventOutput::getEvent, Collectors.collectingAndThen(Collectors.toList(), CompositeOutput::of))),
-                new ClusterGlobalScope(clusterManager)
+              new ClusterGlobalScope(clusterManager)
         );
     }
 
