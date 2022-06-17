@@ -102,8 +102,12 @@ public class DefaultTask implements Task {
     @Override
     public Mono<Void> reload() {
         log.debug("reload task[{}]:[{}]", getId(), getJob());
-        return Mono.<Void>fromRunnable(executor::reload)
-                   .subscribeOn(Schedulers.boundedElastic());
+        return Mono
+                .<Void>fromRunnable(() -> {
+                    context.reload();
+                    executor.reload();
+                })
+                .subscribeOn(Schedulers.boundedElastic());
     }
 
     @Override

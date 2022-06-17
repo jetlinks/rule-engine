@@ -39,6 +39,9 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
     protected abstract Disposable doStart();
 
     protected void changeState(Task.State state) {
+        if (this.state == state) {
+            return;
+        }
         stateListener.accept(this.state, this.state = state);
     }
 
