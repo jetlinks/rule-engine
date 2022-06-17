@@ -5,10 +5,10 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hswebframework.web.bean.FastBeanCopier;
 import org.hswebframework.web.id.IDGenerator;
+import org.jetlinks.core.metadata.Jsonable;
 import reactor.core.publisher.Flux;
 
 import java.io.Serializable;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -26,6 +26,12 @@ import java.util.function.Consumer;
 public class RuleData implements Serializable {
 
     private static final long serialVersionUID = 1L;
+
+    public static final String RECORD_DATA_TO_HEADER = "record_data_to_header";
+
+    public static final String RECORD_DATA_TO_HEADER_KEY = "record_data_to_header_key";
+
+    public static final String RECORD_DATA_TO_HEADER_KEY_PREFIX = "rd:";
 
     /**
      * 数据ID
@@ -104,8 +110,8 @@ public class RuleData implements Serializable {
             doAcceptMap(data, consumer);
         } else if (data instanceof RuleData) {
             ((RuleData) data).acceptMap(consumer);
-        } else if (data instanceof Collection) {
-            ((Collection) data).forEach(d -> doAcceptMap(d, consumer));
+        } else if (data instanceof Iterable) {
+            ((Iterable) data).forEach(d -> doAcceptMap(d, consumer));
         } else {
             doAcceptMap(data, consumer);
         }
@@ -118,6 +124,8 @@ public class RuleData implements Serializable {
         }
         if (data instanceof Map) {
             consumer.accept(((Map) data));
+        } else if (data instanceof Jsonable) {
+            consumer.accept(((Jsonable) data).toJson());
         } else {
             consumer.accept(FastBeanCopier.copy(data, HashMap::new));
         }

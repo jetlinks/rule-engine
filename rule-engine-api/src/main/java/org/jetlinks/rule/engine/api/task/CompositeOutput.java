@@ -17,7 +17,7 @@ public class CompositeOutput implements Output {
     public Mono<Boolean> write(Publisher<RuleData> dataStream) {
         return Flux.from(dataStream)
                 .flatMap(data -> Flux.fromIterable(outputs)
-                        .flatMap(out -> out.write(Mono.just(data))))
+                        .flatMap(out -> out.write(data)))
                 .reduce(Boolean::equals)
                 ;
     }

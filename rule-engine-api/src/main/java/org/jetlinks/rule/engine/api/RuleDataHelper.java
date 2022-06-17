@@ -1,9 +1,9 @@
 package org.jetlinks.rule.engine.api;
 
 
+import com.google.common.collect.Maps;
 import org.hswebframework.utils.StringUtils;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -124,21 +124,24 @@ public class RuleDataHelper {
 
     @SuppressWarnings("all")
     public static Map<String, Object> toContextMap(RuleData ruleData) {
-        Map<String, Object> map = new HashMap<>(16);
+        Map<String, Object> map = Maps.newHashMapWithExpectedSize(32);
+
         ruleData.acceptMap(_map -> {
             map.putAll(_map);
         });
         if (map.isEmpty()) {
             map.put("data", ruleData.getData());
         }
-        map.compute("headers", (key, value) -> {
-            if (value instanceof Map) {
-                Map<String, Object> newHeader = new HashMap<>(ruleData.getHeaders());
-                newHeader.putAll((Map) value);
-                return newHeader;
+        if (ruleData.getHeaders() != null) {
+            //填充上游数据
+            for (Map.Entry<String, Object> entry : ruleData.getHeaders().entrySet()) {
+                String key = entry.getKey();
+                if (key.startsWith(RuleData.RECORD_DATA_TO_HEADER_KEY_PREFIX)) {
+                    map.put(key.substring(RuleData.RECORD_DATA_TO_HEADER_KEY_PREFIX.length()),
+                            entry.getValue());
+                }
             }
-            return ruleData.getHeaders();
-        });
+        }
         return map;
     }
 }

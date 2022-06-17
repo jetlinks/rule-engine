@@ -2,6 +2,9 @@ package org.jetlinks.rule.engine.api.task;
 
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.model.Condition;
+import reactor.core.publisher.Mono;
+
+import java.util.function.Function;
 
 
 /**
@@ -18,5 +21,15 @@ public interface ConditionEvaluator {
      * @param context   规则数据
      * @return 是否满足条件
      */
+    @Deprecated
     boolean evaluate(Condition condition, RuleData context);
+
+    /**
+     * prepare
+     * @param condition prepare
+     * @return prepare
+     */
+    default Function<RuleData, Mono<Boolean>> prepare(Condition condition) {
+        return (data) -> Mono.just(evaluate(condition, data));
+    }
 }

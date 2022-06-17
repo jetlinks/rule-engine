@@ -34,7 +34,7 @@ public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implemen
                                    .thenReturn(output)))
                 .then(context.fireEvent(RuleConstants.Event.complete, input))
                 .onErrorResume(error -> context.onError(error, input))
-                .contextWrite(TraceHolder.readToContext(Context.empty(),input.getHeaders()))
+                .contextWrite(TraceHolder.readToContext(Context.empty(), input.getHeaders()))
                 .then();
     }
 

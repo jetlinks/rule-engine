@@ -14,7 +14,7 @@ import java.util.Map;
  */
 public class ScriptConditionEvaluatorStrategy implements ConditionEvaluatorStrategy {
 
-    private ScriptEvaluator scriptEvaluator;
+    private final ScriptEvaluator scriptEvaluator;
 
     public ScriptConditionEvaluatorStrategy(ScriptEvaluator scriptEvaluator) {
         this.scriptEvaluator = scriptEvaluator;

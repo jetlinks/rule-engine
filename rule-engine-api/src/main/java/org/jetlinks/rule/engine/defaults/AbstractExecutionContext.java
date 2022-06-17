@@ -25,6 +25,12 @@ import java.util.stream.Collectors;
 @Slf4j
 public abstract class AbstractExecutionContext implements ExecutionContext {
 
+    public static final String RECORD_DATA_TO_HEADER = RuleData.RECORD_DATA_TO_HEADER;
+
+    public static final String RECORD_DATA_TO_HEADER_KEY = RuleData.RECORD_DATA_TO_HEADER_KEY;
+
+    public static final String RECORD_DATA_TO_HEADER_KEY_PREFIX = RuleData.RECORD_DATA_TO_HEADER_KEY_PREFIX;
+
     @Getter
     private final Logger logger;
 
@@ -50,6 +56,12 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
     private final List<Runnable> shutdownListener = new CopyOnWriteArrayList<>();
 
     private final GlobalScope globalScope;
+
+    //记录数据到RuleData的header中,方便透传到下游数据
+    private boolean recordDataToHeader;
+
+    //记录数据到RuleData的header中的key
+    private String recordDataToHeaderKey;
 
     @Setter
     @Getter
@@ -95,7 +107,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
         Output output = eventOutputs.get(event);
         if (output != null) {
             return output
-                    .write(Mono.just(data))
+                    .write(data)
                     .then(then);
         }
         return then;
@@ -143,6 +155,9 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
     public RuleData newRuleData(Object data) {
         RuleData ruleData = RuleData.create(data);
 
+        if (recordDataToHeader) {
+            ruleData.setHeader(recordDataToHeaderKey, ruleData.getData());
+        }
         ruleData.setHeader("sourceNode", getJob().getNodeId());
         return ruleData;
     }
@@ -185,6 +200,22 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
                 .entrySet()
                 .stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> RuleEngineHooks.wrapOutput(e.getValue())));
+
+        recordDataToHeader = job
+                .getConfiguration(AbstractExecutionContext.RECORD_DATA_TO_HEADER)
+                .map(v -> "true".equals(String.valueOf(v)))
+                .orElse(Boolean.getBoolean("rule.engine.record_data_to_header"));
+
+        if (recordDataToHeader) {
+            recordDataToHeaderKey =
+                    RECORD_DATA_TO_HEADER_KEY_PREFIX + job
+                            .getConfiguration(AbstractExecutionContext.RECORD_DATA_TO_HEADER_KEY)
+                            .map(String::valueOf)
+                            .orElse(job.getNodeId());
+        } else {
+            recordDataToHeaderKey = null;
+        }
+
     }
 
     public void reload() {
