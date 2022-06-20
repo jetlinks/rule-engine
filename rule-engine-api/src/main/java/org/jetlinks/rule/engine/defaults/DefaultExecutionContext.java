@@ -16,19 +16,19 @@ import java.util.stream.Collectors;
 public class DefaultExecutionContext extends AbstractExecutionContext {
 
     public DefaultExecutionContext(String workerId,
-                                   ScheduleJob job,
+                                   ScheduleJob scheduleJob,
                                    EventBus eventBus,
                                    ConditionEvaluator evaluator,
                                    GlobalScope scope) {
-        super(workerId, job,
+        super(workerId, scheduleJob,
               eventBus,
-              new Slf4jLogger("rule.engine." + job.getInstanceId() + "." + job.getNodeId()),
-              new EventBusInput(job.getInstanceId(), job.getNodeId(), eventBus),
-              new EventBusOutput(job.getInstanceId(), eventBus, job.getOutputs(), evaluator),
-              job.getEventOutputs()
-                 .stream()
-                 .map(event -> new EventBusEventOutput(job.getInstanceId(), eventBus, event.getType(), event.getSource()))
-                 .collect(Collectors.groupingBy(EventBusEventOutput::getEvent, Collectors.collectingAndThen(Collectors.toList(), CompositeOutput::of))),
+              new Slf4jLogger("rule.engine." + scheduleJob.getInstanceId() + "." + scheduleJob.getNodeId()),
+              job -> new EventBusInput(job.getInstanceId(), job.getNodeId(), eventBus),
+              job -> new EventBusOutput(job.getInstanceId(), eventBus, job.getOutputs(), evaluator),
+              job -> job.getEventOutputs()
+                        .stream()
+                        .map(event -> new EventBusEventOutput(job.getInstanceId(), eventBus, event.getType(), event.getSource()))
+                        .collect(Collectors.groupingBy(EventBusEventOutput::getEvent, Collectors.collectingAndThen(Collectors.toList(), CompositeOutput::of))),
               scope
         );
     }

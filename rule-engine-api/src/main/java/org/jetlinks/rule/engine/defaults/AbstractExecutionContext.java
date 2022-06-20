@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -35,16 +36,21 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
     private final EventBus eventBus;
 
     @Getter
-    private final Input input;
+    private Input input;
 
     @Getter
-    private final Output output;
+    private Output output;
 
-    private final Map<String, Output> eventOutputs;
+    private Map<String, Output> eventOutputs;
+
+    private final Function<ScheduleJob, Input> inputFactory;
+    private final Function<ScheduleJob, Output> outputFactory;
+    private final Function<ScheduleJob, Map<String, Output>> eventOutputsFactory;
 
     private final List<Runnable> shutdownListener = new CopyOnWriteArrayList<>();
 
     private final GlobalScope globalScope;
+
     @Setter
     @Getter
     private boolean debug;
@@ -53,21 +59,19 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
                                     ScheduleJob job,
                                     EventBus eventBus,
                                     Logger logger,
-                                    Input input,
-                                    Output output,
-                                    Map<String, Output> eventOutputs,
+                                    Function<ScheduleJob, Input> inputFactory,
+                                    Function<ScheduleJob, Output> outputFactory,
+                                    Function<ScheduleJob, Map<String, Output>> eventOutputsFactory,
                                     GlobalScope globalScope) {
 
         this.job = job;
         this.eventBus = eventBus;
-        this.input = RuleEngineHooks.wrapInput(input);
-        this.output = RuleEngineHooks.wrapOutput(output);
-        this.eventOutputs = eventOutputs
-                .entrySet()
-                .stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> RuleEngineHooks.wrapOutput(e.getValue())));
+        this.inputFactory = inputFactory;
+        this.outputFactory = outputFactory;
+        this.eventOutputsFactory = eventOutputsFactory;
         this.logger = CompositeLogger.of(logger, new EventLogger(eventBus, job.getInstanceId(), job.getNodeId(), workerId));
         this.globalScope = globalScope;
+        init();
     }
 
     @Override
@@ -91,7 +95,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
         Output output = eventOutputs.get(event);
         if (output != null) {
             return output
-                    .write(Mono.just(data))
+                    .write(data)
                     .then(then);
         }
         return then;
@@ -171,5 +175,19 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
     @Override
     public GlobalScope global() {
         return globalScope;
+    }
+
+    private void init() {
+        this.input = RuleEngineHooks.wrapInput(inputFactory.apply(job));
+        this.output = RuleEngineHooks.wrapOutput(outputFactory.apply(job));
+        this.eventOutputs = eventOutputsFactory
+                .apply(job)
+                .entrySet()
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> RuleEngineHooks.wrapOutput(e.getValue())));
+    }
+
+    public void reload() {
+        init();
     }
 }
