@@ -72,9 +72,22 @@ public class ClusterRemoteScheduler implements Scheduler, Disposable {
     }
 
     @Override
+    public Mono<Void> shutdownTask(String taskId) {
+        return rpcService
+                .taskOperation(SchedulerRpcService.OperateTaskRequest.of(taskId, SchedulerRpcService.TaskOperation.SHUTDOWN));
+    }
+
+    @Override
     public Flux<Task> getSchedulingTask(String instanceId) {
         return rpcService
                 .getSchedulingTask(instanceId)
+                .map(taskInfo -> new RemoteTask(taskInfo.getId(), taskInfo.getName(), taskInfo.getWorkerId(), id, rpcService, taskInfo.getJob()));
+    }
+
+    @Override
+    public Mono<Task> getTask(String taskId) {
+        return rpcService
+                .getTask(taskId)
                 .map(taskInfo -> new RemoteTask(taskInfo.getId(), taskInfo.getName(), taskInfo.getWorkerId(), id, rpcService, taskInfo.getJob()));
     }
 

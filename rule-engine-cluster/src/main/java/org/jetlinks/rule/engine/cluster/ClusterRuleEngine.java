@@ -15,6 +15,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -50,6 +51,14 @@ public class ClusterRuleEngine implements RuleEngine {
                 .then();
     }
 
+    private Mono<Void> shutdown(TaskSnapshot snapshot) {
+        return schedulerRegistry
+                .getSchedulers()
+                .filter(scheduler -> Objects.equals(snapshot.getSchedulerId(), scheduler.getId()))
+                .flatMap(scheduler -> scheduler.shutdownTask(snapshot.getId()))
+                .then(repository.removeTaskById(snapshot.getId()));
+    }
+
     public Flux<Task> startRule(String instanceId, RuleModel model) {
         log.debug("starting rule {}\n{}", instanceId, model.toString());
         //编译
@@ -59,39 +68,50 @@ public class ClusterRuleEngine implements RuleEngine {
                 .collect(Collectors.toMap(ScheduleJob::getNodeId, Function.identity()));
         List<Task> startedTask = new ArrayList<>(jobs.size());
         //新增调度的任务
-        Map</*nodeId*/String, /*Job*/ScheduleJob> newJobs = new LinkedHashMap<>(jobs);
+        Map</*nodeId*/String, /*Job*/ScheduleJob> readyToStart = new ConcurrentHashMap<>(jobs);
 
         //获取调度记录
         return repository
                 .findByInstanceId(instanceId)
-                .doOnNext(snapshot -> newJobs.remove(snapshot.getJob().getNodeId()))
+                .doOnNext(snapshot -> readyToStart.remove(snapshot.getJob().getNodeId()))
                 .flatMap(snapshot -> {
                     ScheduleJob job = jobs.get(snapshot.getJob().getNodeId());
+                    ScheduleJob old = snapshot.getJob();
                     //新的规则减少了任务,则尝试移除旧的任务
-                    if (job == null) {
-                        log.debug("shutdown removed job:{}", snapshot.getJob().getNodeId());
+                    if (job == null || !Objects.equals(job.getExecutor(), old.getExecutor())) {
+                        if (job != null && !Objects.equals(job.getExecutor(), old.getExecutor())) {
+                            //移除了旧的,需要重新调度新的
+                            readyToStart.put(job.getNodeId(), job);
+                            log.debug("change job [{}] executor:{} -> {}", snapshot.getJob().getNodeId(),
+                                      snapshot.getJob().getExecutor(), job.getExecutor());
+                        } else {
+                            log.debug("shutdown removed job:{}", snapshot.getJob().getNodeId());
+                        }
                         return this
-                                .getTaskBySnapshot(snapshot)
-                                .flatMap(Task::shutdown)
-                                .then(repository.removeTaskById(snapshot.getId()))
+                                .shutdown(snapshot)
                                 .then(Mono.empty());
                     }
                     return this
                             .getTaskBySnapshot(snapshot)
-                            //重新加载任务
-                            .flatMap(task -> task
-                                    .setJob(job)
-                                    .then(task.reload())
-                                    .then(repository.saveTaskSnapshots(task.dump()))
-                                    .thenReturn(task))
+                            .flatMap(task -> {
+                                startedTask.add(task);
+                                //重新加载任务
+                                return task
+                                        .setJob(job)
+                                        .then(task.reload())
+                                        .thenReturn(task);
+                            })
                             //没有worker调度此任务? 重新调度
-                            .switchIfEmpty(Mono.fromRunnable(() -> newJobs.put(job.getNodeId(), job)))
-                            //调度新增的任务
-                            .concatWith(Flux.defer(() -> doStart(newJobs.values())));
+                            .switchIfEmpty(Mono.fromRunnable(() -> readyToStart.put(job.getNodeId(), job)));
+
                 })
-                //没有任务调度信息说明可能是新启动的规则
-                .switchIfEmpty(doStart(jobs.values()))
-                .doOnNext(startedTask::add)
+                .concatWith(Flux.defer(() -> doStart(readyToStart.values())).doOnNext(startedTask::add))
+                .collectList()
+                .map(Flux::fromIterable)
+                //保存快照信息
+                .flatMapMany(tasks -> repository
+                        .saveTaskSnapshots(tasks.flatMap(Task::dump))
+                        .thenMany(tasks))
                 .onErrorResume(err -> {
                     //失败时停止全部任务
                     return Flux
@@ -110,28 +130,25 @@ public class ClusterRuleEngine implements RuleEngine {
                         .collectList()
                         .flatMapIterable(Function.identity())
                         //统一启动
-                        .flatMap(task -> task.start().thenReturn(task)))
-                .collectList()
-                .map(Flux::fromIterable)
-                //保存快照信息
-                .flatMapMany(tasks -> repository
-                        .saveTaskSnapshots(tasks.flatMap(Task::dump))
-                        .thenMany(tasks));
+                        .flatMap(task -> task.start().thenReturn(task)));
     }
 
     //获取调度中的任务信息
     private Flux<Task> getTaskBySnapshot(TaskSnapshot snapshot) {
         return schedulerRegistry
                 .getSchedulers()
-                .flatMap(scheduler -> scheduler.getSchedulingTask(snapshot.getInstanceId()))
-                .filter(task -> task.isSameTask(snapshot));
+                .flatMap(scheduler -> scheduler.getTask(snapshot.getId()));
     }
 
-    private Flux<Task> scheduleTask(ScheduleJob job) {
+    private Flux<Scheduler> selectScheduler(ScheduleJob job) {
         return schedulerRegistry
                 .getSchedulers()
                 .filterWhen(scheduler -> scheduler.canSchedule(job))
-                .as(supports -> schedulerSelector.select(supports, job))
+                .as(supports -> schedulerSelector.select(supports, job));
+    }
+
+    private Flux<Task> scheduleTask(ScheduleJob job) {
+        return selectScheduler(job)
                 .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("no scheduler for " + job.getExecutor())))
                 .flatMap(scheduler -> scheduler.schedule(job));
     }

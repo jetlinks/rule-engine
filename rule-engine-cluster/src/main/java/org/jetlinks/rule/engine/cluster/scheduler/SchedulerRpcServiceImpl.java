@@ -8,7 +8,7 @@ import org.jetlinks.rule.engine.api.worker.Worker;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -17,7 +17,7 @@ public class SchedulerRpcServiceImpl implements SchedulerRpcService {
 
     private final Scheduler localScheduler;
 
-    private final static Map<TaskOperation, Function<Task, Mono<Void>>> operationMapping = new HashMap<>();
+    private final static Map<TaskOperation, Function<Task, Mono<Void>>> operationMapping = new EnumMap<>(TaskOperation.class);
 
     static {
         operationMapping.put(TaskOperation.PAUSE, Task::pause);
@@ -93,45 +93,51 @@ public class SchedulerRpcServiceImpl implements SchedulerRpcService {
 
     @Override
     public Mono<Void> executeTask(ExecuteTaskRequest request) {
-        return getTask(request.getTaskId())
+        return getTask0(request.getTaskId())
                 .flatMap(task -> task.execute(request.getData()))
                 .then();
     }
 
-    private Mono<Task> getTask(String taskId) {
-        return localScheduler.getSchedulingTasks()
-                             .filter(task -> task.getId().equals(taskId))
-                             .singleOrEmpty();
+    @Override
+    public Mono<TaskInfo> getTask(String taskId) {
+        return getTask0(taskId)
+                .map(task -> new TaskInfo(task.getId(), task.getName(), task.getWorkerId(), task.getJob()));
+    }
+
+    private Mono<Task> getTask0(String taskId) {
+        return localScheduler.getTask(taskId);
     }
 
     @Override
     public Mono<Task.State> getTaskState(String taskId) {
-        return getTask(taskId)
+        return getTask0(taskId)
                 .flatMap(Task::getState);
     }
 
     @Override
     public Mono<Void> taskOperation(OperateTaskRequest request) {
-
-        return getTask(request.getTaskId())
+        if (request.getOperation() == TaskOperation.SHUTDOWN) {
+            return localScheduler.shutdownTask(request.getTaskId());
+        }
+        return getTask0(request.getTaskId())
                 .flatMap(task -> operationMapping.get(request.getOperation()).apply(task));
     }
 
     @Override
     public Mono<Void> setTaskJob(TaskJobRequest request) {
-        return getTask(request.getTaskId())
+        return getTask0(request.getTaskId())
                 .flatMap(task -> task.setJob(request.getJob()));
     }
 
     @Override
     public Mono<Long> getLastStateTime(String taskId) {
-        return getTask(taskId)
+        return getTask0(taskId)
                 .flatMap(Task::getLastStateTime);
     }
 
     @Override
     public Mono<Long> getStartTime(String taskId) {
-        return getTask(taskId)
+        return getTask0(taskId)
                 .flatMap(Task::getStartTime);
     }
 
@@ -161,7 +167,7 @@ public class SchedulerRpcServiceImpl implements SchedulerRpcService {
 
     @Override
     public Mono<TaskSnapshot> dumpTask(String taskId) {
-        return getTask(taskId)
+        return getTask0(taskId)
                 .flatMap(Task::dump);
     }
 }

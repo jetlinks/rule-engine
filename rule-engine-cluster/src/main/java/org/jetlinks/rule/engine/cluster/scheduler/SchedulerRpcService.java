@@ -39,6 +39,9 @@ public interface SchedulerRpcService {
     Flux<TaskInfo> getSchedulingTask(String instanceId);
 
     @ServiceMethod
+    Mono<TaskInfo> getTask(String taskId);
+
+    @ServiceMethod
     Flux<TaskInfo> getSchedulingTasks();
 
     @ServiceMethod

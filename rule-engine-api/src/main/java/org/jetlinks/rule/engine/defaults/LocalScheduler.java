@@ -30,6 +30,8 @@ public class LocalScheduler implements Scheduler {
 
     private final Map<String/*规则实例ID*/, Map<String/*nodeId*/, List<Task>>> executors = new ConcurrentHashMap<>();
 
+    private final Map<String, Task> tasks = new ConcurrentHashMap<>();
+
     public LocalScheduler(String id) {
         this.id = id;
     }
@@ -62,37 +64,69 @@ public class LocalScheduler implements Scheduler {
 
     @Override
     public Flux<Task> schedule(ScheduleJob job) {
-        //判断调度中的任务
-        List<Task> tasks = getExecutor(job.getInstanceId(), job.getNodeId());
-        if (tasks.isEmpty()) {
-            return createExecutor(job);
-        }
+
         return Flux
-                .fromIterable(tasks)
-                .flatMap(task -> task
-                        .setJob(job)
-                        .then(task.reload())
-                        .thenReturn(task));
+                .fromIterable(getExecutor(job.getInstanceId(), job.getNodeId()))
+                .flatMap(task -> {
+                    //停止旧任务
+                    removeTask(task);
+                    return task.shutdown();
+                })
+                .thenMany(createExecutor(job));
     }
 
     @Override
     public Mono<Void> shutdown(String instanceId) {
         return getSchedulingTask(instanceId)
-                .flatMap(Task::shutdown)
-                .then(Mono.fromRunnable(() -> clearExecutor(instanceId)));
+                .doOnNext(task -> tasks.remove(task.getId()))
+                .concatMapDelayError(Task::shutdown)
+                .doAfterTerminate(() -> clearExecutor(instanceId))
+                .then();
+    }
+
+    @Override
+    public Mono<Void> shutdownTask(String taskId) {
+        Task task = removeTask(taskId);
+        if (null != task) {
+            return task.shutdown().then();
+        }
+        return Mono.empty();
     }
 
     private Flux<Task> createExecutor(ScheduleJob job) {
         return findWorker(job.getExecutor(), job)
                 .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("unsupported executor:" + job.getExecutor())))
                 .flatMap(worker -> worker.createTask(id, job))
-                .doOnNext(task -> getExecutor(job.getInstanceId(), job.getNodeId()).add(task));
+                .doOnNext(this::addTask);
+    }
+
+    private void addTask(Task task) {
+        tasks.put(task.getId(), task);
+        getExecutor(task.getJob().getInstanceId(), task.getJob().getNodeId()).add(task);
+    }
+
+    private Task removeTask(String taskId) {
+        Task task = tasks.get(taskId);
+        if (task != null) {
+            removeTask(task);
+        }
+        return task;
+    }
+
+    private void removeTask(Task task) {
+        tasks.remove(task.getId());
+        getExecutor(task.getJob().getInstanceId(), task.getJob().getNodeId()).remove(task);
     }
 
     @Override
     public Flux<Task> getSchedulingTask(String instanceId) {
         return Flux.fromIterable(getExecutor(instanceId).values())
                    .flatMapIterable(Function.identity());
+    }
+
+    @Override
+    public Mono<Task> getTask(String taskId) {
+        return Mono.justOrEmpty(tasks.get(taskId));
     }
 
     @Override

@@ -48,6 +48,9 @@ public interface Scheduler extends Disposable {
      */
     Mono<Void> shutdown(String instanceId);
 
+
+    Mono<Void> shutdownTask(String taskId);
+
     /**
      * 根据规则ID获取全部调度中的任务
      *
@@ -55,6 +58,8 @@ public interface Scheduler extends Disposable {
      * @return 任务执行信息
      */
     Flux<Task> getSchedulingTask(String instanceId);
+
+    Mono<Task> getTask(String taskId);
 
     /**
      * 获取全部调度中的任务
