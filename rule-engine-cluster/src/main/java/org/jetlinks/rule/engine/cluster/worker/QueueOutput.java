@@ -3,7 +3,6 @@ package org.jetlinks.rule.engine.cluster.worker;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.jetlinks.core.cluster.ClusterManager;
-import org.jetlinks.core.cluster.ClusterQueue;
 import org.jetlinks.core.utils.Reactors;
 import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.RuleData;
@@ -53,7 +52,6 @@ public class QueueOutput implements Output {
 
             for (ScheduleJob.Output output : outputs) {
                 String queueId = createQueueName(output.getOutput());
-                ClusterQueue<RuleData> queue = clusterManager.getQueue(queueId);
                 Function<RuleData, Mono<Boolean>> writer;
                 //配置了输出条件
                 if (output.getCondition() != null) {
@@ -63,12 +61,14 @@ public class QueueOutput implements Output {
                             .flatMap(passed -> {
                                 //条件判断返回true才认为成功
                                 if (passed) {
-                                    return queue.add(data);
+                                    return clusterManager
+                                            .getQueue(queueId)
+                                            .add(data);
                                 }
                                 return Reactors.ALWAYS_FALSE;
                             });
                 } else {
-                    writer = queue::add;
+                    writer = (data) -> clusterManager.getQueue(queueId).add(data);
                 }
                 writers.add(writer);
             }
