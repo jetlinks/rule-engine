@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
@@ -43,7 +44,7 @@ public class RuleData implements Serializable {
      * 规则头信息,可以通过头信息来传递更多的拓展消息
      */
     @Getter
-    private Map<String, Object> headers = new HashMap<>();
+    private Map<String, Object> headers = new ConcurrentHashMap<>();
 
     public void setHeader(String key, Object value) {
         headers.put(key, value);
