@@ -1,11 +1,13 @@
 package org.jetlinks.rule.engine.api;
 
 
+import com.google.common.collect.Maps;
 import org.hswebframework.utils.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 public class RuleDataHelper {
@@ -124,7 +126,7 @@ public class RuleDataHelper {
 
     @SuppressWarnings("all")
     public static Map<String, Object> toContextMap(RuleData ruleData) {
-        Map<String, Object> map = new HashMap<>(16);
+        Map<String, Object> map = Maps.newHashMapWithExpectedSize(32);
         ruleData.acceptMap(_map -> {
             map.putAll(_map);
         });
@@ -132,12 +134,12 @@ public class RuleDataHelper {
             map.put("data", ruleData.getData());
         }
         map.compute("headers", (key, value) -> {
+            Map<String, Object> newHeader = new ConcurrentHashMap<>(ruleData.getHeaders());
             if (value instanceof Map) {
-                Map<String, Object> newHeader = new HashMap<>(ruleData.getHeaders());
                 newHeader.putAll((Map) value);
                 return newHeader;
             }
-            return ruleData.getHeaders();
+            return newHeader;
         });
         return map;
     }
