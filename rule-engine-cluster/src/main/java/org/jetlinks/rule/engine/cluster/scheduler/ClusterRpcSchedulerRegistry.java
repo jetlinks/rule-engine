@@ -1,10 +1,10 @@
 package org.jetlinks.rule.engine.cluster.scheduler;
 
-import io.scalecube.reactor.RetryNonSerializedEmitFailureHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.jctools.maps.NonBlockingHashMap;
 import org.jetlinks.core.rpc.RpcManager;
 import org.jetlinks.core.rpc.ServiceEvent;
+import org.jetlinks.core.utils.Reactors;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.cluster.SchedulerRegistry;
 import reactor.core.publisher.Flux;
@@ -24,8 +24,8 @@ public class ClusterRpcSchedulerRegistry implements SchedulerRegistry {
 
     private final Map<String, Scheduler> remotes = new NonBlockingHashMap<>();
 
-    private final Sinks.Many<Scheduler> joinListener = Sinks.many().multicast().onBackpressureBuffer();
-    private final Sinks.Many<Scheduler> leaveListener = Sinks.many().multicast().onBackpressureBuffer();
+    private final Sinks.Many<Scheduler> joinListener = Reactors.createMany();
+    private final Sinks.Many<Scheduler> leaveListener =Reactors.createMany();
 
     public ClusterRpcSchedulerRegistry(RpcManager rpcManager) {
         this.rpcManager = rpcManager;
@@ -55,14 +55,14 @@ public class ClusterRpcSchedulerRegistry implements SchedulerRegistry {
                     .doOnNext(scheduler -> {
                         if (remotes.put(event.getServiceId(), scheduler) == null
                                 && joinListener.currentSubscriberCount() > 0) {
-                            joinListener.emitNext(scheduler,RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED);
+                            joinListener.emitNext(scheduler,Reactors.emitFailureHandler());
                         }
                     })
                     .then();
         } else if (event.getType() == ServiceEvent.Type.removed) {
             Scheduler scheduler = remotes.remove(event.getServiceId());
             if (null != scheduler && leaveListener.currentSubscriberCount() > 0) {
-                leaveListener.emitNext(scheduler, RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED);
+                leaveListener.emitNext(scheduler, Reactors.emitFailureHandler());
             }
         }
         return Mono.empty();

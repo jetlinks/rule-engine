@@ -4,11 +4,11 @@ import io.scalecube.cluster.ClusterMessageHandler;
 import io.scalecube.cluster.Member;
 import io.scalecube.cluster.membership.MembershipEvent;
 import io.scalecube.cluster.transport.api.Message;
-import io.scalecube.reactor.RetryNonSerializedEmitFailureHandler;
 import io.scalecube.services.ServiceCall;
 import io.scalecube.services.ServiceInfo;
 import lombok.extern.slf4j.Slf4j;
 import org.jctools.maps.NonBlockingHashMap;
+import org.jetlinks.core.utils.Reactors;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.cluster.SchedulerRegistry;
 import org.jetlinks.supports.scalecube.EmptyServiceMethodRegistry;
@@ -70,7 +70,7 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
                 if (event.isRemoved() || event.isLeaving()) {
                     ClusterRemoteScheduler scheduler = remotes.remove(event.member().id());
                     if (null != scheduler) {
-                        schedulerLeave.emitNext(scheduler, RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED);
+                        schedulerLeave.emitNext(scheduler, Reactors.emitFailureHandler());
                     }
                 }
             }
@@ -130,7 +130,7 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
             ClusterRemoteScheduler scheduler = new ClusterRemoteScheduler(schedulerId, rpcService);
             ClusterRemoteScheduler old = remotes.put(from, scheduler);
             if (old != null) {
-                schedulerJoin.emitNext(scheduler,RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED);
+                schedulerJoin.emitNext(scheduler,Reactors.emitFailureHandler());
             }
         }
 
