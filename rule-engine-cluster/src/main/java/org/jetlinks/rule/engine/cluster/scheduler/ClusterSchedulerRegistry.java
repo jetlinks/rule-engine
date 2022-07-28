@@ -130,7 +130,7 @@ public class ClusterSchedulerRegistry implements SchedulerRegistry {
             ClusterRemoteScheduler scheduler = new ClusterRemoteScheduler(schedulerId, rpcService);
             ClusterRemoteScheduler old = remotes.put(from, scheduler);
             if (old != null) {
-                schedulerJoin.tryEmitNext(scheduler);
+                schedulerJoin.emitNext(scheduler,RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED);
             }
         }
 

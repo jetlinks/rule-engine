@@ -1,5 +1,6 @@
 package org.jetlinks.rule.engine.cluster.scheduler;
 
+import io.scalecube.reactor.RetryNonSerializedEmitFailureHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.jctools.maps.NonBlockingHashMap;
 import org.jetlinks.core.rpc.RpcManager;
@@ -54,14 +55,14 @@ public class ClusterRpcSchedulerRegistry implements SchedulerRegistry {
                     .doOnNext(scheduler -> {
                         if (remotes.put(event.getServiceId(), scheduler) == null
                                 && joinListener.currentSubscriberCount() > 0) {
-                            joinListener.tryEmitNext(scheduler);
+                            joinListener.emitNext(scheduler,RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED);
                         }
                     })
                     .then();
         } else if (event.getType() == ServiceEvent.Type.removed) {
             Scheduler scheduler = remotes.remove(event.getServiceId());
             if (null != scheduler && leaveListener.currentSubscriberCount() > 0) {
-                leaveListener.tryEmitNext(scheduler);
+                leaveListener.emitNext(scheduler, RetryNonSerializedEmitFailureHandler.RETRY_NON_SERIALIZED);
             }
         }
         return Mono.empty();
