@@ -1,40 +1,41 @@
 package org.jetlinks.rule.engine.api;
 
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * @author zhouhao
  * @since 1.0.0
  */
+@Slf4j
 public class Slf4jLogger implements Logger {
 
-    private final org.slf4j.Logger logger;
+    private final String name;
 
     public Slf4jLogger(String name) {
-        logger = LoggerFactory.getLogger(name);
+        this.name = name;
     }
 
     @Override
     public void info(String message, Object... args) {
-        if(logger.isInfoEnabled()) {
-            logger.info(message, args);
+        if (log.isInfoEnabled()) {
+            log.info(name + ":" + message, args);
         }
     }
 
     @Override
     public void debug(String message, Object... args) {
-        if(logger.isDebugEnabled()) {
-            logger.debug(message, args);
+        if (log.isDebugEnabled()) {
+            log.debug(name + ":" + message, args);
         }
     }
 
     @Override
     public void warn(String message, Object... args) {
-        logger.warn(message, args);
+        log.warn(name + ":" + message, args);
     }
 
     @Override
     public void error(String message, Object... args) {
-        logger.error(message, args);
+        log.error(name + ":" + message, args);
     }
 }
