@@ -1,7 +1,9 @@
 package org.jetlinks.rule.engine.defaults;
 
+import io.opentelemetry.api.common.AttributeKey;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.jetlinks.core.trace.MonoTracer;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.task.ExecutableTaskExecutor;
 import org.jetlinks.rule.engine.api.task.ExecutionContext;
@@ -13,6 +15,7 @@ import java.util.function.BiConsumer;
 
 @Slf4j
 public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
+    protected final static AttributeKey<String> executor_name = AttributeKey.stringKey("name");
 
     @Getter
     protected ExecutionContext context;
@@ -21,6 +24,7 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
     protected volatile Task.State state = Task.State.shutdown;
 
     protected volatile Disposable disposable;
+    private final MonoTracer<Object> tracer;
 
     private BiConsumer<Task.State, Task.State> stateListener = (from, to) -> {
         AbstractTaskExecutor.log.debug("task [{}] state changed from {} to {}.",
@@ -31,6 +35,16 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
 
     public AbstractTaskExecutor(ExecutionContext context) {
         this.context = context;
+        this.tracer = MonoTracer
+                .create("/rule-runtime/" + context.getJob().getExecutor() +
+                                "/" + context.getInstanceId() +
+                                "/" + context.getJob().getNodeId(),
+                        span -> span.setAttribute(executor_name, this.getName()));
+    }
+
+    @SuppressWarnings("all")
+    protected <T> MonoTracer<T> tracer() {
+        return (MonoTracer) tracer;
     }
 
     @Override
@@ -88,6 +102,7 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
         return context
                 .getOutput()
                 .write(ruleData)
+                .as(tracer())
                 .then()
                 ;
     }

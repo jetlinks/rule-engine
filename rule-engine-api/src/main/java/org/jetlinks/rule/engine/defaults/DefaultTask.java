@@ -3,6 +3,7 @@ package org.jetlinks.rule.engine.defaults;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.jetlinks.core.trace.TraceHolder;
 import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
@@ -137,7 +138,9 @@ public class DefaultTask implements Task {
     public Mono<Void> execute(RuleData data) {
         log.debug("execute task[{}]:[{}]", getId(), getJob());
         if (executor instanceof ExecutableTaskExecutor) {
-            return ((ExecutableTaskExecutor) executor).execute(data);
+            return TraceHolder
+                    .writeContextTo(data, RuleData::setHeader)
+                    .flatMap(ruleData -> ((ExecutableTaskExecutor) executor).execute(ruleData));
         }
         return Mono.empty();
     }

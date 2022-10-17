@@ -33,6 +33,7 @@ public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implemen
                                    .fireEvent(RuleConstants.Event.result, output)
                                    .thenReturn(output)))
                 .then(context.fireEvent(RuleConstants.Event.complete, input))
+                .as(tracer())
                 .onErrorResume(error -> context.onError(error, input))
                 .contextWrite(TraceHolder.readToContext(Context.empty(), input.getHeaders()))
                 .then();

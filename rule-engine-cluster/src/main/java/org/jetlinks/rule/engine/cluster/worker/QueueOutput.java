@@ -3,6 +3,7 @@ package org.jetlinks.rule.engine.cluster.worker;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.jetlinks.core.cluster.ClusterManager;
+import org.jetlinks.core.trace.TraceHolder;
 import org.jetlinks.core.utils.Reactors;
 import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.RuleData;
@@ -75,11 +76,13 @@ public class QueueOutput implements Output {
 
             Flux<Function<RuleData, Mono<Boolean>>> flux = Flux.fromIterable(writers);
 
-            this.writer = data -> flux
-                    .flatMap(writer -> writer
-                            .apply(data)
-                            .onErrorResume(err -> Reactors.ALWAYS_FALSE))
-                    .reduce((a, b) -> a && b);
+            this.writer = data -> TraceHolder
+                    .writeContextTo(data, RuleData::setHeader)
+                    .flatMap(ruleData -> flux
+                            .flatMap(writer -> writer
+                                    .apply(ruleData)
+                                    .onErrorResume(err -> Reactors.ALWAYS_FALSE))
+                            .reduce((a, b) -> a && b));
         }
     }
 
