@@ -36,5 +36,19 @@ public class ClusterExecutionContext extends AbstractExecutionContext {
         );
     }
 
+    public ClusterExecutionContext(String workerId,
+                                   ScheduleJob scheduleJob,
+                                   EventBus eventBus,
+                                   RuleIOManager manager) {
+        super(workerId,
+              scheduleJob,
+              eventBus,
+              new Slf4jLogger("rule.engine." + scheduleJob.getInstanceId() + "." + scheduleJob.getNodeId()),
+              manager::createInput,
+              manager::createOutput,
+              manager::createEvent,
+              manager.createScope()
+        );
+    }
 
 }

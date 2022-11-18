@@ -26,18 +26,26 @@ public class ClusterWorker implements Worker {
     @Getter
     private final String name;
 
-    private final ClusterManager clusterManager;
-
     private final EventBus eventBus;
 
-    private final ConditionEvaluator conditionEvaluator;
+    private final RuleIOManager ruleIOManager;
 
-    public ClusterWorker(String id, String name, EventBus eventBus, ClusterManager clusterManager, ConditionEvaluator evaluator) {
+    public ClusterWorker(String id,
+                         String name,
+                         EventBus eventBus,
+                         ClusterManager clusterManager,
+                         ConditionEvaluator evaluator) {
+        this(id, name, eventBus, new ClusterRuleIOManager(clusterManager, evaluator));
+    }
+
+    public ClusterWorker(String id,
+                         String name,
+                         EventBus eventBus,
+                         RuleIOManager ioManager) {
         this.id = id;
         this.name = name;
         this.eventBus = eventBus;
-        this.conditionEvaluator = evaluator;
-        this.clusterManager = clusterManager;
+        this.ruleIOManager = ioManager;
     }
 
     @Override
@@ -54,7 +62,7 @@ public class ClusterWorker implements Worker {
     }
 
     protected ClusterExecutionContext createContext(ScheduleJob job) {
-        return new ClusterExecutionContext(getId(), job, eventBus, clusterManager, conditionEvaluator);
+        return new ClusterExecutionContext(getId(), job, eventBus, ruleIOManager);
     }
 
     @Override

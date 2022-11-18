@@ -13,7 +13,7 @@ import java.util.function.Function;
  * @author zhouhao
  * @since 1.0.0
  */
-public interface Input {
+public interface Input extends Disposable {
 
     /**
      * 监听数据输入
@@ -21,6 +21,16 @@ public interface Input {
      * @return 数据流
      */
     Flux<RuleData> accept();
+
+    @Override
+    default void dispose() {
+
+    }
+
+    @Override
+    default boolean isDisposed() {
+        return false;
+    }
 
     /**
      * 使用指定的监听器监听数据输入,如果监听器返回false或者返回error,表示处理失败.

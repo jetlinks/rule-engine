@@ -2,6 +2,7 @@ package org.jetlinks.rule.engine.api.task;
 
 import org.jetlinks.rule.engine.api.RuleData;
 import org.reactivestreams.Publisher;
+import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 
 /**
@@ -10,8 +11,7 @@ import reactor.core.publisher.Mono;
  * @author zhouhao
  * @since 1.0.0
  */
-public interface Output {
-
+public interface Output extends Disposable {
     /**
      * 输出规则数据
      *
@@ -35,4 +35,15 @@ public interface Output {
     default Mono<Void> write(String nodeId, RuleData data) {
         return write(nodeId, Mono.just(data));
     }
+
+    @Override
+    default void dispose() {
+
+    }
+
+    @Override
+    default boolean isDisposed() {
+        return false;
+    }
+
 }
