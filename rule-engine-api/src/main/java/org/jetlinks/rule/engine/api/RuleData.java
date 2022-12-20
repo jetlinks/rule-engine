@@ -136,7 +136,7 @@ public class RuleData implements Serializable {
         if (data instanceof RuleData) {
             data = ((RuleData) data).getData();
         }
-        ruleData.id = IDGenerator.SNOW_FLAKE_STRING.generate();
+        ruleData.id = IDGenerator.RANDOM.generate();
         ruleData.headers.putAll(headers);
         ruleData.data = data;
         ruleData.contextId = contextId;
@@ -158,8 +158,8 @@ public class RuleData implements Serializable {
             return ((RuleData) data).newData(data);
         }
         RuleData ruleData = new RuleData();
-        ruleData.setId(IDGenerator.SNOW_FLAKE_STRING.generate());
-        ruleData.setContextId(IDGenerator.SNOW_FLAKE_STRING.generate());
+        ruleData.setId(IDGenerator.RANDOM.generate());
+        ruleData.setContextId(IDGenerator.RANDOM.generate());
         ruleData.setData(data);
         return ruleData;
     }
