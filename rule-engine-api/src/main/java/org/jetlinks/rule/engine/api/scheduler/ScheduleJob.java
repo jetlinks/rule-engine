@@ -49,7 +49,9 @@ public class ScheduleJob implements Serializable {
     @Nonnull
     private String nodeId;
 
-    @Nonnull
+    /**
+     * 模型类型
+     */
     private String modelType;
 
     /**
