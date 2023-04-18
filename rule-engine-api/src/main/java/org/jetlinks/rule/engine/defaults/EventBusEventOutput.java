@@ -14,14 +14,14 @@ import reactor.core.publisher.Mono;
 @AllArgsConstructor
 public class EventBusEventOutput implements Output {
 
-    private final String instanceId;
+    protected final String instanceId;
 
-    private final EventBus eventBus;
+    protected final EventBus eventBus;
 
     @Getter
-    private final String event;
+    protected final String event;
 
-    private final String sourceNode;
+    protected final String sourceNode;
 
     @Override
     public Mono<Boolean> write(Publisher<RuleData> dataStream) {
@@ -34,7 +34,7 @@ public class EventBusEventOutput implements Output {
         return eventBus.publish(createTopic(nodeId), data).then();
     }
 
-    private String createTopic(String node) {
+    protected String createTopic(String node) {
         return RuleConstants.Topics.input(instanceId, node);
     }
 

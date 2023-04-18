@@ -11,16 +11,20 @@ import reactor.core.publisher.Flux;
 @AllArgsConstructor
 public class EventBusInput implements Input {
 
-    private final String instanceId;
+    protected final String instanceId;
 
-    private final String nodeId;
+    protected final String nodeId;
 
-    private final EventBus bus;
+    protected final EventBus bus;
 
     @Override
     public Flux<RuleData> accept() {
 
-        return bus.subscribe(Subscription.of("rule-engine:" + nodeId, RuleConstants.Topics.input(instanceId, nodeId),Subscription.Feature.values()), RuleData.class);
+        return bus.subscribe(Subscription.of(
+                                     "rule-engine:" + nodeId,
+                                     RuleConstants.Topics.input(instanceId, nodeId),
+                                     Subscription.Feature.values()),
+                             RuleData.class);
     }
 
 }

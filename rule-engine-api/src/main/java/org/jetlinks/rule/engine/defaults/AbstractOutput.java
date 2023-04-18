@@ -18,7 +18,7 @@ import java.util.function.Function;
 
 public abstract class AbstractOutput implements Output {
 
-    private final String instanceId;
+    protected final String instanceId;
 
     private final List<ScheduleJob.Output> outputs;
 
