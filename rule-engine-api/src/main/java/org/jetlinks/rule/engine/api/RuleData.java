@@ -6,9 +6,10 @@ import lombok.Setter;
 import org.hswebframework.web.bean.FastBeanCopier;
 import org.hswebframework.web.id.IDGenerator;
 import org.jetlinks.core.metadata.Jsonable;
+import org.jetlinks.core.utils.SerializeUtils;
 import reactor.core.publisher.Flux;
 
-import java.io.Serializable;
+import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -23,7 +24,7 @@ import java.util.function.Consumer;
  */
 @Getter
 @Setter
-public class RuleData implements Serializable {
+public class RuleData implements Externalizable {
 
     private static final long serialVersionUID = 1L;
 
@@ -32,6 +33,10 @@ public class RuleData implements Serializable {
     public static final String RECORD_DATA_TO_HEADER_KEY = "record_data_to_header_key";
 
     public static final String RECORD_DATA_TO_HEADER_KEY_PREFIX = "rd:";
+
+    static {
+        SerializeUtils.registerSerializer(0x50, RuleData.class, ignore -> new RuleData());
+    }
 
     /**
      * 数据ID
@@ -162,5 +167,22 @@ public class RuleData implements Serializable {
         ruleData.setContextId(IDGenerator.RANDOM.generate());
         ruleData.setData(data);
         return ruleData;
+    }
+
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+        SerializeUtils.writeObject(id, out);
+        SerializeUtils.writeObject(contextId, out);
+        SerializeUtils.writeObject(data, out);
+        SerializeUtils.writeKeyValue(headers, out);
+    }
+
+    @Override
+    @SuppressWarnings("all")
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+        id = (String) SerializeUtils.readObject(in);
+        contextId = (String) SerializeUtils.readObject(in);
+        data = SerializeUtils.readObject(in);
+        SerializeUtils.readKeyValue(in, headers::put);
     }
 }
