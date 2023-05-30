@@ -105,7 +105,7 @@ public interface RuleConstants {
                                            BiConsumer<ScheduleJob, ReactiveSpanBuilder> biConsumer) {
 
             return MonoTracer.create(
-                    nodeSpanName(job.getModelType(), job.getExecutor(), operation),
+                    nodeSpanName(job.getInstanceId(), job.getNodeId(), operation),
                     builder -> {
                         builder.setAttribute(instanceId, job.getInstanceId());
                         builder.setAttribute(nodeId, job.getNodeId());
@@ -124,7 +124,7 @@ public interface RuleConstants {
                                            BiConsumer<ScheduleJob, ReactiveSpanBuilder> biConsumer) {
 
             return FluxTracer.create(
-                    nodeSpanName(job.getModelType(), job.getExecutor(), operation),
+                    nodeSpanName(job.getInstanceId(), job.getNodeId(), operation),
                     builder -> {
                         builder.setAttribute(instanceId, job.getInstanceId());
                         builder.setAttribute(nodeId, job.getNodeId());
