@@ -3,6 +3,8 @@ package org.jetlinks.rule.engine.defaults;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.jetlinks.core.trace.FluxTracer;
+import org.jetlinks.core.trace.MonoTracer;
 import org.jetlinks.core.trace.TraceHolder;
 import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.RuleData;
@@ -126,7 +128,10 @@ public class DefaultTask implements Task {
                     context.reload();
                     executor.reload();
                 })
-                .subscribeOn(Schedulers.boundedElastic());
+                .subscribeOn(Schedulers.boundedElastic())
+                .as(MonoTracer.create(
+                        RuleConstants.Trace.reloadNodeSpanName(getJob().getInstanceId(), getJob().getNodeId()),
+                        builder -> builder.setAttribute(RuleConstants.Trace.executor, getJob().getExecutor())));
     }
 
 
@@ -140,7 +145,10 @@ public class DefaultTask implements Task {
         log.debug("start task[{}]:[{}]", getId(), getJob());
         return Mono.<Void>fromRunnable(executor::start)
                    .doOnSuccess((v) -> startTime = System.currentTimeMillis())
-                   .subscribeOn(Schedulers.boundedElastic());
+                   .subscribeOn(Schedulers.boundedElastic())
+                   .as(MonoTracer.create(
+                           RuleConstants.Trace.startNodeSpanName(getJob().getInstanceId(), getJob().getNodeId()),
+                           builder -> builder.setAttribute(RuleConstants.Trace.executor, getJob().getExecutor())));
     }
 
     /**
@@ -165,7 +173,10 @@ public class DefaultTask implements Task {
         return Mono
                 .fromRunnable(executor::shutdown)
                 .then(Mono.<Void>fromRunnable(context::doShutdown))
-                .subscribeOn(Schedulers.boundedElastic());
+                .subscribeOn(Schedulers.boundedElastic())
+                .as(MonoTracer.create(
+                        RuleConstants.Trace.shutdownNodeSpanName(getJob().getInstanceId(), getJob().getNodeId()),
+                        builder -> builder.setAttribute(RuleConstants.Trace.executor, getJob().getExecutor())));
     }
 
     /**

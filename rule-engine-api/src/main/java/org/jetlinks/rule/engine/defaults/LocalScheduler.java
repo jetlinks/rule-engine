@@ -2,6 +2,8 @@ package org.jetlinks.rule.engine.defaults;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.jetlinks.core.trace.FluxTracer;
+import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.api.task.Task;
@@ -89,7 +91,8 @@ public class LocalScheduler implements Scheduler {
                     removeTask(task);
                     return task.shutdown();
                 })
-                .thenMany(createExecutor(job));
+                .thenMany(createExecutor(job))
+                .as(RuleConstants.Trace.traceFlux(job, "schedule"));
     }
 
     @Override

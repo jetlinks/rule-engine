@@ -3,6 +3,8 @@ package org.jetlinks.rule.engine.cluster.balancer;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.core.event.EventBus;
+import org.jetlinks.core.trace.FluxTracer;
+import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.api.scheduler.SchedulerSelector;
@@ -84,7 +86,10 @@ public class DefaultSchedulerLoadBalancer implements SchedulerLoadBalancer {
                                     }
                                     return Mono.empty();
                                 })
-                                .onErrorContinue((err, obj) -> log.debug(err.getMessage(), err)))
+                                .onErrorResume((err) -> {
+                                    log.debug(err.getMessage(), err);
+                                    return Mono.empty();
+                                }))
                 )
                 .doOnError(err -> log.debug(err.getMessage(), err))
                 .then()

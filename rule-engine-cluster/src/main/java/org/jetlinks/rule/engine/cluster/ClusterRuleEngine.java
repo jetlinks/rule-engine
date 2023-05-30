@@ -2,6 +2,8 @@ package org.jetlinks.rule.engine.cluster;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jetlinks.core.trace.FluxTracer;
+import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.RuleEngine;
 import org.jetlinks.rule.engine.api.model.RuleModel;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
@@ -118,7 +120,11 @@ public class ClusterRuleEngine implements RuleEngine {
                             .fromIterable(startedTask)
                             .flatMap(Task::shutdown)
                             .then(Mono.error(err));
-                });
+                })
+                .as(FluxTracer.create(RuleConstants.Trace.spanName(instanceId,"start"), builder -> {
+                    builder.setAttribute(RuleConstants.Trace.model, model.toString());
+                    builder.setAttribute(RuleConstants.Trace.instanceId, instanceId);
+                }));
     }
 
     protected Flux<Task> doStart(Collection<ScheduleJob> jobs) {

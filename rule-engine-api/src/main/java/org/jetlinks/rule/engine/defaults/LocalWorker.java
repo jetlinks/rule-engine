@@ -1,7 +1,10 @@
 package org.jetlinks.rule.engine.defaults;
 
+import com.alibaba.fastjson.JSON;
 import lombok.Getter;
 import org.jetlinks.core.event.EventBus;
+import org.jetlinks.core.trace.MonoTracer;
+import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.task.ConditionEvaluator;
 import org.jetlinks.rule.engine.api.task.Task;
@@ -40,13 +43,22 @@ public class LocalWorker implements Worker {
 
     @Override
     public Mono<Task> createTask(String schedulerId, ScheduleJob job) {
-        return Mono.justOrEmpty(executors.get(job.getExecutor()))
+        return Mono
+                .justOrEmpty(executors.get(job.getExecutor()))
                 .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("unsupported executor:" + job.getExecutor())))
-                .flatMap(provider -> {
+                .<Task>flatMap(provider -> {
                     DefaultExecutionContext context = createContext(job);
-                    return provider.createTask(context)
+                    return provider
+                            .createTask(context)
                             .map(executor -> new DefaultTask(schedulerId, this.getId(), context, executor));
-                });
+                })
+                .as(RuleConstants.Trace.traceMono(
+                        job,
+                        "create",
+                        (_job, builder) -> {
+                            builder.setAttribute(RuleConstants.Trace.executor, _job.getExecutor());
+                            builder.setAttributeLazy(RuleConstants.Trace.configuration, () -> JSON.toJSONString(_job.getConfiguration()));
+                        }));
     }
 
     protected DefaultExecutionContext createContext(ScheduleJob job) {
