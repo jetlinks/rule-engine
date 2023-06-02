@@ -39,4 +39,9 @@ class ClusterScopeCounter implements ScopeCounter {
     public Mono<Double> getAndSet(double value) {
         return counter.getAndSet(value);
     }
+
+    @Override
+    public Mono<Double> remove(){
+        return counter.remove();
+    }
 }

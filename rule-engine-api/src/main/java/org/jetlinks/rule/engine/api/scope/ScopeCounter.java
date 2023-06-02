@@ -72,4 +72,11 @@ public interface ScopeCounter {
      */
     Mono<Double> getAndSet(double value);
 
+    /**
+     * 删除计数器
+     *
+     * @return 计数器值
+     */
+    Mono<Double> remove();
+
 }
