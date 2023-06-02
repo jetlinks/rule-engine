@@ -38,4 +38,9 @@ class InMemoryScopeCounter implements ScopeCounter {
     public Mono<Double> getAndSet(double value) {
         return Mono.just(ref.getAndSet(value));
     }
+
+    @Override
+    public Mono<Double> remove() {
+        return Mono.justOrEmpty(ref.getAndSet(0D));
+    }
 }
