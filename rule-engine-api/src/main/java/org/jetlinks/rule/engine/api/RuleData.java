@@ -60,10 +60,16 @@ public class RuleData implements Externalizable {
     private Map<String, Object> headers = new ConcurrentHashMap<>(16);
 
     public void setHeader(String key, Object value) {
+        if (key == null || value == null) {
+            return;
+        }
         headers.put(key, value);
     }
 
     public void removeHeader(String key) {
+        if (key == null) {
+            return;
+        }
         headers.remove(key);
     }
 
@@ -73,14 +79,6 @@ public class RuleData implements Externalizable {
 
     public Optional<Object> getHeader(String key) {
         return Optional.ofNullable(headers.get(key));
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public Object getData() {
-        return data;
     }
 
     public Flux<Map<String, Object>> dataToMap() {
