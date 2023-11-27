@@ -163,6 +163,17 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
     }
 
     @Override
+    public RuleData newRuleData(RuleData source, Object data) {
+        RuleData ruleData = source.newData(data);
+
+        if (recordDataToHeader) {
+            ruleData.setHeader(recordDataToHeaderKey, ruleData.getData());
+        }
+        ruleData.setHeader("sourceNode", getJob().getNodeId());
+        return ruleData;
+    }
+
+    @Override
     public Mono<Void> shutdown(String code, String message) {
         Map<String, Object> data = new HashMap<>();
         data.put("code", code);

@@ -111,12 +111,22 @@ public interface ExecutionContext {
     Mono<Void> shutdown(String code, String message);
 
     /**
-     * 创建规则数据
+     * 创建规则数据,通常用于规则产生新数据时使用.
      *
      * @param data 原始数据
      * @return 规则数据
      */
     RuleData newRuleData(Object data);
+
+    /**
+     * 创建规则数据,通常用于基于规则输入生成新的数据.
+     *
+     * @param source 输入的源数据
+     * @param data 需要输出的数据
+     * @return 规则数据
+     */
+    RuleData newRuleData(RuleData source,Object data);
+
 
     /**
      * 监听停止事件
