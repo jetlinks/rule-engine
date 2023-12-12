@@ -128,10 +128,10 @@ public class DefaultTask implements Task {
                     context.reload();
                     executor.reload();
                 })
-                .subscribeOn(Schedulers.boundedElastic())
                 .as(MonoTracer.create(
                         RuleConstants.Trace.reloadNodeSpanName(getJob().getInstanceId(), getJob().getNodeId()),
-                        builder -> builder.setAttribute(RuleConstants.Trace.executor, getJob().getExecutor())));
+                        builder -> builder.setAttribute(RuleConstants.Trace.executor, getJob().getExecutor())))
+                .subscribeOn(Schedulers.boundedElastic());
     }
 
 
@@ -145,10 +145,10 @@ public class DefaultTask implements Task {
         log.debug("start task[{}]:[{}]", getId(), getJob());
         return Mono.<Void>fromRunnable(executor::start)
                    .doOnSuccess((v) -> startTime = System.currentTimeMillis())
-                   .subscribeOn(Schedulers.boundedElastic())
                    .as(MonoTracer.create(
                            RuleConstants.Trace.startNodeSpanName(getJob().getInstanceId(), getJob().getNodeId()),
-                           builder -> builder.setAttribute(RuleConstants.Trace.executor, getJob().getExecutor())));
+                           builder -> builder.setAttribute(RuleConstants.Trace.executor, getJob().getExecutor())))
+                   .subscribeOn(Schedulers.boundedElastic());
     }
 
     /**
@@ -173,10 +173,10 @@ public class DefaultTask implements Task {
         return Mono
                 .fromRunnable(executor::shutdown)
                 .then(Mono.<Void>fromRunnable(context::doShutdown))
-                .subscribeOn(Schedulers.boundedElastic())
                 .as(MonoTracer.create(
                         RuleConstants.Trace.shutdownNodeSpanName(getJob().getInstanceId(), getJob().getNodeId()),
-                        builder -> builder.setAttribute(RuleConstants.Trace.executor, getJob().getExecutor())));
+                        builder -> builder.setAttribute(RuleConstants.Trace.executor, getJob().getExecutor())))
+                .subscribeOn(Schedulers.boundedElastic());
     }
 
     /**

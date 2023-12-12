@@ -69,39 +69,39 @@ public class LocalScheduler implements Scheduler {
     @Override
     public Mono<Boolean> canSchedule(ScheduleJob job) {
         return findWorker(job.getExecutor(), job)
-                .hasElements();
+            .hasElements();
     }
 
     protected Flux<Worker> findWorker(String executor, ScheduleJob schedulingRule) {
         return workerSelector
-                .select(Flux.fromIterable(workers.values())
-                            .filterWhen(exe -> exe
-                                    .getSupportExecutors()
-                                    .map(list -> list.contains(executor))
-                                    .defaultIfEmpty(false)), schedulingRule);
+            .select(Flux.fromIterable(workers.values())
+                        .filterWhen(exe -> exe
+                            .getSupportExecutors()
+                            .map(list -> list.contains(executor))
+                            .defaultIfEmpty(false)), schedulingRule);
     }
 
     @Override
     public Flux<Task> schedule(ScheduleJob job) {
 
         return Flux
-                .fromIterable(getExecutor(job.getInstanceId(), job.getNodeId()))
-                .flatMap(task -> {
-                    //停止旧任务
-                    removeTask(task);
-                    return task.shutdown();
-                })
-                .thenMany(createExecutor(job))
-                .as(RuleConstants.Trace.traceFlux(job, "schedule"));
+            .fromIterable(getExecutor(job.getInstanceId(), job.getNodeId()))
+            .flatMap(task -> {
+                //停止旧任务
+                removeTask(task);
+                return task.shutdown();
+            })
+            .thenMany(createExecutor(job))
+            .as(RuleConstants.Trace.traceFlux(job, "schedule"));
     }
 
     @Override
     public Mono<Void> shutdown(String instanceId) {
         return getSchedulingTask(instanceId)
-                .doOnNext(task -> tasks.remove(task.getId()))
-                .concatMapDelayError(Task::shutdown)
-                .doAfterTerminate(() -> clearExecutor(instanceId))
-                .then();
+            .doOnNext(task -> tasks.remove(task.getId()))
+            .concatMapDelayError(Task::shutdown)
+            .doAfterTerminate(() -> clearExecutor(instanceId))
+            .then();
     }
 
     @Override
@@ -115,13 +115,16 @@ public class LocalScheduler implements Scheduler {
 
     private Flux<Task> createExecutor(ScheduleJob job) {
         return findWorker(job.getExecutor(), job)
-                .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("unsupported executor:" + job.getExecutor())))
-                .flatMap(worker -> worker.createTask(id, job))
-                .doOnNext(this::addTask);
+            .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("unsupported executor:" + job.getExecutor())))
+            .flatMap(worker -> worker.createTask(id, job))
+            .doOnNext(this::addTask);
     }
 
     private void addTask(Task task) {
-        tasks.put(task.getId(), task);
+        Task old = tasks.put(task.getId(), task);
+        if (old != null && task != old) {
+            old.shutdown().subscribe();
+        }
         getExecutor(task.getJob().getInstanceId(), task.getJob().getNodeId()).add(task);
     }
 
