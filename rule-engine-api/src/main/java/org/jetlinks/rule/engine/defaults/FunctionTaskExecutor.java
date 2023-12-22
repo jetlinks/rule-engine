@@ -2,6 +2,7 @@ package org.jetlinks.rule.engine.defaults;
 
 import lombok.Getter;
 import org.jetlinks.core.trace.TraceHolder;
+import org.jetlinks.core.utils.Reactors;
 import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.task.ExecutionContext;
@@ -27,16 +28,16 @@ public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implemen
 
     private Mono<Void> doApply(RuleData input) {
         return context
-                .getOutput()
-                .write(Flux.from(this.apply(input))
-                           .flatMap(output -> context
-                                   .fireEvent(RuleConstants.Event.result, output)
-                                   .thenReturn(output)))
-                .then(context.fireEvent(RuleConstants.Event.complete, input))
-                .as(tracer())
-                .onErrorResume(error -> context.onError(error, input))
-                .contextWrite(TraceHolder.readToContext(Context.empty(), input.getHeaders()))
-                .then();
+            .getOutput()
+            .write(Flux.from(this.apply(input))
+                       .flatMap(output -> context
+                           .fireEvent(RuleConstants.Event.result, output)
+                           .thenReturn(output)))
+            .then(context.fireEvent(RuleConstants.Event.complete, input))
+            .as(tracer())
+            .onErrorResume(error -> context.onError(error, input))
+            .contextWrite(TraceHolder.readToContext(Context.empty(), input.getHeaders()))
+            .then();
     }
 
     @Override
@@ -47,14 +48,16 @@ public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implemen
     @Override
     protected Disposable doStart() {
         return context
-                .getInput()
-                .accept()
-                .filter(data -> state == Task.State.running)
-                // FIXME: 2021/9/3 背压支持？
-                .flatMap(this::doApply, Integer.MAX_VALUE)
-                .onErrorResume(error -> context.onError(error, null))
-                .subscribe()
-                ;
+            .getInput()
+            .accept(data -> {
+                if (state != Task.State.running) {
+                    return Mono.empty();
+                }
+                return this
+                    .doApply(data)
+                    .then(Reactors.ALWAYS_TRUE);
+            })
+            ;
     }
 
 

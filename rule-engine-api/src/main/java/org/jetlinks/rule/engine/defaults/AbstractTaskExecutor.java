@@ -1,8 +1,10 @@
 package org.jetlinks.rule.engine.defaults;
 
 import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.context.Context;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.jetlinks.core.trace.FluxTracer;
 import org.jetlinks.core.trace.MonoTracer;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.task.ExecutableTaskExecutor;
@@ -25,6 +27,7 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
 
     protected volatile Disposable disposable;
     private final MonoTracer<Object> tracer;
+    private final FluxTracer<Object> fluxTracer;
 
     private BiConsumer<Task.State, Task.State> stateListener = (from, to) -> {
         AbstractTaskExecutor.log.debug("task [{}] state changed from {} to {}.",
@@ -35,16 +38,35 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
 
     public AbstractTaskExecutor(ExecutionContext context) {
         this.context = context;
+        String spanName = "/rule-runtime/" + context.getJob().getExecutor() +
+            "/" + context.getInstanceId() +
+            "/" + context.getJob().getNodeId();
+
         this.tracer = MonoTracer
-                .create("/rule-runtime/" + context.getJob().getExecutor() +
-                                "/" + context.getInstanceId() +
-                                "/" + context.getJob().getNodeId(),
-                        span -> span.setAttribute(executor_name, this.getName()));
+            .builder()
+            .spanName(spanName)
+            .onSubscription(builder -> builder.setAttribute(executor_name, this.getName()))
+            .defaultContext(Context::root)
+            .build();
+
+        this.fluxTracer = FluxTracer
+            .builder()
+            .spanName(spanName)
+            .onSubscription(builder -> builder.setAttribute(executor_name, this.getName()))
+            .defaultContext(Context::root)
+            .build();
+
+
     }
 
     @SuppressWarnings("all")
     protected <T> MonoTracer<T> tracer() {
         return (MonoTracer) tracer;
+    }
+
+    @SuppressWarnings("all")
+    protected <T> FluxTracer<T> traceFlux() {
+        return (FluxTracer) fluxTracer;
     }
 
     @Override
@@ -100,10 +122,10 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
     @Override
     public Mono<Void> execute(RuleData ruleData) {
         return context
-                .getOutput()
-                .write(ruleData)
-                .as(tracer())
-                .then()
-                ;
+            .getOutput()
+            .write(ruleData)
+            .as(tracer())
+            .then()
+            ;
     }
 }
