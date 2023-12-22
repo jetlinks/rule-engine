@@ -22,6 +22,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.jetlinks.rule.engine.api.RuleData.HEADER_SOURCE_NODE_ID;
+
 @Slf4j
 public abstract class AbstractExecutionContext implements ExecutionContext {
 
@@ -158,7 +160,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
         if (recordDataToHeader) {
             ruleData.setHeader(recordDataToHeaderKey, ruleData.getData());
         }
-        ruleData.setHeader("sourceNode", getJob().getNodeId());
+        ruleData.setHeader(HEADER_SOURCE_NODE_ID, getJob().getNodeId());
         return ruleData;
     }
 
@@ -169,7 +171,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
         if (recordDataToHeader) {
             ruleData.setHeader(recordDataToHeaderKey, ruleData.getData());
         }
-        ruleData.setHeader("sourceNode", getJob().getNodeId());
+        ruleData.setHeader(HEADER_SOURCE_NODE_ID, getJob().getNodeId());
         return ruleData;
     }
 

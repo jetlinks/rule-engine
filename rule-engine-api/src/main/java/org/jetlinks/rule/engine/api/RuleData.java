@@ -34,6 +34,8 @@ public class RuleData implements Externalizable {
 
     public static final String RECORD_DATA_TO_HEADER_KEY_PREFIX = "rd:";
 
+    public static final String HEADER_SOURCE_NODE_ID = "sourceNode";
+
     static {
         SerializeUtils.registerSerializer(0x50, RuleData.class, ignore -> new RuleData());
     }
@@ -97,7 +99,7 @@ public class RuleData implements Externalizable {
             byte[] bytes = ((byte[]) data);
             if (bytes.length > 2) {
                 if (/* { }*/(bytes[0] == 123 && bytes[bytes.length - 1] == 125)
-                        || /* [ ] */(bytes[0] == 91 && bytes[bytes.length - 1] == 93)
+                    || /* [ ] */(bytes[0] == 91 && bytes[bytes.length - 1] == 93)
                 ) {
                     data = JSON.parse(bytes);
                 }
