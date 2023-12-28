@@ -16,6 +16,11 @@ public class Slf4jLogger implements Logger {
     }
 
     @Override
+    public void trace(String text, Object... args) {
+        log.trace(text, args);
+    }
+
+    @Override
     public void info(String message, Object... args) {
         if (log.isInfoEnabled()) {
             log.info(name + ":" + message, args);

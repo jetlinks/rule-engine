@@ -27,6 +27,11 @@ public class EventLogger implements Logger {
     private String workerId;
 
     @Override
+    public void trace(String message, Object... args) {
+        publishLog("trace", message, args);
+    }
+
+    @Override
     public void info(String message, Object... args) {
         publishLog("info", message, args);
     }

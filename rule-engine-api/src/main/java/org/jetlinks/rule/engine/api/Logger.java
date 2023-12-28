@@ -5,6 +5,10 @@ package org.jetlinks.rule.engine.api;
  * @since 1.0.0
  */
 public interface Logger {
+
+    default void trace(String text, Object... args) {
+    }
+
     void info(String message, Object... args);
 
     void debug(String message, Object... args);
