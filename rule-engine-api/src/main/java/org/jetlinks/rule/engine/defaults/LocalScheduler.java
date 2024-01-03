@@ -9,6 +9,7 @@ import org.jetlinks.rule.engine.api.scheduler.Scheduler;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.worker.Worker;
 import org.jetlinks.rule.engine.api.worker.WorkerSelector;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -18,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 
-public class LocalScheduler implements Scheduler {
+public class LocalScheduler implements Scheduler, Disposable {
 
     //调度器ID
     @Getter
@@ -178,5 +179,12 @@ public class LocalScheduler implements Scheduler {
 
     public void addWorker(Worker worker) {
         this.workers.put(worker.getId(), worker);
+    }
+
+    @Override
+    public void dispose() {
+        for (Task value : tasks.values()) {
+            value.shutdown().subscribe();
+        }
     }
 }
