@@ -3,6 +3,7 @@ package org.jetlinks.rule.engine.api.model;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.collections.CollectionUtils;
+import org.jetlinks.core.utils.SerializeUtils;
 import org.jetlinks.rule.engine.api.scheduler.SchedulingRule;
 import org.jetlinks.rule.engine.api.task.ExecutionContext;
 import org.jetlinks.rule.engine.api.task.TaskExecutorProvider;
@@ -100,8 +101,15 @@ public class RuleNodeModel {
     private boolean parallel;
 
     public RuleNodeModel addConfiguration(String key, Object value) {
-        configuration.put(key, value);
+        configuration.put(key, SerializeUtils.convertToSafelySerializable(value, true));
         return this;
+    }
+
+
+    @SuppressWarnings("all")
+    public void setConfiguration(Map<String, Object> configuration) {
+        this.configuration.clear();
+        this.configuration.putAll((Map<String, Object>) SerializeUtils.convertToSafelySerializable(configuration, true));
     }
 
     public List<RuleLink> getEvents(String type) {

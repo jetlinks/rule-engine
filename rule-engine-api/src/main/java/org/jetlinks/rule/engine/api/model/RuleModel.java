@@ -2,6 +2,7 @@ package org.jetlinks.rule.engine.api.model;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.jetlinks.core.utils.SerializeUtils;
 import org.jetlinks.rule.engine.api.scheduler.SchedulingRule;
 
 import java.util.*;
@@ -84,8 +85,14 @@ public class RuleModel {
     }
 
     public RuleModel addConfiguration(String key, Object value) {
-        configuration.put(key, value);
+        configuration.put(key, SerializeUtils.convertToSafelySerializable(value, true));
         return this;
+    }
+
+    @SuppressWarnings("all")
+    public void setConfiguration(Map<String, Object> configuration) {
+        this.configuration.clear();
+        this.configuration.putAll((Map<String, ?>) SerializeUtils.convertToSafelySerializable(configuration, true));
     }
 
     public Optional<RuleNodeModel> getStartNode() {
