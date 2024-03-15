@@ -17,14 +17,14 @@
     <packaging>pom</packaging>
 
     <name>JetLinks RuleEngine</name>
-    <url>http://jetlinks.org</url>
+    <url>https://jetlinks.org</url>
     <inceptionYear>2019</inceptionYear>
     <description>JetLinks 物联网平台-规则引擎</description>
 
     <licenses>
         <license>
             <name>The Apache License, Version 2.0</name>
-            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
         </license>
     </licenses>
 
@@ -271,7 +271,7 @@
         <repository>
             <id>hsweb-nexus</id>
             <name>Nexus Release Repository</name>
-            <url>https://nexus.hsweb.me/content/groups/public/</url>
+            <url>https://nexus.jetlinks.cn/content/groups/public/</url>
             <snapshots>
                 <enabled>true</enabled>
                 <updatePolicy>always</updatePolicy>
@@ -288,12 +288,12 @@
         <repository>
             <id>releases</id>
             <name>Nexus Release Repository</name>
-            <url>https://nexus.hsweb.me/content/repositories/releases/</url>
+            <url>https://nexus.jetlinks.cn/content/repositories/releases/</url>
         </repository>
         <snapshotRepository>
             <id>snapshots</id>
             <name>Nexus Snapshot Repository</name>
-            <url>https://nexus.hsweb.me/content/repositories/snapshots/</url>
+            <url>https://nexus.jetlinks.cn/content/repositories/snapshots/</url>
         </snapshotRepository>
     </distributionManagement>
 
