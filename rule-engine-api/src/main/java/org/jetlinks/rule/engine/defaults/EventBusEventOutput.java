@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.core.event.EventBus;
+import org.jetlinks.core.utils.Reactors;
 import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.task.Output;
@@ -25,8 +26,9 @@ public class EventBusEventOutput implements Output {
 
     @Override
     public Mono<Boolean> write(Publisher<RuleData> dataStream) {
-        return eventBus.publish(createTopic(sourceNode), dataStream)
-                .thenReturn(true);
+        return eventBus
+            .publish(createTopic(sourceNode), dataStream)
+            .then(Reactors.ALWAYS_TRUE);
     }
 
     @Override
