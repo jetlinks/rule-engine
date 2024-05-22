@@ -26,8 +26,8 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
     protected volatile Task.State state = Task.State.shutdown;
 
     protected volatile Disposable disposable;
-    private final MonoTracer<Object> tracer;
-    private final FluxTracer<Object> fluxTracer;
+    private MonoTracer<Object> tracer;
+    private FluxTracer<Object> fluxTracer;
 
     private BiConsumer<Task.State, Task.State> stateListener = (from, to) -> {
         AbstractTaskExecutor.log.debug("task [{}] state changed from {} to {}.",
@@ -38,35 +38,42 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
 
     public AbstractTaskExecutor(ExecutionContext context) {
         this.context = context;
-        String spanName = "/rule-runtime/" + context.getJob().getExecutor() +
+    }
+
+    protected String createSpanName() {
+        return "/rule-runtime/" + context.getJob().getExecutor() +
             "/" + context.getInstanceId() +
             "/" + context.getJob().getNodeId();
+    }
 
-        this.tracer = MonoTracer
-            .builder()
-            .spanName(spanName)
+    protected <T> MonoTracer<T> createMonoTracer() {
+        return MonoTracer
+            .<T>builder()
+            .spanName(createSpanName())
             .onSubscription(builder -> builder.setAttribute(executor_name, this.getName()))
             .defaultContext(Context::root)
             .build();
+    }
 
-        this.fluxTracer = FluxTracer
-            .builder()
-            .spanName(spanName)
+    protected <T> FluxTracer<T> createFluxTracer() {
+        return FluxTracer
+            .<T>builder()
+            .spanName(createSpanName())
             .onSubscription(builder -> builder.setAttribute(executor_name, this.getName()))
             .defaultContext(Context::root)
             .build();
-
-
     }
 
     @SuppressWarnings("all")
     protected <T> MonoTracer<T> tracer() {
-        return (MonoTracer) tracer;
+        MonoTracer<Object> _tracer = this.tracer;
+        return (MonoTracer) (_tracer == null ? _tracer = tracer = createMonoTracer() : _tracer);
     }
 
     @SuppressWarnings("all")
     protected <T> FluxTracer<T> traceFlux() {
-        return (FluxTracer) fluxTracer;
+        FluxTracer<Object> _tracer = this.fluxTracer;
+        return (FluxTracer) (_tracer == null ? _tracer = fluxTracer = createFluxTracer() : _tracer);
     }
 
     @Override
