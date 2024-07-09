@@ -11,7 +11,6 @@ import reactor.core.publisher.Mono;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.validation.constraints.NotNull;
 import java.util.function.Supplier;
 
 /**
@@ -83,7 +82,7 @@ public interface ExecutionContext {
      * @param <T>        适配empty 泛型
      * @return Mono
      */
-    default <T> Mono<T> onError(@NotNull Supplier<Throwable> e, @Nullable RuleData sourceData) {
+    default <T> Mono<T> onError(@Nonnull Supplier<Throwable> e, @Nullable RuleData sourceData) {
         return Mono.defer(() -> onError(e.get(), sourceData));
     }
 
