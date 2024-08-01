@@ -73,7 +73,7 @@ public abstract class AbstractOutput implements Output {
                             .flatMap(writer -> writer
                                     .apply(ruleData)
                                     .onErrorResume(err -> Reactors.ALWAYS_FALSE))
-                            .reduce((a, b) -> a && b));
+                            .reduce(Boolean::logicalAnd));
         }
     }
 
@@ -87,8 +87,7 @@ public abstract class AbstractOutput implements Output {
         return Flux
                 .from(dataStream)
                 .flatMap(this::write)
-                .all(Boolean::booleanValue)
-                ;
+                .reduce(Boolean::logicalAnd);
     }
 
     @Override
