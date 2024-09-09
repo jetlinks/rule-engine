@@ -5,6 +5,9 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hswebframework.web.bean.FastBeanCopier;
 import org.hswebframework.web.id.IDGenerator;
+import org.jetlinks.core.GenericHeaderSupport;
+import org.jetlinks.core.Routable;
+import org.jetlinks.core.message.Headers;
 import org.jetlinks.core.metadata.Jsonable;
 import org.jetlinks.core.utils.SerializeUtils;
 import reactor.core.publisher.Flux;
@@ -12,8 +15,6 @@ import reactor.core.publisher.Flux;
 import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
@@ -24,7 +25,7 @@ import java.util.function.Consumer;
  */
 @Getter
 @Setter
-public class RuleData implements Externalizable {
+public class RuleData extends GenericHeaderSupport<RuleData> implements Externalizable, Routable {
 
     private static final long serialVersionUID = 1L;
 
@@ -55,32 +56,11 @@ public class RuleData implements Externalizable {
      */
     private Object data;
 
-    /**
-     * 规则头信息,可以通过头信息来传递更多的拓展消息
-     */
-    @Getter
-    private Map<String, Object> headers = new ConcurrentHashMap<>(16);
-
     public void setHeader(String key, Object value) {
         if (key == null || value == null) {
             return;
         }
-        headers.put(key, value);
-    }
-
-    public void removeHeader(String key) {
-        if (key == null) {
-            return;
-        }
-        headers.remove(key);
-    }
-
-    public void clearHeader() {
-        headers.clear();
-    }
-
-    public Optional<Object> getHeader(String key) {
-        return Optional.ofNullable(headers.get(key));
+        addHeader(key, value);
     }
 
     public Flux<Map<String, Object>> dataToMap() {
@@ -142,7 +122,7 @@ public class RuleData implements Externalizable {
             data = ((RuleData) data).getData();
         }
         ruleData.id = IDGenerator.RANDOM.generate();
-        ruleData.headers.putAll(headers);
+        ruleData.setHeaders(getHeaders());
         ruleData.data = data;
         ruleData.contextId = contextId;
         RuleDataHelper.clearError(ruleData);
@@ -153,7 +133,7 @@ public class RuleData implements Externalizable {
         RuleData ruleData = new RuleData();
         ruleData.id = id;
         ruleData.contextId = contextId;
-        ruleData.headers.putAll(headers);
+        ruleData.setHeaders(getHeaders());
         ruleData.data = data;
         return ruleData;
     }
@@ -174,7 +154,7 @@ public class RuleData implements Externalizable {
         SerializeUtils.writeObject(id, out);
         SerializeUtils.writeObject(contextId, out);
         SerializeUtils.writeObject(data, out);
-        SerializeUtils.writeKeyValue(headers, out);
+        SerializeUtils.writeKeyValue(getHeaders(), out);
     }
 
     @Override
@@ -183,6 +163,24 @@ public class RuleData implements Externalizable {
         id = (String) SerializeUtils.readObject(in);
         contextId = (String) SerializeUtils.readObject(in);
         data = SerializeUtils.readObject(in);
-        SerializeUtils.readKeyValue(in, headers::put);
+        SerializeUtils.readKeyValue(in, this::addHeader);
+    }
+
+    @Override
+    public Object routeKey() {
+        if (data instanceof Routable) {
+            return ((Routable) data).routeKey();
+        }
+        return this
+            .getHeader(Headers.routeKey)
+            .orElse(null);
+    }
+
+    @Override
+    public long hash(Object... objects) {
+        if (data instanceof Routable) {
+            return ((Routable) data).hash(objects);
+        }
+        return Routable.super.hash(objects);
     }
 }
