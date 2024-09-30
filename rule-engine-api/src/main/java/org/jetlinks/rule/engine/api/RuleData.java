@@ -64,7 +64,8 @@ public class RuleData extends GenericHeaderSupport<RuleData> implements External
     }
 
     public Flux<Map<String, Object>> dataToMap() {
-        return Flux.create(sink -> {
+
+        return Flux.generate(sink -> {
             acceptMap(sink::next);
             sink.complete();
         });
@@ -96,7 +97,9 @@ public class RuleData extends GenericHeaderSupport<RuleData> implements External
         } else if (data instanceof RuleData) {
             ((RuleData) data).acceptMap(consumer);
         } else if (data instanceof Iterable) {
-            ((Iterable) data).forEach(d -> doAcceptMap(d, consumer));
+            for (Object datum : ((Iterable) data)) {
+                doAcceptMap(datum, consumer);
+            }
         } else {
             doAcceptMap(data, consumer);
         }
