@@ -30,9 +30,10 @@ public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implemen
         return context
             .getOutput()
             .write(Flux.from(this.apply(input))
-                       .flatMap(output -> context
-                           .fireEvent(RuleConstants.Event.result, output)
-                           .thenReturn(output)))
+                       .concatMap(output -> context
+                                      .fireEvent(RuleConstants.Event.result, output)
+                                      .thenReturn(output),
+                                  0))
             .then(context.fireEvent(RuleConstants.Event.complete, input))
             .as(tracer())
             .onErrorResume(error -> context.onError(error, input))
