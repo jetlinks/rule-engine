@@ -21,7 +21,7 @@ public class EventBusInput implements Input {
 
     protected final EventBus bus;
 
-    static Subscription.Feature[] features = {
+    static final Subscription.Feature[] features = {
         Subscription.Feature.local,
         Subscription.Feature.broker,
         Subscription.Feature.shared,
@@ -34,7 +34,7 @@ public class EventBusInput implements Input {
         return bus.subscribe(Subscription.of(
                                  "rule-engine:" + nodeId,
                                  RuleConstants.Topics.input(instanceId, nodeId),
-                                 Subscription.Feature.values()),
+                                 features),
                              RuleData.class);
     }
 
