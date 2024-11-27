@@ -18,6 +18,8 @@ import java.util.Map;
 @Slf4j
 public class ClusterRpcSchedulerRegistry implements SchedulerRegistry {
 
+    static final String NAMESPACE_SPLIT = "@";
+
     private final RpcManager rpcManager;
 
     private final Map<String, Scheduler> locals = new NonBlockingHashMap<>();
@@ -25,42 +27,86 @@ public class ClusterRpcSchedulerRegistry implements SchedulerRegistry {
     private final Map<String, Scheduler> remotes = new NonBlockingHashMap<>();
 
     private final Sinks.Many<Scheduler> joinListener = Reactors.createMany();
-    private final Sinks.Many<Scheduler> leaveListener =Reactors.createMany();
+    private final Sinks.Many<Scheduler> leaveListener = Reactors.createMany();
+
+    private final String namespace;
 
     public ClusterRpcSchedulerRegistry(RpcManager rpcManager) {
+        this("default", rpcManager);
+    }
+
+    public ClusterRpcSchedulerRegistry(String namespace, RpcManager rpcManager) {
         this.rpcManager = rpcManager;
+        this.namespace = namespace;
         init();
     }
 
     void init() {
 
         rpcManager
-                .getServices(SchedulerRpcService.class)
-                .subscribe(rpc -> remotes.put(rpc.id(), new ClusterRemoteScheduler(rpc.id(), rpc.service())));
+            .getServices(SchedulerRpcService.class)
+            .subscribe(rpc -> registerService(rpc.id(), rpc.service()));
 
         rpcManager
-                .listen(SchedulerRpcService.class)
-                .flatMap(event -> handleEvent(event)
-                        .onErrorResume(err -> Mono.empty()))
-                .subscribe(e -> {
+            .listen(SchedulerRpcService.class)
+            .flatMap(event -> handleEvent(event).onErrorResume(err -> Mono.empty()))
+            .subscribe(e -> {
 
-                });
+            });
+    }
+
+    private Scheduler registerService(String id, SchedulerRpcService service) {
+        String[] arr = id.split(NAMESPACE_SPLIT);
+        Scheduler scheduler = null;
+        try {
+            //兼容没有使用明明空间的调度器
+            if (arr.length == 1) {
+                if (remotes.put(id, scheduler = new ClusterRemoteScheduler(id, service)) == null) {
+                    return scheduler;
+                }
+            }
+            //使用命名空间
+            if (namespace.equals(arr[1])) {
+                if (remotes.put(arr[0], scheduler = new ClusterRemoteScheduler(arr[0], service)) == null) {
+                    return scheduler;
+                }
+            }
+            return null;
+        } finally {
+            if (scheduler != null) {
+                log.info("rule scheduler {} joined", scheduler.getId());
+            }
+        }
+
     }
 
     private Mono<Void> handleEvent(ServiceEvent event) {
         if (event.getType() == ServiceEvent.Type.added) {
             return rpcManager
-                    .getService(event.getServerNodeId(), event.getServiceId(), SchedulerRpcService.class)
-                    .map(rpcService -> new ClusterRemoteScheduler(event.getServiceId(), rpcService))
-                    .doOnNext(scheduler -> {
-                        if (remotes.put(event.getServiceId(), scheduler) == null
-                                && joinListener.currentSubscriberCount() > 0) {
-                            joinListener.emitNext(scheduler,Reactors.emitFailureHandler());
-                        }
-                    })
-                    .then();
+                .getService(event.getServerNodeId(), event.getServiceId(), SchedulerRpcService.class)
+                .doOnNext(rpc -> {
+                    Scheduler scheduler = registerService(event.getServiceId(), rpc);
+
+                    if (scheduler != null
+                        && joinListener.currentSubscriberCount() > 0) {
+                        joinListener.emitNext(scheduler, Reactors.emitFailureHandler());
+                    }
+                })
+                .then();
         } else if (event.getType() == ServiceEvent.Type.removed) {
-            Scheduler scheduler = remotes.remove(event.getServiceId());
+            String schedulerId;
+            String[] arr = event.getServiceId().split(NAMESPACE_SPLIT);
+            if (arr.length == 1) {
+                schedulerId = event.getServiceId();
+            } else {
+                //不同命名空间.忽略
+                if (!namespace.equals(arr[1])) {
+                    return Mono.empty();
+                }
+                schedulerId = arr[0];
+            }
+            log.info("rule scheduler {} leaved", schedulerId);
+            Scheduler scheduler = remotes.remove(schedulerId);
             if (null != scheduler && leaveListener.currentSubscriberCount() > 0) {
                 leaveListener.emitNext(scheduler, Reactors.emitFailureHandler());
             }
@@ -76,8 +122,8 @@ public class ClusterRpcSchedulerRegistry implements SchedulerRegistry {
     @Override
     public Flux<Scheduler> getSchedulers() {
         return Flux.concat(
-                Flux.fromIterable(getLocalSchedulers()),
-                Flux.fromIterable(remotes.values())
+            Flux.fromIterable(getLocalSchedulers()),
+            Flux.fromIterable(remotes.values())
         );
     }
 
@@ -91,6 +137,10 @@ public class ClusterRpcSchedulerRegistry implements SchedulerRegistry {
         return leaveListener.asFlux();
     }
 
+    private String createServiceId(String schedulerId) {
+        return schedulerId + NAMESPACE_SPLIT + namespace;
+    }
+
     @Override
     public void register(Scheduler scheduler) {
         if (locals.containsKey(scheduler.getId())) {
@@ -98,7 +148,8 @@ public class ClusterRpcSchedulerRegistry implements SchedulerRegistry {
         }
         locals.put(scheduler.getId(), scheduler);
 
-        rpcManager.registerService(scheduler.getId(), new SchedulerRpcServiceImpl(scheduler));
+        rpcManager.registerService(createServiceId(scheduler.getId()),
+                                   new SchedulerRpcServiceImpl(scheduler));
 
     }
 
