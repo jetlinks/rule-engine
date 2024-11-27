@@ -59,15 +59,15 @@ public class ClusterRpcSchedulerRegistry implements SchedulerRegistry {
         String[] arr = id.split(NAMESPACE_SPLIT);
         Scheduler scheduler = null;
         try {
-            //兼容没有使用命名空间的调度器
-            if (arr.length == 1 || namespace == null) {
+            //都没有指定命名空间
+            if (namespace == null && arr.length == 1) {
                 if (remotes.put(id, scheduler = new ClusterRemoteScheduler(id, service)) == null) {
                     return scheduler;
                 }
                 return null;
             }
-            //使用命名空间
-            if (namespace.equals(arr[1])) {
+            //都指定了命名空间
+            if (namespace != null && arr.length > 1 && namespace.equals(arr[1])) {
                 if (remotes.put(arr[0], scheduler = new ClusterRemoteScheduler(arr[0], service)) == null) {
                     return scheduler;
                 }
