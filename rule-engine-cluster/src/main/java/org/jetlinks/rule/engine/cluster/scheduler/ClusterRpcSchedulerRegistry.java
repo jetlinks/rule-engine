@@ -32,7 +32,7 @@ public class ClusterRpcSchedulerRegistry implements SchedulerRegistry {
     private final String namespace;
 
     public ClusterRpcSchedulerRegistry(RpcManager rpcManager) {
-        this("default", rpcManager);
+        this(null, rpcManager);
     }
 
     public ClusterRpcSchedulerRegistry(String namespace, RpcManager rpcManager) {
@@ -59,11 +59,12 @@ public class ClusterRpcSchedulerRegistry implements SchedulerRegistry {
         String[] arr = id.split(NAMESPACE_SPLIT);
         Scheduler scheduler = null;
         try {
-            //兼容没有使用明明空间的调度器
-            if (arr.length == 1) {
+            //兼容没有使用命名空间的调度器
+            if (arr.length == 1 || namespace == null) {
                 if (remotes.put(id, scheduler = new ClusterRemoteScheduler(id, service)) == null) {
                     return scheduler;
                 }
+                return null;
             }
             //使用命名空间
             if (namespace.equals(arr[1])) {
@@ -138,6 +139,10 @@ public class ClusterRpcSchedulerRegistry implements SchedulerRegistry {
     }
 
     private String createServiceId(String schedulerId) {
+        //兼容没有使用命名空间的调度器
+        if (namespace == null) {
+            return schedulerId;
+        }
         return schedulerId + NAMESPACE_SPLIT + namespace;
     }
 
