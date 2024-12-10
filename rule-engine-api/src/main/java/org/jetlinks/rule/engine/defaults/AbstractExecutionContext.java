@@ -15,6 +15,7 @@ import reactor.core.publisher.Mono;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +56,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
     private final Function<ScheduleJob, Output> outputFactory;
     private final Function<ScheduleJob, Map<String, Output>> eventOutputsFactory;
 
-    private final List<Runnable> shutdownListener = new CopyOnWriteArrayList<>();
+    private volatile List<Runnable> shutdownListener;
 
     private final GlobalScope globalScope;
 
@@ -103,14 +104,14 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
         data.setHeader(RuleConstants.Headers.modelType, getJob().getModelType());
 
         Mono<T> then = eventBus
-                .publish(RuleConstants.Topics.event(job.getInstanceId(), job.getNodeId(), event), data)
-                .doOnSubscribe(ignore -> log.trace("fire job task [{}] event [{}] ", job, event))
-                .then(Mono.empty());
+            .publish(RuleConstants.Topics.event(job.getInstanceId(), job.getNodeId(), event), data)
+            .doOnSubscribe(ignore -> log.trace("fire job task [{}] event [{}] ", job, event))
+            .then(Mono.empty());
         Output output = eventOutputs.get(event);
         if (output != null) {
             return output
-                    .write(data)
-                    .then(then);
+                .write(data)
+                .then(then);
         }
         return then;
     }
@@ -181,11 +182,15 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
         data.put("code", code);
         data.put("message", message);
         return eventBus
-                .publish(RuleConstants.Topics.shutdown(job.getInstanceId(), job.getNodeId()), data)
-                .then();
+            .publish(RuleConstants.Topics.shutdown(job.getInstanceId(), job.getNodeId()), data)
+            .then();
     }
 
     public void doShutdown() {
+        List<Runnable> shutdownListener = this.shutdownListener;
+        if (shutdownListener == null) {
+            return;
+        }
         for (Runnable runnable : shutdownListener) {
             try {
                 runnable.run();
@@ -197,6 +202,13 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
 
     @Override
     public void onShutdown(Runnable runnable) {
+        if (shutdownListener == null) {
+            synchronized (this) {
+                if (shutdownListener == null) {
+                    shutdownListener = new CopyOnWriteArrayList<>();
+                }
+            }
+        }
         shutdownListener.add(runnable);
     }
 
@@ -209,22 +221,25 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
         this.input = RuleEngineHooks.wrapInput(inputFactory.apply(job));
         this.output = RuleEngineHooks.wrapOutput(outputFactory.apply(job));
         this.eventOutputs = eventOutputsFactory
-                .apply(job)
-                .entrySet()
-                .stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> RuleEngineHooks.wrapOutput(e.getValue())));
+            .apply(job)
+            .entrySet()
+            .stream()
+            .collect(Collectors.toMap(Map.Entry::getKey, e -> RuleEngineHooks.wrapOutput(e.getValue())));
 
+        if (this.eventOutputs.isEmpty()) {
+            this.eventOutputs = Collections.emptyMap();
+        }
         recordDataToHeader = job
-                .getConfiguration(AbstractExecutionContext.RECORD_DATA_TO_HEADER)
-                .map(v -> "true".equals(String.valueOf(v)))
-                .orElse(Boolean.getBoolean("rule.engine.record_data_to_header"));
+            .getConfiguration(AbstractExecutionContext.RECORD_DATA_TO_HEADER)
+            .map(v -> "true".equals(String.valueOf(v)))
+            .orElse(Boolean.getBoolean("rule.engine.record_data_to_header"));
 
         if (recordDataToHeader) {
             recordDataToHeaderKey =
-                    RECORD_DATA_TO_HEADER_KEY_PREFIX + job
-                            .getConfiguration(AbstractExecutionContext.RECORD_DATA_TO_HEADER_KEY)
-                            .map(String::valueOf)
-                            .orElse(job.getNodeId());
+                RECORD_DATA_TO_HEADER_KEY_PREFIX + job
+                    .getConfiguration(AbstractExecutionContext.RECORD_DATA_TO_HEADER_KEY)
+                    .map(String::valueOf)
+                    .orElse(job.getNodeId());
         } else {
             recordDataToHeaderKey = null;
         }

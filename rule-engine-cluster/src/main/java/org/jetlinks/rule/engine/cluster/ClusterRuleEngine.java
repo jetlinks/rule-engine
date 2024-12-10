@@ -139,7 +139,9 @@ public class ClusterRuleEngine implements RuleEngine {
                 .collectList()
                 .flatMapIterable(Function.identity())
                 //统一启动
-                .flatMap(task -> task.start().thenReturn(task)));
+                .flatMap(task -> task.start().thenReturn(task),
+                         16,
+                         Integer.MAX_VALUE));
     }
 
     //获取调度中的任务信息
