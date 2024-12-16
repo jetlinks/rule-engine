@@ -104,7 +104,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
         data.setHeader(RuleConstants.Headers.modelType, getJob().getModelType());
 
         Mono<T> then = eventBus
-            .publish(RuleConstants.Topics.event(job.getInstanceId(), job.getNodeId(), event), data)
+            .publish(RuleConstants.Topics.event0(job.getInstanceId(), job.getNodeId(), event), data)
             .doOnSubscribe(ignore -> log.trace("fire job task [{}] event [{}] ", job, event))
             .then(Mono.empty());
         Output output = eventOutputs.get(event);

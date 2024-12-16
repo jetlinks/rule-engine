@@ -36,7 +36,7 @@ public class EventBusEventOutput implements Output {
         return eventBus.publish(createTopic(nodeId), data).then();
     }
 
-    protected String createTopic(String node) {
+    protected CharSequence createTopic(String node) {
         return RuleConstants.Topics.input(instanceId, node);
     }
 

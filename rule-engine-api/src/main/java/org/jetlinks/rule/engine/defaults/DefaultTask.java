@@ -60,14 +60,16 @@ public class DefaultTask implements Task {
             data.put("nodeId", context.getJob().getNodeId());
             data.put("timestamp", System.currentTimeMillis());
             Flux.merge(
-                        context.getEventBus()
-                               .publish(RuleConstants.Topics.state(context.getInstanceId(), context
-                                       .getJob()
-                                       .getNodeId()), data),
-                        context.getEventBus()
-                               .publish(RuleConstants.Topics.event(context.getInstanceId(), context
-                                       .getJob()
-                                       .getNodeId(), to.name()), context.newRuleData(data))
+                    context.getEventBus()
+                           .publish(RuleConstants.Topics.state0(
+                               context.getInstanceId(),
+                               context.getJob().getNodeId()), data),
+                    context.getEventBus()
+                           .publish(RuleConstants.Topics.event0(
+                                        context.getInstanceId(),
+                                        context.getJob().getNodeId(),
+                                        to.name()),
+                                    context.newRuleData(data))
                 )
                 .doOnError(err -> log.error(err.getMessage(), err))
                 .subscribe();
@@ -124,14 +126,14 @@ public class DefaultTask implements Task {
     public Mono<Void> reload() {
         log.debug("reload task[{}]:[{}]", getId(), getJob());
         return Mono
-                .<Void>fromRunnable(() -> {
-                    context.reload();
-                    executor.reload();
-                })
-                .as(MonoTracer.create(
-                        RuleConstants.Trace.reloadNodeSpanName(getJob().getInstanceId(), getJob().getNodeId()),
-                        builder -> builder.setAttribute(RuleConstants.Trace.executor, getJob().getExecutor())))
-                .subscribeOn(Schedulers.boundedElastic());
+            .<Void>fromRunnable(() -> {
+                context.reload();
+                executor.reload();
+            })
+            .as(MonoTracer.create(
+                RuleConstants.Trace.reloadNodeSpanName(getJob().getInstanceId(), getJob().getNodeId()),
+                builder -> builder.setAttribute(RuleConstants.Trace.executor, getJob().getExecutor())))
+            .subscribeOn(Schedulers.boundedElastic());
     }
 
 
@@ -146,8 +148,8 @@ public class DefaultTask implements Task {
         return Mono.<Void>fromRunnable(executor::start)
                    .doOnSuccess((v) -> startTime = System.currentTimeMillis())
                    .as(MonoTracer.create(
-                           RuleConstants.Trace.startNodeSpanName(getJob().getInstanceId(), getJob().getNodeId()),
-                           builder -> builder.setAttribute(RuleConstants.Trace.executor, getJob().getExecutor())))
+                       RuleConstants.Trace.startNodeSpanName(getJob().getInstanceId(), getJob().getNodeId()),
+                       builder -> builder.setAttribute(RuleConstants.Trace.executor, getJob().getExecutor())))
                    .subscribeOn(Schedulers.boundedElastic());
     }
 
@@ -171,12 +173,12 @@ public class DefaultTask implements Task {
     public Mono<Void> shutdown() {
         log.debug("shutdown task[{}]:[{}]", getId(), getJob());
         return Mono
-                .fromRunnable(executor::shutdown)
-                .then(Mono.<Void>fromRunnable(context::doShutdown))
-                .as(MonoTracer.create(
-                        RuleConstants.Trace.shutdownNodeSpanName(getJob().getInstanceId(), getJob().getNodeId()),
-                        builder -> builder.setAttribute(RuleConstants.Trace.executor, getJob().getExecutor())))
-                .subscribeOn(Schedulers.boundedElastic());
+            .fromRunnable(executor::shutdown)
+            .then(Mono.<Void>fromRunnable(context::doShutdown))
+            .as(MonoTracer.create(
+                RuleConstants.Trace.shutdownNodeSpanName(getJob().getInstanceId(), getJob().getNodeId()),
+                builder -> builder.setAttribute(RuleConstants.Trace.executor, getJob().getExecutor())))
+            .subscribeOn(Schedulers.boundedElastic());
     }
 
     /**
@@ -189,8 +191,8 @@ public class DefaultTask implements Task {
         log.debug("execute task[{}]:[{}]", getId(), getJob());
         if (executor instanceof ExecutableTaskExecutor) {
             return TraceHolder
-                    .writeContextTo(data, RuleData::setHeader)
-                    .flatMap(ruleData -> ((ExecutableTaskExecutor) executor).execute(ruleData));
+                .writeContextTo(data, RuleData::setHeader)
+                .flatMap(ruleData -> ((ExecutableTaskExecutor) executor).execute(ruleData));
         }
         return Mono.empty();
     }

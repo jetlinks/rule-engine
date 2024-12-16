@@ -1,6 +1,8 @@
 package org.jetlinks.rule.engine.api;
 
 import io.opentelemetry.api.common.AttributeKey;
+import org.jetlinks.core.lang.SeparatedCharSequence;
+import org.jetlinks.core.lang.SharedPathString;
 import org.jetlinks.core.trace.FluxTracer;
 import org.jetlinks.core.trace.MonoTracer;
 import org.jetlinks.core.trace.ReactiveSpanBuilder;
@@ -42,6 +44,14 @@ public interface RuleConstants {
 
     interface Topics {
 
+        SharedPathString templatePrefix = SharedPathString.of("/rule-engine/*/*");
+        SharedPathString allEvent = SharedPathString.of("/rule-engine/*/*/event/*");
+        SharedPathString allLogger = SharedPathString.of("/rule-engine/*/*/logger/*");
+
+        static SeparatedCharSequence prefix0(String instanceId, String nodeId) {
+            return templatePrefix.replace(2, instanceId, 3, nodeId);
+        }
+
         static String prefix(String instanceId, String nodeId) {
             return "/rule-engine/" + instanceId + "/" + nodeId;
         }
@@ -54,6 +64,11 @@ public interface RuleConstants {
             return prefix(instanceId, nodeId) + "/shutdown";
         }
 
+
+        static CharSequence event0(String instanceId, String nodeId, String event) {
+            return allEvent.replace(2, instanceId, 3, nodeId, 5, event);
+        }
+
         static String event(String instanceId, String nodeId, String event) {
             return prefix(instanceId, nodeId) + "/event/" + event;
         }
@@ -62,9 +77,16 @@ public interface RuleConstants {
             return prefix(instanceId, nodeId) + "/logger/" + level;
         }
 
+        static CharSequence logger0(String instanceId, String nodeId, String level) {
+            return allLogger.replace(2, instanceId, 3, nodeId, 5, level);
+        }
 
         static String state(String instanceId, String nodeId) {
             return prefix(instanceId, nodeId) + "/state";
+        }
+
+        static SeparatedCharSequence state0(String instanceId, String nodeId) {
+            return prefix0(instanceId, nodeId).append("state");
         }
     }
 
@@ -97,21 +119,22 @@ public interface RuleConstants {
         }
 
         static <T> MonoTracer<T> traceMono(ScheduleJob job, String operation) {
-            return traceMono(job,operation,(job1,builder)->{
+            return traceMono(job, operation, (job1, builder) -> {
 
             });
         }
+
         static <T> MonoTracer<T> traceMono(ScheduleJob job, String operation,
                                            BiConsumer<ScheduleJob, ReactiveSpanBuilder> biConsumer) {
 
             return MonoTracer.create(
-                    nodeSpanName(job.getInstanceId(), job.getNodeId(), operation),
-                    builder -> {
-                        builder.setAttribute(instanceId, job.getInstanceId());
-                        builder.setAttribute(nodeId, job.getNodeId());
-                        builder.setAttribute(name, job.getName());
-                        biConsumer.accept(job, builder);
-                    });
+                nodeSpanName(job.getInstanceId(), job.getNodeId(), operation),
+                builder -> {
+                    builder.setAttribute(instanceId, job.getInstanceId());
+                    builder.setAttribute(nodeId, job.getNodeId());
+                    builder.setAttribute(name, job.getName());
+                    biConsumer.accept(job, builder);
+                });
 
         }
 
@@ -120,17 +143,18 @@ public interface RuleConstants {
 
             });
         }
+
         static <T> FluxTracer<T> traceFlux(ScheduleJob job, String operation,
                                            BiConsumer<ScheduleJob, ReactiveSpanBuilder> biConsumer) {
 
             return FluxTracer.create(
-                    nodeSpanName(job.getInstanceId(), job.getNodeId(), operation),
-                    builder -> {
-                        builder.setAttribute(instanceId, job.getInstanceId());
-                        builder.setAttribute(nodeId, job.getNodeId());
-                        builder.setAttribute(name, job.getName());
-                        biConsumer.accept(job, builder);
-                    });
+                nodeSpanName(job.getInstanceId(), job.getNodeId(), operation),
+                builder -> {
+                    builder.setAttribute(instanceId, job.getInstanceId());
+                    builder.setAttribute(nodeId, job.getNodeId());
+                    builder.setAttribute(name, job.getName());
+                    biConsumer.accept(job, builder);
+                });
 
         }
     }

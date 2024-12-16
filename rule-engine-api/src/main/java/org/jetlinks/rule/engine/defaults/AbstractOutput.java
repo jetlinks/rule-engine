@@ -45,7 +45,7 @@ public abstract class AbstractOutput implements Output {
             List<Function<RuleData, Mono<Boolean>>> writers = new ArrayList<>(outputs.size());
 
             for (ScheduleJob.Output output : outputs) {
-                String address = createOutputAddress(output.getOutput());
+                CharSequence address = createOutputAddress(output.getOutput());
                 Function<RuleData, Mono<Boolean>> writer;
                 //配置了输出条件
                 if (output.getCondition() != null) {
@@ -96,9 +96,9 @@ public abstract class AbstractOutput implements Output {
                 .then();
     }
 
-    protected abstract Mono<Boolean> doWrite(String address, Publisher<RuleData> data);
+    protected abstract Mono<Boolean> doWrite(CharSequence address, Publisher<RuleData> data);
 
-    protected abstract Mono<Boolean> doWrite(String address, RuleData data);
+    protected abstract Mono<Boolean> doWrite(CharSequence address, RuleData data);
 
     @Override
     public final Mono<Void> write(String nodeId, RuleData data) {
@@ -106,7 +106,7 @@ public abstract class AbstractOutput implements Output {
                 .then();
     }
 
-    protected String createOutputAddress(String nodeId) {
+    protected CharSequence createOutputAddress(String nodeId) {
         return RuleConstants.Topics.input(instanceId, nodeId);
     }
 }

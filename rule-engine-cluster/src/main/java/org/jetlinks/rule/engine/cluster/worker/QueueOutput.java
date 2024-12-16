@@ -26,16 +26,16 @@ public class QueueOutput extends AbstractOutput {
     }
 
     @Override
-    protected Mono<Boolean> doWrite(String address, RuleData data) {
+    protected Mono<Boolean> doWrite(CharSequence address, RuleData data) {
         return clusterManager
-                .<RuleData>getQueue(address)
+                .<RuleData>getQueue(String.valueOf(address))
                 .add(data);
     }
 
     @Override
-    protected Mono<Boolean> doWrite(String address, Publisher<RuleData> data) {
+    protected Mono<Boolean> doWrite(CharSequence address, Publisher<RuleData> data) {
         return clusterManager
-                .<RuleData>getQueue(address)
+                .<RuleData>getQueue(String.valueOf(address))
                 .add(data);
     }
 
