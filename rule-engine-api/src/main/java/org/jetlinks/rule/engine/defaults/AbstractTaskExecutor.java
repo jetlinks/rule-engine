@@ -4,6 +4,7 @@ import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.context.Context;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.jetlinks.core.lang.SharedPathString;
 import org.jetlinks.core.trace.FluxTracer;
 import org.jetlinks.core.trace.MonoTracer;
 import org.jetlinks.rule.engine.api.RuleData;
@@ -40,10 +41,14 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
         this.context = context;
     }
 
-    protected String createSpanName() {
-        return "/rule-runtime/" + context.getJob().getExecutor() +
-            "/" + context.getInstanceId() +
-            "/" + context.getJob().getNodeId();
+    protected CharSequence createSpanName() {
+        return SharedPathString.of(new String[]{
+            "",
+            "rule-runtime",
+            context.getJob().getExecutor(),
+            context.getInstanceId(),
+            context.getJob().getNodeId()
+        });
     }
 
     protected <T> MonoTracer<T> createMonoTracer() {
