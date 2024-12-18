@@ -63,9 +63,19 @@ public class RuleData extends GenericHeaderSupport<RuleData> implements External
         addHeader(key, value);
     }
 
+    @SuppressWarnings("all")
     public Flux<Map<String, Object>> dataToMap() {
-
-        return Flux.generate(sink -> {
+        Object data = this.data;
+        if (data instanceof Map) {
+            return Flux.just(((Map) data));
+        }
+        if (data instanceof Jsonable) {
+            return Flux.just(((Jsonable) data).toJson());
+        }
+        if (data instanceof RuleData) {
+            return ((RuleData) data).dataToMap();
+        }
+        return Flux.create(sink -> {
             acceptMap(sink::next);
             sink.complete();
         });
@@ -93,7 +103,9 @@ public class RuleData extends GenericHeaderSupport<RuleData> implements External
         }
 
         if (data instanceof Map) {
-            doAcceptMap(data, consumer);
+            consumer.accept(((Map) data));
+        } else if (data instanceof Jsonable) {
+            consumer.accept(((Jsonable) data).toJson());
         } else if (data instanceof RuleData) {
             ((RuleData) data).acceptMap(consumer);
         } else if (data instanceof Iterable) {
