@@ -54,7 +54,7 @@ public class EventLogger implements Logger {
     private void publishLog(String level, String message, Object... args) {
         eventBus
                 .publish(RuleConstants.Topics.logger0(instanceId, nodeId, level),
-                         Mono.fromSupplier(() -> createLog(level, message, args)))
+                         () -> createLog(level, message, args))
                 .subscribe();
     }
 
