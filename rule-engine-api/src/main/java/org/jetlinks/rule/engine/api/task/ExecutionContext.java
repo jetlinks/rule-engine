@@ -59,6 +59,11 @@ public interface ExecutionContext {
      */
     <T> Mono<T> fireEvent(@Nonnull String event, @Nonnull RuleData data);
 
+    default <T> Mono<T> fireEvent(@Nonnull String event,
+                                  @Nonnull Supplier<RuleData> supplier) {
+        return fireEvent(event, supplier.get());
+    }
+
     /**
      * 触发error,此方法永远返回{@link Mono#empty()},此操作也会触发{@link org.jetlinks.rule.engine.api.RuleConstants.Event#error}事件
      *
@@ -121,10 +126,10 @@ public interface ExecutionContext {
      * 创建规则数据,通常用于基于规则输入生成新的数据.
      *
      * @param source 输入的源数据
-     * @param data 需要输出的数据
+     * @param data   需要输出的数据
      * @return 规则数据
      */
-    RuleData newRuleData(RuleData source,Object data);
+    RuleData newRuleData(RuleData source, Object data);
 
 
     /**

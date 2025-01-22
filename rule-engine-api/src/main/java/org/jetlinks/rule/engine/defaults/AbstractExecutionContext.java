@@ -3,8 +3,9 @@ package org.jetlinks.rule.engine.defaults;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.hswebframework.utils.StringUtils;
+import org.jetlinks.core.Lazy;
 import org.jetlinks.core.event.EventBus;
+import org.jetlinks.core.utils.ExceptionUtils;
 import org.jetlinks.rule.engine.api.*;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scope.GlobalScope;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.jetlinks.rule.engine.api.RuleData.HEADER_SOURCE_NODE_ID;
@@ -95,6 +97,33 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
     }
 
     @Override
+    public <T> Mono<T> fireEvent(@Nonnull String event,
+                                 @Nonnull Supplier<RuleData> supplier) {
+
+        Supplier<RuleData> builder =
+            Lazy.of(() -> {
+                RuleData data = supplier.get();
+                data.setHeader(RuleConstants.Headers.ruleConfiguration, getJob().getRuleConfiguration());
+                data.setHeader(RuleConstants.Headers.jobExecutor, getJob().getExecutor());
+                data.setHeader(RuleConstants.Headers.modelType, getJob().getModelType());
+                return data;
+            });
+
+        Mono<T> then = eventBus
+            .publish(RuleConstants.Topics.event0(job.getInstanceId(), job.getNodeId(), event), builder)
+            .then(Mono.empty());
+
+        Output output = eventOutputs.get(event);
+
+        if (output != null) {
+            return output
+                .write(builder.get())
+                .then(then);
+        }
+        return then;
+    }
+
+    @Override
     public <T> Mono<T> fireEvent(@Nonnull String event, @Nonnull RuleData data) {
         //规则自定义配置
         data.setHeader(RuleConstants.Headers.ruleConfiguration, getJob().getRuleConfiguration());
@@ -103,9 +132,10 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
         //模型类型
         data.setHeader(RuleConstants.Headers.modelType, getJob().getModelType());
 
+        log.trace("fire job task [{}] event [{}] ", job, event);
+
         Mono<T> then = eventBus
             .publish(RuleConstants.Topics.event0(job.getInstanceId(), job.getNodeId(), event), data)
-            .doOnSubscribe(ignore -> log.trace("fire job task [{}] event [{}] ", job, event))
             .then(Mono.empty());
         Output output = eventOutputs.get(event);
         if (output != null) {
@@ -118,7 +148,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
 
     @Override
     public <T> Mono<T> onError(@Nullable Throwable e, @Nullable RuleData sourceData) {
-        return fireEvent(RuleConstants.Event.error, createErrorData(e, sourceData));
+        return fireEvent(RuleConstants.Event.error, () -> createErrorData(e, sourceData));
     }
 
     private RuleData createErrorData(Throwable e, RuleData source) {
@@ -138,7 +168,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
         if (e != null) {
             error.put("type", e.getClass().getSimpleName());
             error.put("message", e.getMessage());
-            error.put("stack", StringUtils.throwable2String(e));
+            error.put("stack", ExceptionUtils.getStackTrace(e));
         }
         Map<String, Object> sourceInfo = new HashMap<>();
         sourceInfo.put("id", getJob().getNodeId());
