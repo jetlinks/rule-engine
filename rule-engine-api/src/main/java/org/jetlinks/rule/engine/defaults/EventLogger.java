@@ -3,12 +3,11 @@ package org.jetlinks.rule.engine.defaults;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import org.hswebframework.utils.StringUtils;
 import org.jetlinks.core.event.EventBus;
+import org.jetlinks.core.utils.ExceptionUtils;
 import org.jetlinks.rule.engine.api.Logger;
 import org.jetlinks.rule.engine.api.RuleConstants;
 import org.slf4j.helpers.MessageFormatter;
-import reactor.core.publisher.Mono;
 
 import java.util.Arrays;
 import java.util.stream.Collectors;
@@ -64,8 +63,8 @@ public class EventLogger implements Logger {
                 .stream(args)
                 .filter(Throwable.class::isInstance)
                 .map(Throwable.class::cast)
-                .map(StringUtils::throwable2String)
-                .collect(Collectors.joining());
+                .map(ExceptionUtils::getStackTrace)
+                .collect(Collectors.joining("\n"));
 
         return LogEvent
                 .builder()
