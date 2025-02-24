@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.core.event.EventBus;
+import org.jetlinks.core.utils.Reactors;
 import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.task.Output;
@@ -14,19 +15,20 @@ import reactor.core.publisher.Mono;
 @AllArgsConstructor
 public class EventBusEventOutput implements Output {
 
-    private final String instanceId;
+    protected final String instanceId;
 
-    private final EventBus eventBus;
+    protected final EventBus eventBus;
 
     @Getter
-    private final String event;
+    protected final String event;
 
-    private final String sourceNode;
+    protected final String sourceNode;
 
     @Override
     public Mono<Boolean> write(Publisher<RuleData> dataStream) {
-        return eventBus.publish(createTopic(sourceNode), dataStream)
-                .thenReturn(true);
+        return eventBus
+            .publish(createTopic(sourceNode), dataStream)
+            .then(Reactors.ALWAYS_TRUE);
     }
 
     @Override
@@ -34,7 +36,7 @@ public class EventBusEventOutput implements Output {
         return eventBus.publish(createTopic(nodeId), data).then();
     }
 
-    private String createTopic(String node) {
+    protected CharSequence createTopic(String node) {
         return RuleConstants.Topics.input(instanceId, node);
     }
 

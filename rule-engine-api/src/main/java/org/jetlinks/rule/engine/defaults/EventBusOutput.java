@@ -2,6 +2,7 @@ package org.jetlinks.rule.engine.defaults;
 
 import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.core.event.EventBus;
+import org.jetlinks.core.utils.Reactors;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.task.ConditionEvaluator;
@@ -25,13 +26,13 @@ public class EventBusOutput extends AbstractOutput {
 
 
     @Override
-    protected Mono<Boolean> doWrite(String address, Publisher<RuleData> data) {
-        return eventBus.publish(address, data).thenReturn(true);
+    protected Mono<Boolean> doWrite(CharSequence address, Publisher<RuleData> data) {
+        return eventBus.publish(address, data).then(Reactors.ALWAYS_TRUE);
     }
 
     @Override
-    protected Mono<Boolean> doWrite(String address, RuleData data) {
-        return eventBus.publish(address, data).thenReturn(true);
+    protected Mono<Boolean> doWrite(CharSequence address, RuleData data) {
+        return eventBus.publish(address, data).then(Reactors.ALWAYS_TRUE);
     }
 
 

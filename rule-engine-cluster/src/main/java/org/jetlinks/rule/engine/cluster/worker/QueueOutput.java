@@ -20,24 +20,21 @@ public class QueueOutput extends AbstractOutput {
                        ClusterManager clusterManager,
                        List<ScheduleJob.Output> outputs,
                        ConditionEvaluator evaluator) {
-         super(instanceId,outputs,evaluator);
+        super(instanceId, outputs, evaluator);
         this.clusterManager = clusterManager;
-
     }
 
     @Override
-    protected Mono<Boolean> doWrite(String address, RuleData data) {
+    protected Mono<Boolean> doWrite(CharSequence address, Publisher<RuleData> data) {
         return clusterManager
-                .<RuleData>getQueue(address)
-                .add(data);
+            .<RuleData>getQueue(address.toString())
+            .add(data);
     }
 
     @Override
-    protected Mono<Boolean> doWrite(String address, Publisher<RuleData> data) {
+    protected Mono<Boolean> doWrite(CharSequence address, RuleData data) {
         return clusterManager
-                .<RuleData>getQueue(address)
-                .add(data);
+            .<RuleData>getQueue(address.toString())
+            .add(data);
     }
-
-
 }

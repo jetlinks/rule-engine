@@ -18,7 +18,7 @@ import java.util.function.Function;
 
 public abstract class AbstractOutput implements Output {
 
-    private final String instanceId;
+    protected final String instanceId;
 
     private final List<ScheduleJob.Output> outputs;
 
@@ -45,20 +45,20 @@ public abstract class AbstractOutput implements Output {
             List<Function<RuleData, Mono<Boolean>>> writers = new ArrayList<>(outputs.size());
 
             for (ScheduleJob.Output output : outputs) {
-                String address = createOutputAddress(output.getOutput());
+                CharSequence address = createOutputAddress(output.getOutput());
                 Function<RuleData, Mono<Boolean>> writer;
                 //配置了输出条件
                 if (output.getCondition() != null) {
                     Function<RuleData, Mono<Boolean>> condition = evaluator.prepare(output.getCondition());
                     writer = data -> condition
-                            .apply(data)
-                            .flatMap(passed -> {
-                                //条件判断返回true才认为成功
-                                if (passed) {
-                                    return doWrite(address, data);
-                                }
-                                return Reactors.ALWAYS_FALSE;
-                            });
+                        .apply(data)
+                        .flatMap(passed -> {
+                            //条件判断返回true才认为成功
+                            if (passed) {
+                                return doWrite(address, data);
+                            }
+                            return Reactors.ALWAYS_FALSE;
+                        });
                 } else {
                     writer = (data) -> doWrite(address, data);
                 }
@@ -68,12 +68,12 @@ public abstract class AbstractOutput implements Output {
             Flux<Function<RuleData, Mono<Boolean>>> flux = Flux.fromIterable(writers);
 
             this.writer = data -> TraceHolder
-                    .writeContextTo(data, RuleData::setHeader)
-                    .flatMap(ruleData -> flux
-                            .flatMap(writer -> writer
-                                    .apply(ruleData)
-                                    .onErrorResume(err -> Reactors.ALWAYS_FALSE))
-                            .reduce((a, b) -> a && b));
+                .writeContextTo(data, RuleData::setHeader)
+                .flatMap(ruleData -> flux
+                    .flatMap(writer -> writer
+                        .apply(ruleData)
+                        .onErrorResume(err -> Reactors.ALWAYS_FALSE))
+                    .reduce(Boolean::logicalAnd));
         }
     }
 
@@ -85,29 +85,28 @@ public abstract class AbstractOutput implements Output {
     @Override
     public final Mono<Boolean> write(Publisher<RuleData> dataStream) {
         return Flux
-                .from(dataStream)
-                .flatMap(this::write)
-                .all(Boolean::booleanValue)
-                ;
+            .from(dataStream)
+            .flatMap(this::write)
+            .reduce(Boolean::logicalAnd);
     }
 
     @Override
     public final Mono<Void> write(String nodeId, Publisher<RuleData> data) {
         return doWrite(createOutputAddress(nodeId), data)
-                .then();
+            .then();
     }
 
-    protected abstract Mono<Boolean> doWrite(String address, Publisher<RuleData> data);
+    protected abstract Mono<Boolean> doWrite(CharSequence address, Publisher<RuleData> data);
 
-    protected abstract Mono<Boolean> doWrite(String address, RuleData data);
+    protected abstract Mono<Boolean> doWrite(CharSequence address, RuleData data);
 
     @Override
     public final Mono<Void> write(String nodeId, RuleData data) {
         return doWrite(createOutputAddress(nodeId), data)
-                .then();
+            .then();
     }
 
-    protected String createOutputAddress(String nodeId) {
+    protected CharSequence createOutputAddress(String nodeId) {
         return RuleConstants.Topics.input(instanceId, nodeId);
     }
 }
