@@ -52,29 +52,25 @@ public class EventLogger implements Logger {
 
     private void publishLog(String level, String message, Object... args) {
         eventBus
-                .publish(RuleConstants.Topics.logger0(instanceId, nodeId, level),
-                         () -> createLog(level, message, args))
-                .subscribe();
+            .publish(RuleConstants.Topics.logger0(instanceId, nodeId, level),
+                     () -> createLog(level, message, args))
+            .subscribe();
     }
 
     private LogEvent createLog(String level, String message, Object... args) {
-
-        String exception = Arrays
-                .stream(args)
-                .filter(Throwable.class::isInstance)
-                .map(Throwable.class::cast)
-                .map(ExceptionUtils::getStackTrace)
-                .collect(Collectors.joining("\n"));
+        String exception = ExceptionUtils.getStackTrace(
+            MessageFormatter.getThrowableCandidate(args)
+        );
 
         return LogEvent
-                .builder()
-                .level(level)
-                .message(MessageFormatter.arrayFormat(message, args).getMessage())
-                .instanceId(instanceId)
-                .nodeId(nodeId)
-                .workerId(workerId)
-                .timestamp(System.currentTimeMillis())
-                .exception(exception)
-                .build();
+            .builder()
+            .level(level)
+            .message(MessageFormatter.arrayFormat(message, args).getMessage())
+            .instanceId(instanceId)
+            .nodeId(nodeId)
+            .workerId(workerId)
+            .timestamp(System.currentTimeMillis())
+            .exception(exception)
+            .build();
     }
 }
