@@ -142,7 +142,9 @@ public class RemoteTask implements Task {
 
     @Override
     public Mono<FunctionMetadata> getMetadata() {
-        return Task.super.getMetadata();
+        return rpcService
+            .getMetadata(id)
+            .mapNotNull(SchedulerRpcService.FunctionMetadataInfo::getMetadata);
     }
 
     @Override
