@@ -1,5 +1,8 @@
 package org.jetlinks.rule.engine.api.task;
 
+import org.jetlinks.core.metadata.FunctionMetadata;
+import reactor.core.publisher.Mono;
+
 import java.util.function.BiConsumer;
 
 /**
@@ -51,4 +54,16 @@ public interface TaskExecutor {
      * @see IllegalArgumentException
      */
     void validate();
+
+    /**
+     * 创建元数据，用于描述此任务的输入输出信息。
+     *
+     * @return 元数据
+     * @see FunctionMetadata#getInputs()
+     * @see FunctionMetadata#getOutput()
+     * @since 1.2.3
+     */
+    default Mono<FunctionMetadata> createMetadata() {
+        return Mono.empty();
+    }
 }

@@ -3,7 +3,7 @@ package org.jetlinks.rule.engine.defaults;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.jetlinks.core.trace.FluxTracer;
+import org.jetlinks.core.metadata.FunctionMetadata;
 import org.jetlinks.core.trace.MonoTracer;
 import org.jetlinks.core.trace.TraceHolder;
 import org.jetlinks.rule.engine.api.RuleConstants;
@@ -233,5 +233,10 @@ public class DefaultTask implements Task {
     @Override
     public Mono<Long> getStartTime() {
         return Mono.just(startTime);
+    }
+
+    @Override
+    public Mono<FunctionMetadata> getMetadata() {
+        return executor.createMetadata();
     }
 }

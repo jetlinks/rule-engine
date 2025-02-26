@@ -1,5 +1,6 @@
 package org.jetlinks.rule.engine.api.task;
 
+import org.jetlinks.core.metadata.FunctionMetadata;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import reactor.core.publisher.Mono;
@@ -111,24 +112,35 @@ public interface Task {
     Mono<Long> getStartTime();
 
     /**
+     * 获取此任务的元数据信息
+     *
+     * @return 元数据
+     * @see TaskExecutor#createMetadata()
+     * @since 1.2.3
+     */
+    default Mono<FunctionMetadata> getMetadata() {
+        return Mono.empty();
+    }
+
+    /**
      * 创建任务快照
      *
      * @return 任务快照
      */
     default Mono<TaskSnapshot> dump() {
         return Mono.zip(getState(), getLastStateTime(), getStartTime())
-                .map(tp3 -> {
-                    TaskSnapshot snapshot = new TaskSnapshot();
-                    snapshot.setId(getId());
-                    snapshot.setInstanceId(getJob().getInstanceId());
-                    snapshot.setJob(getJob());
-                    snapshot.setLastStateTime(tp3.getT2());
-                    snapshot.setState(tp3.getT1());
-                    snapshot.setWorkerId(getWorkerId());
-                    snapshot.setSchedulerId(getSchedulerId());
-                    snapshot.setStartTime(tp3.getT3());
-                    return snapshot;
-                });
+                   .map(tp3 -> {
+                       TaskSnapshot snapshot = new TaskSnapshot();
+                       snapshot.setId(getId());
+                       snapshot.setInstanceId(getJob().getInstanceId());
+                       snapshot.setJob(getJob());
+                       snapshot.setLastStateTime(tp3.getT2());
+                       snapshot.setState(tp3.getT1());
+                       snapshot.setWorkerId(getWorkerId());
+                       snapshot.setSchedulerId(getSchedulerId());
+                       snapshot.setStartTime(tp3.getT3());
+                       return snapshot;
+                   });
     }
 
     default boolean isSameTask(TaskSnapshot snapshot) {

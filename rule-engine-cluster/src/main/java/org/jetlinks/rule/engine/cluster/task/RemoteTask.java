@@ -2,6 +2,7 @@ package org.jetlinks.rule.engine.cluster.task;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.jetlinks.core.metadata.FunctionMetadata;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.task.Task;
@@ -137,6 +138,11 @@ public class RemoteTask implements Task {
     @Override
     public Mono<Long> getStartTime() {
         return rpcService.getStartTime(id);
+    }
+
+    @Override
+    public Mono<FunctionMetadata> getMetadata() {
+        return Task.super.getMetadata();
     }
 
     @Override

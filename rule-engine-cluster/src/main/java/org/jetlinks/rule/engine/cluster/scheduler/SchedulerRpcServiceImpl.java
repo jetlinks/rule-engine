@@ -170,4 +170,11 @@ public class SchedulerRpcServiceImpl implements SchedulerRpcService {
         return getTask0(taskId)
                 .flatMap(Task::dump);
     }
+
+    @Override
+    public Mono<FunctionMetadataInfo> getMetadata(String taskId) {
+        return getTask0(taskId)
+            .flatMap(Task::getMetadata)
+            .map(FunctionMetadataInfo::new);
+    }
 }
