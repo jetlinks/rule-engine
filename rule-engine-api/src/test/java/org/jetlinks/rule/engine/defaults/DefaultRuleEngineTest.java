@@ -4,11 +4,10 @@ import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.model.RuleLink;
 import org.jetlinks.rule.engine.api.model.RuleModel;
 import org.jetlinks.rule.engine.api.model.RuleNodeModel;
-import org.jetlinks.supports.event.BrokerEventBus;
+import org.jetlinks.supports.event.InternalEventBus;
 import org.junit.Assert;
 import org.junit.Test;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -19,8 +18,7 @@ public class DefaultRuleEngineTest {
     @Test
     public void test() {
 
-        BrokerEventBus eventBus=new BrokerEventBus();
-        eventBus.setPublishScheduler(Schedulers.immediate());
+        InternalEventBus eventBus=new InternalEventBus();
         LocalScheduler scheduler = new LocalScheduler("local");
 
         LocalWorker worker = new LocalWorker("local", "Local", eventBus, (c, d) -> true);
