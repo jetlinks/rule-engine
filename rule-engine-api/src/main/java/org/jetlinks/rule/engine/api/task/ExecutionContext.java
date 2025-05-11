@@ -1,5 +1,6 @@
 package org.jetlinks.rule.engine.api.task;
 
+import org.jetlinks.core.monitor.Monitor;
 import org.jetlinks.rule.engine.api.Logger;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
@@ -40,6 +41,16 @@ public interface ExecutionContext {
      */
     default Logger logger() {
         return getLogger();
+    }
+
+    /**
+     * 获取监控接口,用于对任务节点进行监控，日志等操作。
+     *
+     * @return monitor
+     * @since 1.3
+     */
+    default Monitor monitor() {
+        return Monitor.noop();
     }
 
     /**
