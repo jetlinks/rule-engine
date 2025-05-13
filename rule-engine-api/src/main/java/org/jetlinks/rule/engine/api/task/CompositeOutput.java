@@ -14,19 +14,34 @@ public class CompositeOutput implements Output {
     private final List<Output> outputs;
 
     @Override
+    public Mono<Boolean> write(RuleData data) {
+        return Flux
+            .fromIterable(outputs)
+            .flatMap(out -> out.write(data))
+            .reduce(Boolean::logicalAnd);
+    }
+
+    @Override
     public Mono<Boolean> write(Publisher<RuleData> dataStream) {
         return Flux.from(dataStream)
-                .flatMap(data -> Flux.fromIterable(outputs)
-                        .flatMap(out -> out.write(data)))
-                .reduce(Boolean::equals)
-                ;
+                   .flatMap(data -> Flux.fromIterable(outputs)
+                                        .flatMap(out -> out.write(data)))
+                   .reduce(Boolean::logicalAnd);
+    }
+
+    @Override
+    public Mono<Void> write(String nodeId, RuleData data) {
+        return Flux
+            .fromIterable(outputs)
+            .flatMap(out -> out.write(nodeId,data))
+            .then();
     }
 
     @Override
     public Mono<Void> write(String nodeId, Publisher<RuleData> dataStream) {
         return Flux.from(dataStream)
-                .flatMap(data -> Flux.fromIterable(outputs)
-                        .flatMap(out -> out.write(nodeId, Mono.just(data))))
-                .then();
+                   .flatMap(data -> Flux.fromIterable(outputs)
+                                        .flatMap(out -> out.write(nodeId, Mono.just(data))))
+                   .then();
     }
 }

@@ -27,12 +27,16 @@ public class EventBusOutput extends AbstractOutput {
 
     @Override
     protected Mono<Boolean> doWrite(CharSequence address, Publisher<RuleData> data) {
-        return eventBus.publish(address, data).then(Reactors.ALWAYS_TRUE);
+        return eventBus
+            .publish(address, data)
+            .map(i -> i > 0);
     }
 
     @Override
     protected Mono<Boolean> doWrite(CharSequence address, RuleData data) {
-        return eventBus.publish(address, data).then(Reactors.ALWAYS_TRUE);
+        return eventBus
+            .publish(address, data)
+            .map(i -> i > 0);
     }
 
 

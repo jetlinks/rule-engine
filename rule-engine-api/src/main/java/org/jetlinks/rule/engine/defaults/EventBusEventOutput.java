@@ -25,10 +25,19 @@ public class EventBusEventOutput implements Output {
     protected final String sourceNode;
 
     @Override
+    public Mono<Boolean> write(RuleData data) {
+        return eventBus
+            .publish(createTopic(sourceNode), data)
+            // 有订阅者则认为成功
+            .map(i -> i > 0);
+    }
+
+    @Override
     public Mono<Boolean> write(Publisher<RuleData> dataStream) {
         return eventBus
             .publish(createTopic(sourceNode), dataStream)
-            .then(Reactors.ALWAYS_TRUE);
+            // 有订阅者则认为成功
+            .map(i -> i > 0);
     }
 
     @Override
