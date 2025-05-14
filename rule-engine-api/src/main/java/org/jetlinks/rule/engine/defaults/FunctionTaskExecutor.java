@@ -19,6 +19,12 @@ import java.util.function.Function;
 
 public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implements TaskExecutor {
 
+    /**
+     * 默认最大递归次数限制.
+     * -Drule.engine.max_recursive=0
+     */
+    static final int DEFAULT_MAX_RECURSIVE = Integer.getInteger("rule.engine.max_recursive", 0);
+
     @Getter
     private final String name;
 
@@ -54,7 +60,7 @@ public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implemen
     }
 
     protected int maxRecursive() {
-        return 0;
+        return DEFAULT_MAX_RECURSIVE;
     }
 
     @Override
