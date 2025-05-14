@@ -3,6 +3,7 @@ package org.jetlinks.rule.engine.defaults;
 import lombok.Getter;
 import org.jetlinks.core.trace.TraceHolder;
 import org.jetlinks.core.utils.Reactors;
+import org.jetlinks.core.utils.RecursiveUtils;
 import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.task.ExecutionContext;
@@ -13,6 +14,8 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.context.Context;
+
+import java.util.function.Function;
 
 public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implements TaskExecutor {
 
@@ -27,23 +30,36 @@ public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implemen
     protected abstract Publisher<RuleData> apply(RuleData input);
 
     private Mono<Void> doApply(RuleData input) {
-        return context
-            .getOutput()
-            .write(Flux.from(this.apply(input))
-                       .concatMap(output -> context
-                                      .fireEvent(RuleConstants.Event.result, output)
-                                      .thenReturn(output),
-                                  0))
+
+        return Flux
+            .from(this.apply(input))
+            .concatMap(data -> context
+                .fireEvent(RuleConstants.Event.result, data)
+                .then(context.getOutput().write(data)), 0)
             .then(context.fireEvent(RuleConstants.Event.complete, input))
+            .contextWrite(contextWriter())
             .as(tracer())
             .onErrorResume(error -> context.onError(error, input))
-            .contextWrite(TraceHolder.readToContext(Context.empty(), input.getHeaders()))
             .then();
+    }
+
+    protected Function<Context, Context> contextWriter() {
+        if (maxRecursive() >= 0) {
+            return RecursiveUtils
+                .validator(
+                    "rule:" + context.getInstanceId() + ":" + context.getJob().getNodeId(),
+                    maxRecursive());
+        }
+        return Function.identity();
+    }
+
+    protected int maxRecursive() {
+        return 0;
     }
 
     @Override
     public final Mono<Void> execute(RuleData ruleData) {
-        return doApply(ruleData);
+        return doApply(context.newRuleData(ruleData));
     }
 
     @Override

@@ -15,6 +15,9 @@ public class CompositeOutput implements Output {
 
     @Override
     public Mono<Boolean> write(RuleData data) {
+        if (outputs.size() == 1) {
+            return outputs.get(0).write(data);
+        }
         return Flux
             .fromIterable(outputs)
             .flatMap(out -> out.write(data))
@@ -31,9 +34,12 @@ public class CompositeOutput implements Output {
 
     @Override
     public Mono<Void> write(String nodeId, RuleData data) {
+        if (outputs.size() == 1) {
+            return outputs.get(0).write(nodeId, data);
+        }
         return Flux
             .fromIterable(outputs)
-            .flatMap(out -> out.write(nodeId,data))
+            .flatMap(out -> out.write(nodeId, data))
             .then();
     }
 

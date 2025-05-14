@@ -137,7 +137,7 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
     public Mono<Void> execute(RuleData ruleData) {
         return context
             .getOutput()
-            .write(ruleData)
+            .write(context.newRuleData(ruleData))
             .as(tracer())
             .then()
             ;
