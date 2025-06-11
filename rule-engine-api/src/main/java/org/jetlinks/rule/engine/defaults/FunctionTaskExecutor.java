@@ -1,9 +1,7 @@
 package org.jetlinks.rule.engine.defaults;
 
 import lombok.Getter;
-import org.jetlinks.core.trace.TraceHolder;
 import org.jetlinks.core.utils.Reactors;
-import org.jetlinks.core.utils.RecursiveUtils;
 import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.task.ExecutionContext;
@@ -13,17 +11,8 @@ import org.reactivestreams.Publisher;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.context.Context;
-
-import java.util.function.Function;
 
 public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implements TaskExecutor {
-
-    /**
-     * 默认最大递归次数限制.
-     * -Drule.engine.max_recursive=0
-     */
-    static final int DEFAULT_MAX_RECURSIVE = Integer.getInteger("rule.engine.max_recursive", 0);
 
     @Getter
     private final String name;
@@ -47,20 +36,6 @@ public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implemen
             .as(tracer())
             .onErrorResume(error -> context.onError(error, input))
             .then();
-    }
-
-    protected Function<Context, Context> contextWriter() {
-        if (maxRecursive() >= 0) {
-            return RecursiveUtils
-                .validator(
-                    "rule:" + context.getInstanceId() + ":" + context.getJob().getNodeId(),
-                    maxRecursive());
-        }
-        return Function.identity();
-    }
-
-    protected int maxRecursive() {
-        return DEFAULT_MAX_RECURSIVE;
     }
 
     @Override

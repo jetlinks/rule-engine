@@ -137,7 +137,9 @@ public class RuleData extends GenericHeaderSupport<RuleData> implements External
             data = ((RuleData) data).getData();
         }
         ruleData.id = IDGenerator.RANDOM.generate();
-        ruleData.setHeaders(getHeaders());
+        if (getHeaders() != null) {
+            getHeaders().forEach(ruleData::addHeader);
+        }
         ruleData.data = data;
         ruleData.contextId = contextId;
         RuleDataHelper.clearError(ruleData);
@@ -148,7 +150,9 @@ public class RuleData extends GenericHeaderSupport<RuleData> implements External
         RuleData ruleData = new RuleData();
         ruleData.id = id;
         ruleData.contextId = contextId;
-        ruleData.setHeaders(getHeaders());
+        if (getHeaders() != null) {
+            getHeaders().forEach(ruleData::addHeader);
+        }
         ruleData.data = data;
         return ruleData;
     }
@@ -183,12 +187,9 @@ public class RuleData extends GenericHeaderSupport<RuleData> implements External
 
     @Override
     public Object routeKey() {
-        if (data instanceof Routable) {
-            return ((Routable) data).routeKey();
-        }
         return this
             .getHeader(Headers.routeKey)
-            .orElse(null);
+            .orElseGet(() -> data instanceof Routable ? ((Routable) data).routeKey() : contextId);
     }
 
     @Override

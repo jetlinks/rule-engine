@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.core.lang.SharedPathString;
 import org.jetlinks.core.trace.FluxTracer;
 import org.jetlinks.core.trace.MonoTracer;
+import org.jetlinks.core.utils.RecursiveUtils;
 import org.jetlinks.core.utils.RecyclerUtils;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.task.ExecutableTaskExecutor;
@@ -16,10 +17,17 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 @Slf4j
 public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
     protected final static AttributeKey<String> executor_name = AttributeKey.stringKey("name");
+
+    /**
+     * 默认最大递归次数限制.
+     * -Drule.engine.max_recursive=0
+     */
+    protected static final int DEFAULT_MAX_RECURSIVE = Integer.getInteger("rule.engine.max_recursive", 0);
 
     @Getter
     protected ExecutionContext context;
@@ -139,7 +147,21 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
             .getOutput()
             .write(context.newRuleData(ruleData))
             .as(tracer())
-            .then()
-            ;
+            .then();
     }
+
+    protected Function<reactor.util.context.Context, reactor.util.context.Context> contextWriter() {
+        if (maxRecursive() >= 0) {
+            return RecursiveUtils
+                .validator(
+                    "rule:" + context.getInstanceId() + ":" + context.getJob().getNodeId(),
+                    maxRecursive());
+        }
+        return Function.identity();
+    }
+
+    protected int maxRecursive() {
+        return DEFAULT_MAX_RECURSIVE;
+    }
+
 }
