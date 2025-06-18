@@ -2,6 +2,7 @@ package org.jetlinks.rule.engine.cluster;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hswebframework.web.exception.I18nSupportException;
 import org.jetlinks.core.trace.FluxTracer;
 import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.RuleEngine;
@@ -160,7 +161,8 @@ public class ClusterRuleEngine implements RuleEngine {
 
     private Flux<Task> scheduleTask(ScheduleJob job) {
         return selectScheduler(job)
-            .switchIfEmpty(Mono.error(() -> new UnsupportedOperationException("no scheduler for " + job.getExecutor())))
+            .switchIfEmpty(Mono.error(() -> new I18nSupportException
+                .NoStackTrace("error.rule.engine.unsupported_executor", job.getExecutor())))
             .flatMap(scheduler -> scheduler.schedule(job));
     }
 
