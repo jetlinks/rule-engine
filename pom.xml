@@ -51,7 +51,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.build.locales>zh_CN</project.build.locales>
-        <java.version>1.8</java.version>
+        <java.version>17</java.version>
         <project.build.jdk>${java.version}</project.build.jdk>
     </properties>
 
