@@ -12,6 +12,7 @@ import java.util.Map;
  * @author zhouhao
  * @since 1.0.0
  */
+@Deprecated
 public class ScriptConditionEvaluatorStrategy implements ConditionEvaluatorStrategy {
 
     private final ScriptEvaluator scriptEvaluator;

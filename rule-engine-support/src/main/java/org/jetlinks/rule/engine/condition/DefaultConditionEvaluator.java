@@ -1,5 +1,7 @@
 package org.jetlinks.rule.engine.condition;
 
+import org.apache.commons.collections4.MapUtils;
+import org.hswebframework.web.exception.I18nSupportException;
 import org.jetlinks.core.utils.Reactors;
 import org.jetlinks.rule.engine.api.task.ConditionEvaluator;
 import org.jetlinks.rule.engine.api.RuleData;
@@ -22,23 +24,24 @@ public class DefaultConditionEvaluator implements ConditionEvaluator {
 
     @Override
     public boolean evaluate(Condition condition, RuleData context) {
-        if (condition == null || StringUtils.isEmpty(condition)) {
+        if (condition == null || MapUtils.isEmpty(condition.getConfiguration())) {
             return true;
         }
-        return Optional.ofNullable(allStrategy.get(condition.getType()))
-                       .map(strategy -> strategy.evaluate(condition, context))
-                       .orElseThrow(() -> new UnsupportedOperationException("不支持的条件类型:" + condition.getType()));
+        return Optional
+            .ofNullable(allStrategy.get(condition.getType()))
+            .map(strategy -> strategy.evaluate(condition, context))
+            .orElseThrow(() -> new I18nSupportException.NoStackTrace("error.rule.unsupported_condition_type", condition.getType()));
     }
 
     @Override
     public Function<RuleData, Mono<Boolean>> prepare(Condition condition) {
-        if (condition == null || StringUtils.isEmpty(condition.getConfiguration())) {
+        if (condition == null || MapUtils.isEmpty(condition.getConfiguration())) {
             return ignore -> Reactors.ALWAYS_TRUE;
         }
         return Optional
-                .ofNullable(allStrategy.get(condition.getType()))
-                .map(strategy -> strategy.prepare(condition))
-                .orElseThrow(() -> new UnsupportedOperationException("不支持的条件类型:" + condition.getType()));
+            .ofNullable(allStrategy.get(condition.getType()))
+            .map(strategy -> strategy.prepare(condition))
+            .orElseThrow(() -> new I18nSupportException.NoStackTrace("error.rule.unsupported_condition_type", condition.getType()));
     }
 
     public void register(ConditionEvaluatorStrategy strategy) {
