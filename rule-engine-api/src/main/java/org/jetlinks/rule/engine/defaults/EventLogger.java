@@ -3,6 +3,7 @@ package org.jetlinks.rule.engine.defaults;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import org.hswebframework.web.i18n.LocaleUtils;
 import org.jetlinks.core.event.EventBus;
 import org.jetlinks.core.utils.ExceptionUtils;
 import org.jetlinks.rule.engine.api.Logger;
@@ -10,6 +11,7 @@ import org.jetlinks.rule.engine.api.RuleConstants;
 import org.slf4j.helpers.MessageFormatter;
 
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Getter
@@ -58,14 +60,27 @@ public class EventLogger implements Logger {
     }
 
     private LogEvent createLog(String level, String message, Object... args) {
-        String exception = ExceptionUtils.getStackTrace(
-            MessageFormatter.getThrowableCandidate(args)
-        );
+        Throwable error = MessageFormatter.getThrowableCandidate(args);
+
+        if (null != error) {
+            args = MessageFormatter.trimmedCopy(args);
+        }
+        String msg;
+        String i18nMaybe = LocaleUtils.resolveMessage(message, args);
+
+        // 匹配了国际化
+        if (!Objects.equals(message, i18nMaybe)) {
+            msg = i18nMaybe;
+        } else {
+            msg = MessageFormatter.arrayFormat(message, args).getMessage();
+        }
+
+        String exception = ExceptionUtils.getStackTrace(error);
 
         return LogEvent
             .builder()
             .level(level)
-            .message(MessageFormatter.arrayFormat(message, args).getMessage())
+            .message(msg)
             .instanceId(instanceId)
             .nodeId(nodeId)
             .workerId(workerId)
