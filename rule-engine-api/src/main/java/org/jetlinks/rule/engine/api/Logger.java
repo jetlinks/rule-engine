@@ -1,5 +1,6 @@
 package org.jetlinks.rule.engine.api;
 
+
 /**
  * @author zhouhao
  * @since 1.0.0
@@ -16,4 +17,8 @@ public interface Logger {
     void warn(String message, Object... args);
 
     void error(String message, Object... args);
+
+    default org.jetlinks.core.monitor.logger.Logger toMonitorLogger() {
+        return new BridgeLogger(this);
+    }
 }

@@ -1,6 +1,9 @@
 package org.jetlinks.rule.engine.api.task;
 
+import org.jetlinks.core.monitor.DefaultMonitor;
 import org.jetlinks.core.monitor.Monitor;
+import org.jetlinks.core.monitor.metrics.Metrics;
+import org.jetlinks.core.monitor.tracer.Tracer;
 import org.jetlinks.rule.engine.api.Logger;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
@@ -50,6 +53,9 @@ public interface ExecutionContext {
      * @since 1.3
      */
     default Monitor monitor() {
+        if (logger() != null) {
+            return new DefaultMonitor(logger().toMonitorLogger(), Tracer.noop(), Metrics.noop());
+        }
         return Monitor.noop();
     }
 
