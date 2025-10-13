@@ -29,6 +29,10 @@ public class LogEvent implements Externalizable {
 
     private long timestamp;
 
+    private String traceId;
+
+    private String spanId;
+
     @Override
     public void writeExternal(ObjectOutput out) throws IOException {
         out.writeUTF(instanceId);
@@ -38,6 +42,9 @@ public class LogEvent implements Externalizable {
         SerializeUtils.writeObject(message, out);
         SerializeUtils.writeObject(exception, out);
         out.writeLong(timestamp);
+
+        SerializeUtils.writeNullableUTF(traceId, out);
+        SerializeUtils.writeNullableUTF(spanId, out);
     }
 
     @Override
@@ -49,5 +56,8 @@ public class LogEvent implements Externalizable {
         message = (String) SerializeUtils.readObject(in);
         exception = (String) SerializeUtils.readObject(in);
         timestamp = in.readLong();
+
+        traceId = SerializeUtils.readNullableUTF(in);
+        spanId = SerializeUtils.readNullableUTF(in);
     }
 }

@@ -1,23 +1,32 @@
 package org.jetlinks.rule.engine.defaults;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanContext;
+import io.opentelemetry.context.Context;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import org.hswebframework.web.i18n.LocaleUtils;
 import org.jetlinks.core.event.EventBus;
+import org.jetlinks.core.lang.SeparatedCharSequence;
+import org.jetlinks.core.lang.SeparatedString;
 import org.jetlinks.core.utils.ExceptionUtils;
 import org.jetlinks.rule.engine.api.Logger;
 import org.jetlinks.rule.engine.api.RuleConstants;
+import org.slf4j.event.Level;
 import org.slf4j.helpers.MessageFormatter;
+import reactor.core.publisher.Mono;
+import reactor.util.context.ContextView;
 
-import java.util.Arrays;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Getter
 @Setter
 @AllArgsConstructor
 public class EventLogger implements Logger {
+
+    public static final SeparatedCharSequence LOG_TEMPLATE =
+        SeparatedString.create('.', "rule", "engine", "*", "*");
 
     private final EventBus eventBus;
 
@@ -26,6 +35,11 @@ public class EventLogger implements Logger {
     private String nodeId;
 
     private String workerId;
+
+    @Override
+    public String getName() {
+        return LOG_TEMPLATE.replace(2, instanceId, 3, nodeId).toString();
+    }
 
     @Override
     public void trace(String message, Object... args) {
@@ -52,14 +66,19 @@ public class EventLogger implements Logger {
         publishLog("error", message, args);
     }
 
+    @Override
+    public void log(Level level, String message, Object... args) {
+        publishLog(level.name().toLowerCase(), message, args);
+    }
+
     private void publishLog(String level, String message, Object... args) {
         eventBus
             .publish(RuleConstants.Topics.logger0(instanceId, nodeId, level),
-                     () -> createLog(level, message, args))
+                     Mono.deferContextual(ctx -> Mono.just(createLog(ctx, level, message, args))))
             .subscribe();
     }
 
-    private LogEvent createLog(String level, String message, Object... args) {
+    private LogEvent createLog(ContextView ctx, String level, String message, Object... args) {
         Throwable error = MessageFormatter.getThrowableCandidate(args);
 
         if (null != error) {
@@ -77,7 +96,7 @@ public class EventLogger implements Logger {
 
         String exception = ExceptionUtils.getStackTrace(error);
 
-        return LogEvent
+        LogEvent event = LogEvent
             .builder()
             .level(level)
             .message(msg)
@@ -87,5 +106,15 @@ public class EventLogger implements Logger {
             .timestamp(System.currentTimeMillis())
             .exception(exception)
             .build();
+
+        Context traceContext = ctx
+            .<Context>getOrEmpty(Context.class)
+            .orElseGet(Context::current);
+        SpanContext spanContext = Span.fromContext(traceContext).getSpanContext();
+        if (spanContext.isValid()) {
+            event.setTraceId(spanContext.getTraceId());
+            event.setSpanId(spanContext.getSpanId());
+        }
+        return event;
     }
 }

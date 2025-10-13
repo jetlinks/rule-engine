@@ -1,6 +1,7 @@
 package org.jetlinks.rule.engine.api;
 
 import lombok.AllArgsConstructor;
+import org.slf4j.event.Level;
 
 import java.util.Arrays;
 import java.util.List;
@@ -39,6 +40,13 @@ public class CompositeLogger implements Logger {
     public void error(String message, Object... args) {
         for (Logger logger : loggers) {
             logger.error(message, args);
+        }
+    }
+
+    @Override
+    public void log(Level level, String message, Object... args) {
+        for (Logger logger : loggers) {
+            logger.log(level, message, args);
         }
     }
 }

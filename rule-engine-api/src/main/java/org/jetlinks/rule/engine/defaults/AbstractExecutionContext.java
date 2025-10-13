@@ -5,6 +5,9 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetlinks.core.Lazy;
 import org.jetlinks.core.event.EventBus;
+import org.jetlinks.core.monitor.Monitor;
+import org.jetlinks.core.monitor.metrics.Metrics;
+import org.jetlinks.core.monitor.tracer.Tracer;
 import org.jetlinks.core.utils.ExceptionUtils;
 import org.jetlinks.rule.engine.api.*;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
@@ -28,7 +31,7 @@ import java.util.stream.Collectors;
 import static org.jetlinks.rule.engine.api.RuleData.HEADER_SOURCE_NODE_ID;
 
 @Slf4j
-public abstract class AbstractExecutionContext implements ExecutionContext {
+public abstract class AbstractExecutionContext implements ExecutionContext, Monitor {
 
     public static final String RECORD_DATA_TO_HEADER = RuleData.RECORD_DATA_TO_HEADER;
 
@@ -60,7 +63,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
 
     private volatile List<Runnable> shutdownListener;
 
-    private final GlobalScope globalScope;
+    private final Supplier<GlobalScope> scopeSupplier;
 
     //记录数据到RuleData的header中,方便透传到下游数据
     private boolean recordDataToHeader;
@@ -72,6 +75,29 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
     @Getter
     private boolean debug;
 
+    private volatile GlobalScope loadedScope;
+
+    private final Monitor monitor;
+
+    public AbstractExecutionContext(ScheduleJob job,
+                                    EventBus eventBus,
+                                    Monitor monitor,
+                                    Function<ScheduleJob, Input> inputFactory,
+                                    Function<ScheduleJob, Output> outputFactory,
+                                    Function<ScheduleJob, Map<String, Output>> eventOutputsFactory,
+                                    Supplier<GlobalScope> scopeSupplier) {
+
+        this.job = job;
+        this.eventBus = eventBus;
+        this.inputFactory = inputFactory;
+        this.outputFactory = outputFactory;
+        this.eventOutputsFactory = eventOutputsFactory;
+        this.logger = Logger.of(monitor.logger());
+        this.scopeSupplier = scopeSupplier;
+        this.monitor = monitor;
+        init();
+    }
+
     public AbstractExecutionContext(String workerId,
                                     ScheduleJob job,
                                     EventBus eventBus,
@@ -79,21 +105,39 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
                                     Function<ScheduleJob, Input> inputFactory,
                                     Function<ScheduleJob, Output> outputFactory,
                                     Function<ScheduleJob, Map<String, Output>> eventOutputsFactory,
-                                    GlobalScope globalScope) {
+                                    Supplier<GlobalScope> scopeSupplier) {
 
         this.job = job;
         this.eventBus = eventBus;
         this.inputFactory = inputFactory;
         this.outputFactory = outputFactory;
         this.eventOutputsFactory = eventOutputsFactory;
-        this.logger = CompositeLogger.of(logger, new EventLogger(eventBus, job.getInstanceId(), job.getNodeId(), workerId));
-        this.globalScope = globalScope;
+        this.logger = logger == null
+            ? new EventLogger(eventBus, job.getInstanceId(), job.getNodeId(), workerId)
+            : CompositeLogger.of(logger, new EventLogger(eventBus, job.getInstanceId(), job.getNodeId(), workerId));
+        this.scopeSupplier = scopeSupplier;
+        this.monitor = Monitor.noop();
         init();
     }
 
     @Override
     public String getInstanceId() {
         return job.getInstanceId();
+    }
+
+    @Override
+    public Logger logger() {
+        return logger;
+    }
+
+    @Override
+    public Tracer tracer() {
+        return monitor.tracer();
+    }
+
+    @Override
+    public Metrics metrics() {
+        return monitor.metrics();
     }
 
     @Override
@@ -244,7 +288,14 @@ public abstract class AbstractExecutionContext implements ExecutionContext {
 
     @Override
     public GlobalScope global() {
-        return globalScope;
+        if (loadedScope == null) {
+            synchronized (this) {
+                if (loadedScope == null) {
+                    loadedScope = scopeSupplier.get();
+                }
+            }
+        }
+        return loadedScope;
     }
 
     private void init() {

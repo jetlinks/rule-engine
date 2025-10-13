@@ -29,7 +29,7 @@ public class DefaultExecutionContext extends AbstractExecutionContext {
                         .stream()
                         .map(event -> new EventBusEventOutput(job.getInstanceId(), eventBus, event.getType(), event.getSource()))
                         .collect(Collectors.groupingBy(EventBusEventOutput::getEvent, Collectors.collectingAndThen(Collectors.toList(), CompositeOutput::of))),
-              scope
+              () -> scope
         );
     }
 
