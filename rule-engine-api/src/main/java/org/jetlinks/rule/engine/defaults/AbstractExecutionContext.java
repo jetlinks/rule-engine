@@ -7,6 +7,7 @@ import org.jetlinks.core.Lazy;
 import org.jetlinks.core.event.EventBus;
 import org.jetlinks.core.monitor.Monitor;
 import org.jetlinks.core.monitor.metrics.Metrics;
+import org.jetlinks.core.monitor.recorder.Recorder;
 import org.jetlinks.core.monitor.tracer.Tracer;
 import org.jetlinks.core.utils.ExceptionUtils;
 import org.jetlinks.rule.engine.api.*;
@@ -39,8 +40,6 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
 
     public static final String RECORD_DATA_TO_HEADER_KEY_PREFIX = RuleData.RECORD_DATA_TO_HEADER_KEY_PREFIX;
 
-    @Getter
-    private final Logger logger;
 
     @Setter
     @Getter
@@ -57,6 +56,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
 
     private Map<String, Output> eventOutputs;
 
+    private final Function<ScheduleJob,Monitor> monitorFactory;
     private final Function<ScheduleJob, Input> inputFactory;
     private final Function<ScheduleJob, Output> outputFactory;
     private final Function<ScheduleJob, Map<String, Output>> eventOutputsFactory;
@@ -77,11 +77,14 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
 
     private volatile GlobalScope loadedScope;
 
-    private final Monitor monitor;
+    @Getter
+    private Logger logger;
+
+    private Monitor monitor;
 
     public AbstractExecutionContext(ScheduleJob job,
                                     EventBus eventBus,
-                                    Monitor monitor,
+                                    Function<ScheduleJob, Monitor> monitorFactory,
                                     Function<ScheduleJob, Input> inputFactory,
                                     Function<ScheduleJob, Output> outputFactory,
                                     Function<ScheduleJob, Map<String, Output>> eventOutputsFactory,
@@ -92,9 +95,8 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
         this.inputFactory = inputFactory;
         this.outputFactory = outputFactory;
         this.eventOutputsFactory = eventOutputsFactory;
-        this.logger = Logger.of(monitor.logger());
+        this.monitorFactory= monitorFactory;
         this.scopeSupplier = scopeSupplier;
-        this.monitor = monitor;
         init();
     }
 
@@ -117,6 +119,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
             : CompositeLogger.of(logger, new EventLogger(eventBus, job.getInstanceId(), job.getNodeId(), workerId));
         this.scopeSupplier = scopeSupplier;
         this.monitor = Monitor.noop();
+        this.monitorFactory= ignore->Monitor.noop();
         init();
     }
 
@@ -138,6 +141,16 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
     @Override
     public Metrics metrics() {
         return monitor.metrics();
+    }
+
+    @Override
+    public Recorder recorder() {
+        return monitor.recorder();
+    }
+
+    @Override
+    public Monitor monitor() {
+        return this;
     }
 
     @Override
@@ -299,6 +312,8 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
     }
 
     private void init() {
+        this.monitor = monitorFactory.apply(job);
+        this.logger = Logger.of(monitor.logger());
         this.input = RuleEngineHooks.wrapInput(inputFactory.apply(job));
         this.output = RuleEngineHooks.wrapOutput(outputFactory.apply(job));
         this.eventOutputs = eventOutputsFactory

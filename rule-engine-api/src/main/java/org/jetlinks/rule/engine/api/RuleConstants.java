@@ -14,6 +14,10 @@ import java.util.function.BiConsumer;
 
 public interface RuleConstants {
 
+    interface ConfigKey {
+        String enableRecorder = "enableRecorder";
+
+    }
 
     interface Headers {
         /**
@@ -48,6 +52,11 @@ public interface RuleConstants {
         SharedPathString allEvent = SharedPathString.of("/rule-engine/*/*/event/*");
         SharedPathString allLogger = SharedPathString.of("/rule-engine/*/*/logger/*");
 
+        String allAction = "/rule-engine/*/*/action/**";
+
+        SharedPathString actionPrefix = SharedPathString.of("/rule-engine/*/*/action");
+
+
         static SeparatedCharSequence prefix0(String instanceId, String nodeId) {
             return templatePrefix.replace(2, instanceId, 3, nodeId);
         }
@@ -80,6 +89,13 @@ public interface RuleConstants {
         static CharSequence logger0(String instanceId, String nodeId, String level) {
             return allLogger.replace(2, instanceId, 3, nodeId, 5, level);
         }
+
+        static CharSequence action(String instanceId, String nodeId, CharSequence action) {
+            return actionPrefix
+                .replace(2, instanceId, 3, nodeId)
+                .append(action);
+        }
+
 
         static String state(String instanceId, String nodeId) {
             return prefix(instanceId, nodeId) + "/state";
@@ -157,5 +173,9 @@ public interface RuleConstants {
                 });
 
         }
+    }
+
+    interface Tags {
+        String contextId = "_contextId";
     }
 }

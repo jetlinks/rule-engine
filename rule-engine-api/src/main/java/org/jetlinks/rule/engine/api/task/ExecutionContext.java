@@ -1,7 +1,9 @@
 package org.jetlinks.rule.engine.api.task;
 
 import org.jetlinks.core.monitor.Monitor;
+import org.jetlinks.core.monitor.recorder.ActionRecorder;
 import org.jetlinks.rule.engine.api.Logger;
+import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scope.ContextScope;
@@ -51,6 +53,60 @@ public interface ExecutionContext {
      */
     default Monitor monitor() {
         return Monitor.noop();
+    }
+
+    /**
+     * 获取动作记录器,用于记录规则执行过程中产生的动作操作.
+     *
+     * @param <E> 操作返回的数据类型
+     * @return ActionRecorder
+     * @since 1.3.1
+     */
+    default <E> ActionRecorder<E> recordAction() {
+        return monitor()
+            .recorder()
+            .action("execute");
+    }
+
+
+    /**
+     * 获取动作记录器,用于记录规则执行过程中产生的动作操作.
+     *
+     * @param <E> 操作返回的数据类型
+     * @return ActionRecorder
+     * @since 1.3.1
+     */
+    default <E> ActionRecorder<E> recordAction(CharSequence action) {
+        return monitor()
+            .recorder()
+            .action(action);
+    }
+
+
+    /**
+     * 基于一个规则数据,获取动作记录器,用于记录规则执行过程中产生的动作操作.
+     *
+     * @param <E> 操作返回的数据类型
+     * @return ActionRecorder
+     * @since 1.3.1
+     */
+    default <E> ActionRecorder<E> recordAction(CharSequence action,RuleData source) {
+        return this
+            .<E>recordAction(action)
+            .tag(RuleConstants.Tags.contextId, source.getContextId());
+    }
+
+    /**
+     * 基于一个规则数据,获取动作记录器,用于记录规则执行过程中产生的动作操作.
+     *
+     * @param <E> 操作返回的数据类型
+     * @return ActionRecorder
+     * @since 1.3.1
+     */
+    default <E> ActionRecorder<E> recordAction(RuleData source) {
+        return this
+            .<E>recordAction()
+            .tag(RuleConstants.Tags.contextId, source.getContextId());
     }
 
     /**

@@ -48,7 +48,7 @@ public class ClusterExecutionContext extends AbstractExecutionContext {
                                    RuleMonitorManager monitorManager) {
         super(scheduleJob,
               eventBus,
-              monitorManager.createMonitor(scheduleJob),
+              monitorManager::createMonitor,
               manager::createInput,
               manager::createOutput,
               manager::createEvent,
