@@ -125,7 +125,7 @@ public class RuleDataHelper {
     @SuppressWarnings("all")
     public static Map<String, Object> toContextMap(RuleData ruleData) {
         Map<String, Object> map = Maps.newHashMapWithExpectedSize(32);
-
+        map.put(RuleConstants.Tags.contextId, ruleData.getContextId());
         ruleData.acceptMap(_map -> {
             map.putAll(_map);
         });
