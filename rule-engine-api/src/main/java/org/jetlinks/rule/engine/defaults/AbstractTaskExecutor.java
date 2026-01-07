@@ -39,6 +39,8 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
 
     protected volatile Disposable disposable;
 
+    private String operation;
+
     private BiConsumer<Task.State, Task.State> stateListener = (from, to) -> {
         AbstractTaskExecutor.log.debug("task [{}] state changed from {} to {}.",
                                        context.getJob(),
@@ -125,12 +127,16 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
             .then();
     }
 
+    protected String operation() {
+        return operation == null
+            ? operation = "rule:" + context.getInstanceId() + ":" + context.getJob().getNodeId()
+            : operation;
+    }
+
     protected Function<reactor.util.context.Context, reactor.util.context.Context> contextWriter() {
         if (maxRecursive() >= 0) {
             return RecursiveUtils
-                .validator(
-                    "rule:" + context.getInstanceId() + ":" + context.getJob().getNodeId(),
-                    maxRecursive());
+                .validator(operation(), maxRecursive());
         }
         return Function.identity();
     }
