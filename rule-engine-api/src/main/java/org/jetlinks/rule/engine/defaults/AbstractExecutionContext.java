@@ -56,14 +56,14 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
 
     private Map<String, Output> eventOutputs;
 
-    private final Function<ScheduleJob,Monitor> monitorFactory;
+    private final Function<ScheduleJob, Monitor> monitorFactory;
     private final Function<ScheduleJob, Input> inputFactory;
     private final Function<ScheduleJob, Output> outputFactory;
     private final Function<ScheduleJob, Map<String, Output>> eventOutputsFactory;
 
     private volatile List<Runnable> shutdownListener;
 
-    private final Supplier<GlobalScope> scopeSupplier;
+    private final Function<ScheduleJob, GlobalScope> scopeFactory;
 
     //记录数据到RuleData的header中,方便透传到下游数据
     private boolean recordDataToHeader;
@@ -88,15 +88,15 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
                                     Function<ScheduleJob, Input> inputFactory,
                                     Function<ScheduleJob, Output> outputFactory,
                                     Function<ScheduleJob, Map<String, Output>> eventOutputsFactory,
-                                    Supplier<GlobalScope> scopeSupplier) {
+                                    Function<ScheduleJob, GlobalScope> scopeFactory) {
 
         this.job = job;
         this.eventBus = eventBus;
         this.inputFactory = inputFactory;
         this.outputFactory = outputFactory;
         this.eventOutputsFactory = eventOutputsFactory;
-        this.monitorFactory= monitorFactory;
-        this.scopeSupplier = scopeSupplier;
+        this.monitorFactory = monitorFactory;
+        this.scopeFactory = scopeFactory;
         init();
     }
 
@@ -117,9 +117,9 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
         this.logger = logger == null
             ? new EventLogger(eventBus, job.getInstanceId(), job.getNodeId(), workerId)
             : CompositeLogger.of(logger, new EventLogger(eventBus, job.getInstanceId(), job.getNodeId(), workerId));
-        this.scopeSupplier = scopeSupplier;
+        this.scopeFactory = task -> scopeSupplier.get();
         this.monitor = Monitor.noop();
-        this.monitorFactory= ignore->Monitor.noop();
+        this.monitorFactory = ignore -> Monitor.noop();
         init();
     }
 
@@ -304,7 +304,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
         if (loadedScope == null) {
             synchronized (this) {
                 if (loadedScope == null) {
-                    loadedScope = scopeSupplier.get();
+                    loadedScope = scopeFactory.apply(job);
                 }
             }
         }

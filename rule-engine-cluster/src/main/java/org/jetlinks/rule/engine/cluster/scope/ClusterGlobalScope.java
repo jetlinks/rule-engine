@@ -6,8 +6,12 @@ import org.jetlinks.rule.engine.api.scope.GlobalScope;
 
 public class ClusterGlobalScope extends ClusterPersistenceScope implements GlobalScope {
 
+    public ClusterGlobalScope(String id, ClusterManager clusterManager) {
+        super(id, clusterManager);
+    }
+
     public ClusterGlobalScope(ClusterManager clusterManager) {
-        super("scope:global", clusterManager);
+        this("scope:global", clusterManager);
     }
 
     @Override

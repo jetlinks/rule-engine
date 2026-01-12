@@ -25,6 +25,7 @@ public interface RuleIOManager {
 
     /**
      * 创建任务输出
+     *
      * @param job 任务
      * @return 输出
      */
@@ -32,12 +33,24 @@ public interface RuleIOManager {
 
     /**
      * 创建作用域名
+     *
      * @return 作用域
      */
+    @Deprecated
     GlobalScope createScope();
 
     /**
+     * 创建作用域名
+     *
+     * @return 作用域
+     */
+    default GlobalScope createScope(ScheduleJob job) {
+        return createScope();
+    }
+
+    /**
      * 创建事件输出
+     *
      * @param job 任务
      * @return 事件输出
      */
