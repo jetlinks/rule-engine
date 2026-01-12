@@ -148,11 +148,15 @@ public interface Task {
     }
 
     enum State {
+        //初始化
+        initializing,
         //运行中
         running,
         //已暂停
         paused,
         //已停止
+        stopped,
+        //已关闭
         shutdown,
         //未知,可能节点挂了,也可能网络问题状态不一致
         unknown

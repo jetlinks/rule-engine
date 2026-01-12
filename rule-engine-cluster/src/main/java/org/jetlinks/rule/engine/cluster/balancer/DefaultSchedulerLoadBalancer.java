@@ -81,7 +81,7 @@ public class DefaultSchedulerLoadBalancer implements SchedulerLoadBalancer {
                         .flatMap(snapshot -> scheduler
                                 .schedule(snapshot.getJob())
                                 .flatMap(task -> {
-                                    if (snapshot.getState() == Task.State.running) {
+                                    if (snapshot.getState() != Task.State.shutdown) {
                                         return task.start();
                                     }
                                     return Mono.empty();

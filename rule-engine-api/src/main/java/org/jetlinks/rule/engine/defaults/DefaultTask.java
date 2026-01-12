@@ -128,7 +128,11 @@ public class DefaultTask implements Task {
         return Mono
             .<Void>fromRunnable(() -> {
                 context.reload();
-                executor.reload();
+                if (executor.getState() != State.running) {
+                    executor.start();
+                } else {
+                    executor.reload();
+                }
             })
             .as(MonoTracer.create(
                 RuleConstants.Trace.reloadNodeSpanName(getJob().getInstanceId(), getJob().getNodeId()),
@@ -145,12 +149,14 @@ public class DefaultTask implements Task {
     @Override
     public Mono<Void> start() {
         log.debug("start task[{}]:[{}]", getId(), getJob());
-        return Mono.<Void>fromRunnable(executor::start)
-                   .doOnSuccess((v) -> startTime = System.currentTimeMillis())
-                   .as(MonoTracer.create(
-                       RuleConstants.Trace.startNodeSpanName(getJob().getInstanceId(), getJob().getNodeId()),
-                       builder -> builder.setAttribute(RuleConstants.Trace.executor, getJob().getExecutor())))
-                   .subscribeOn(Schedulers.boundedElastic());
+        return Mono
+            .<Void>fromRunnable(executor::start)
+            .doOnSuccess((v) -> startTime = System.currentTimeMillis())
+            .doOnError(err -> executor.shutdown())
+            .as(MonoTracer.create(
+                RuleConstants.Trace.startNodeSpanName(getJob().getInstanceId(), getJob().getNodeId()),
+                builder -> builder.setAttribute(RuleConstants.Trace.executor, getJob().getExecutor())))
+            .subscribeOn(Schedulers.boundedElastic());
     }
 
     /**

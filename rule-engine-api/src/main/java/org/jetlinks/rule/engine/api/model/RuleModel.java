@@ -58,6 +58,11 @@ public class RuleModel {
      */
     private List<RuleNodeModel> nodes = new ArrayList<>();
 
+    public RuleModel addNode(RuleNodeModel model){
+        nodes.add(model);
+        return this;
+    }
+
     public RuleLink link(RuleNodeModel source, RuleNodeModel target) {
         RuleLink link = new RuleLink();
         link.setId(source.getId() + ":" + target.getId());

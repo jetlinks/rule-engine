@@ -82,7 +82,7 @@ public class ClusterRuleEngine implements RuleEngine {
                 ScheduleJob old = snapshot.getJob();
                 //新的规则减少了任务,则尝试移除旧的任务
                 if (job == null || !Objects.equals(job.getExecutor(), old.getExecutor())) {
-                    if (job != null && !Objects.equals(job.getExecutor(), old.getExecutor())) {
+                    if (job != null) {
                         //移除了旧的,需要重新调度新的
                         readyToStart.put(job.getNodeId(), job);
                         log.debug("change job [{}] executor:{} -> {}", snapshot.getJob().getNodeId(),

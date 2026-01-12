@@ -33,7 +33,8 @@ public class LocalScheduler implements Scheduler, Disposable {
 
     private final Map<String/*workerId*/, Worker> workers = new ConcurrentHashMap<>();
 
-    private final Map<String/*规则实例ID*/, Map<String/*nodeId*/, List<Task>>> executors = new ConcurrentHashMap<>();
+    private final Map<String/*规则实例ID*/, Map<String/*nodeId*/, List<Task>>>
+        executors = new ConcurrentHashMap<>();
 
     private final Map<String, Task> tasks = new ConcurrentHashMap<>();
 

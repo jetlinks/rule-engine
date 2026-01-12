@@ -51,7 +51,7 @@ public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implemen
         return context
             .getInput()
             .accept(data -> {
-                if (state != Task.State.running) {
+                if (getState() != Task.State.running) {
                     return Mono.empty();
                 }
                 return this
