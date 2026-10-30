@@ -1,18 +1,25 @@
 package org.jetlinks.rule.engine.defaults;
 
+import org.jetlinks.core.monitor.observation.ObservationData;
 import org.jetlinks.core.monitor.observation.ObservationKeys;
 import org.jetlinks.core.monitor.observation.ObservationReference;
+import org.jetlinks.core.monitor.observation.ObservationSpec;
 import org.jetlinks.core.monitor.observation.Observations;
+import org.jetlinks.core.monitor.observation.RecorderProvider;
+import org.jetlinks.core.monitor.observation.RecorderSelection;
 import org.jetlinks.core.monitor.recorder.AbstractActionRecorder;
 import org.jetlinks.core.monitor.recorder.ActionRecord;
 import org.jetlinks.core.monitor.recorder.ActionRecorder;
 import org.jetlinks.core.monitor.recorder.Recorder;
+import org.jetlinks.core.things.ThingId;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.defaults.scope.InMemoryGlobalScope;
 import org.jetlinks.supports.event.InternalEventBus;
 import org.junit.Test;
 import org.reactivestreams.Publisher;
+import reactor.core.Disposable;
+import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
@@ -22,9 +29,75 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 public class FunctionTaskObservationTest {
+
+    @Test
+    public void nonFunctionExecutorUsesTheSameObservationBoundary() {
+        List<ActionRecord> records = new ArrayList<>();
+        var context = executor(records, true, new AtomicBoolean()).getContext();
+        var executor = new AbstractTaskExecutor(context) {
+            public String getName() {
+                return "Forward";
+            }
+
+            protected Disposable doStart() {
+                return Disposables.disposed();
+            }
+
+            protected boolean observeExecution() {
+                return true;
+            }
+
+            protected ObservationSpec<RuleData, RuleData> observationSpec() {
+                return ObservationSpec.of("forward");
+            }
+        };
+        var operation = executor.execute(RuleData.create("input"));
+        assertTrue(records.isEmpty());
+        StepVerifier.create(operation).verifyComplete();
+        StepVerifier.create(operation).verifyComplete();
+        assertEquals(2, records.size());
+        assertEquals("forward", records.get(0).getAction());
+        assertNotEquals(records.get(0).getId(), records.get(1).getId());
+    }
+
+    @Test
+    public void providerOnlyReceivesSourceMetadataAtTheSingleExecutionBoundary() {
+        List<ActionRecord> records = new ArrayList<>();
+        Recorder recorder = new Recorder() {
+            public <E> ActionRecorder<E> action(CharSequence action) {
+                return new TestAction<>(action, null, records);
+            }
+        };
+        ScheduleJob job = new ScheduleJob();
+        job.setInstanceId("scene");
+        job.setNodeId("evaluate");
+        job.setExecutor("test");
+        var context = new DefaultExecutionContext("worker", job, new InternalEventBus(),
+            (condition, data) -> true, new InMemoryGlobalScope());
+        var executor = new FunctionTaskExecutor("Evaluate", context) {
+            protected boolean observeExecution() {
+                return true;
+            }
+            protected ObservationSpec<RuleData, RuleData> observationSpec() {
+                return ObservationSpec.<RuleData, RuleData>of("execute").onInput((input, metadata) ->
+                    ObservationData.used(metadata, List.of(ThingId.of("metricResult", "value-1"))));
+            }
+            protected Publisher<RuleData> apply(RuleData input) {
+                return Flux.just(input);
+            }
+        };
+        RecorderProvider provider = (action, view) -> RecorderSelection.capture(recorder, "policy-1");
+        StepVerifier.create(executor.execute(RuleData.create("candidate"))
+            .contextWrite(Context.of(RecorderProvider.class, provider))).verifyComplete();
+        assertEquals(1, records.size());
+        assertEquals(List.of(ThingId.of("metricResult", "value-1")),
+            records.get(0).getAttributes().get(ObservationData.INPUTS.getKey()));
+    }
 
     @Test
     public void baseExecutorObservesAsyncChildrenResubscriptionAndCancellation() {
