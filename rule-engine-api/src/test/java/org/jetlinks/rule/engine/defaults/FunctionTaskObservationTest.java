@@ -33,6 +33,7 @@ public class FunctionTaskObservationTest {
         FunctionTaskExecutor executor = executor(records, true, pending);
         RuleData input = RuleData.create("alarm-1");
         var operation = executor.execute(input);
+        assertTrue("Assembly must not create or start actions", records.isEmpty());
         StepVerifier.create(operation).verifyComplete();
         StepVerifier.create(operation).verifyComplete();
         assertEquals(4, records.size());

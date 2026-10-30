@@ -16,6 +16,13 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.context.Context;
 
+/**
+ * 按输入执行函数节点，统一直接调用和订阅输入的执行、可选观测与上下文准备。
+ * 扩展在每次订阅内运行，不缓存输入身份或持有活动 Recorder；输出与错误沿原任务通道传递。
+ *
+ * @since 1.3.3
+ * @see ExecutionContext
+ */
 public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implements TaskExecutor {
 
     @Getter
@@ -31,14 +38,14 @@ public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implemen
     /**
      * 单条输入的异步处理边界，直接 execute 与订阅输入共用。
      * 子类可适配输入/输出载体，通用观测由执行器负责；不应新增订阅或改变错误处理。
-     * 默认延迟调用 apply，使重订阅拥有独立执行。
+     * 框架在每次订阅内调用，默认直接适配 apply 的返回流，无需再次 defer。
      *
      * @param input 当前规则输入
      * @return 原业务输出流
      * @since 1.3.3
      */
     protected Flux<RuleData> applyAsync(RuleData input) {
-        return Flux.defer(() -> Flux.from(this.apply(input)));
+        return Flux.from(this.apply(input));
     }
 
     /**
@@ -78,15 +85,12 @@ public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implemen
 
     private Flux<RuleData> executeInput(RuleData input) {
         return Flux.defer(() -> {
-            boolean observed = observeExecution();
-            Recorder recorder = observed ? observationRecorder(input) : Recorder.noop();
-            Flux<RuleData> result = observed
-                ? Observations.observeFlux(recorder, "execute", () -> applyAsync(input))
-                : applyAsync(input);
-            return result.contextWrite(ctx -> {
-                ctx = prepareContext(ctx, input);
-                return observed ? ctx.put(Recorder.class, recorder) : ctx;
-            });
+            if (!observeExecution()) {
+                return applyAsync(input).contextWrite(ctx -> prepareContext(ctx, input));
+            }
+            Recorder recorder = observationRecorder(input);
+            return Observations.observeFlux(recorder, "execute", () -> applyAsync(input))
+                .contextWrite(ctx -> prepareContext(ctx, input).put(Recorder.class, recorder));
         });
     }
 
