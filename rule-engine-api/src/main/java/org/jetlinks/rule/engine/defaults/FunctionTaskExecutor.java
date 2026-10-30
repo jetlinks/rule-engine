@@ -24,10 +24,22 @@ public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implemen
 
     protected abstract Publisher<RuleData> apply(RuleData input);
 
+    /**
+     * 单条输入的异步处理边界，直接 execute 与订阅输入共用。
+     * 子类可在此装配上下文、观测和输出信封，不应新增订阅或改变错误处理。
+     * 默认延迟调用 apply，使重订阅拥有独立执行。
+     *
+     * @param input 当前规则输入
+     * @return 原业务输出流
+     * @since 1.3.3
+     */
+    protected Flux<RuleData> applyAsync(RuleData input) {
+        return Flux.defer(() -> Flux.from(this.apply(input)));
+    }
+
     private Mono<Void> doApply(RuleData input) {
 
-        return Flux
-            .from(this.apply(input))
+        return applyAsync(input)
             .concatMap(data -> context
                 .fireEvent(RuleConstants.Event.result, data)
                 .then(context.getOutput().write(data)), 0)

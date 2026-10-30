@@ -7,6 +7,10 @@
 [![Build Status](https://travis-ci.com/jetlinks/rule-engine.svg?branch=master)](https://travis-ci.com/jetlinks/rule-engine)
 [![codecov](https://codecov.io/gh/jetlinks/rule-engine/branch/master/graph/badge.svg)](https://codecov.io/gh/jetlinks/rule-engine)
 
+# 函数执行器扩展
+
+FunctionTaskExecutor 的 applyAsync(RuleData) 为直接 execute 与订阅输入提供同一异步处理边界，默认延迟调用 apply。平台可在此装配逐条上下文、观测和输出信封；应保持原需求、取消和错误语义，不额外订阅业务。结果写出、完成事件、tracer 和 onError 仍由原执行器负责。本扩展不引入平台或本体依赖。
+
 # 规则模型
 
 ```text
