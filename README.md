@@ -9,7 +9,7 @@
 
 # 函数执行器扩展
 
-FunctionTaskExecutor 的 applyAsync(RuleData) 为直接 execute 与订阅输入提供同一异步处理边界，默认延迟调用 apply。平台可在此装配逐条上下文、观测和输出信封；应保持原需求、取消和错误语义，不额外订阅业务。结果写出、完成事件、tracer 和 onError 仍由原执行器负责。本扩展不引入平台或本体依赖。
+FunctionTaskExecutor 统一处理直接 execute 与订阅输入的可选执行观测。迁移节点开启 observeExecution，按需通过 tagObservation 追加标签；Recorder 生命周期、noop、父作用域和取消由原执行器复用 core Observations 负责。旧手工节点默认关闭公共观测，避免双记。prepareContext 在动作创建前恢复输入上下文，applyAsync 默认延迟调用 apply；平台仅在这些扩展点适配输入/输出载体，不再包装 Recorder。结果写出、完成事件、tracer 和 onError 保持原语义，不额外订阅业务，也不引入平台或本体依赖。
 
 # 规则模型
 
