@@ -34,5 +34,8 @@ public class TaskSnapshot implements Serializable {
 
     private Task.State state;
 
+    /** 当前任务的运行指标；不支持统计的 Task 实现可为空，不参与持久化恢复。 */
+    private TaskExecutionMetrics executionMetrics;
+
 
 }

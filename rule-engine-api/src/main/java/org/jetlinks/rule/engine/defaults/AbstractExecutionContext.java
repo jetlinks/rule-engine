@@ -16,6 +16,9 @@ import org.jetlinks.rule.engine.api.scope.GlobalScope;
 import org.jetlinks.rule.engine.api.task.ExecutionContext;
 import org.jetlinks.rule.engine.api.task.Input;
 import org.jetlinks.rule.engine.api.task.Output;
+import org.jetlinks.rule.engine.api.task.TaskExecutionMetrics;
+import reactor.core.Disposable;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import javax.annotation.Nonnull;
@@ -81,6 +84,22 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
     private Logger logger;
 
     private Monitor monitor;
+
+    // 跟随任务上下文存活，热重载仅重建 I/O，不重置指标。
+    private final TaskExecutionMonitor executionMonitor = new TaskExecutionMonitor();
+
+    @Override
+    public <T> Mono<T> observeExecution(Mono<T> execution) {
+        return executionMonitor.observe(execution);
+    }
+
+    /**
+     * @return 当前任务的独立指标快照，修改返回值不会影响内部计数
+     * @since 1.3.3
+     */
+    public TaskExecutionMetrics getExecutionMetrics() {
+        return executionMonitor.snapshot();
+    }
 
     public AbstractExecutionContext(ScheduleJob job,
                                     EventBus eventBus,
@@ -205,7 +224,11 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
 
     @Override
     public <T> Mono<T> onError(@Nullable Throwable e, @Nullable RuleData sourceData) {
-        return fireEvent(RuleConstants.Event.error, () -> createErrorData(e, sourceData));
+        return Mono.deferContextual(ctx -> {
+            // 业务可能已恢复异常，通过统一错误通道为本次执行补记失败。
+            executionMonitor.error(ctx, e);
+            return fireEvent(RuleConstants.Event.error, () -> createErrorData(e, sourceData));
+        });
     }
 
     private RuleData createErrorData(Throwable e, RuleData source) {
@@ -314,7 +337,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
     private void init() {
         this.monitor = monitorFactory.apply(job);
         this.logger = Logger.of(monitor.logger());
-        this.input = RuleEngineHooks.wrapInput(inputFactory.apply(job));
+        this.input = new ObservedInput(RuleEngineHooks.wrapInput(inputFactory.apply(job)));
         this.output = RuleEngineHooks.wrapOutput(outputFactory.apply(job));
         this.eventOutputs = eventOutputsFactory
             .apply(job)
@@ -340,6 +363,35 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
             recordDataToHeaderKey = null;
         }
 
+    }
+
+    private final class ObservedInput implements Input {
+        private final Input delegate;
+
+        private ObservedInput(Input delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public Flux<RuleData> accept() {
+            return delegate.accept();
+        }
+
+        @Override
+        public Disposable accept(Function<RuleData, Mono<Boolean>> listener) {
+            // 保留具体 Input 的确认语义，仅装饰单条输入回调，而非整个订阅。
+            return delegate.accept(data -> observeExecution(Mono.defer(() -> listener.apply(data))));
+        }
+
+        @Override
+        public void dispose() {
+            delegate.dispose();
+        }
+
+        @Override
+        public boolean isDisposed() {
+            return delegate.isDisposed();
+        }
     }
 
     public void reload() {

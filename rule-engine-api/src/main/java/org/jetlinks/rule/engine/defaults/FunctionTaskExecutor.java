@@ -53,6 +53,7 @@ public abstract class FunctionTaskExecutor extends AbstractTaskExecutor implemen
             .then(context.fireEvent(RuleConstants.Event.complete, input))
             .contextWrite(contextWriter())
             .as(tracer())
+            .as(context::observeExecution)
             .onErrorResume(error -> {
                 context.logger().warn(error.getLocalizedMessage(),error);
                 return context.onError(error, input);

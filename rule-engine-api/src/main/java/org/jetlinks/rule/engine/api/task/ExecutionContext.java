@@ -56,6 +56,22 @@ public interface ExecutionContext {
     }
 
     /**
+     * 观察一次有限执行，按订阅计数，保持原有业务信号。输入回调及直接调用由引擎处理，
+     * 自主产生数据的执行器应在每次分发时调用，不能包装常驻订阅；异常恢复须置于观察点之后，
+     * 或经 onError 报告。同步调用需通过 Mono.defer 延迟到订阅内。
+     * 默认透传，兼容不提供统计的自定义上下文。
+     *
+     * @param execution 单次有限执行
+     * @param <T> 返回类型
+     * @return 包含运行统计的原执行流
+     * @since 1.3.3
+     * @see TaskSnapshot#getExecutionMetrics()
+     */
+    default <T> Mono<T> observeExecution(Mono<T> execution) {
+        return execution;
+    }
+
+    /**
      * 获取动作记录器,用于记录规则执行过程中产生的动作操作.
      *
      * @param <E> 操作返回的数据类型

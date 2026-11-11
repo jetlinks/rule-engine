@@ -190,7 +190,8 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
         return observe(context.newRuleData(ruleData), Flux::just)
             .concatMap(context.getOutput()::write, 0)
             .then()
-            .as(tracer());
+            .as(tracer())
+            .as(context::observeExecution);
     }
 
     /**

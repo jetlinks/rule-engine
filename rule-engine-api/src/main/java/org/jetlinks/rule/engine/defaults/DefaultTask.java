@@ -12,6 +12,7 @@ import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.task.ExecutableTaskExecutor;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.task.TaskExecutor;
+import org.jetlinks.rule.engine.api.task.TaskSnapshot;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -198,7 +199,8 @@ public class DefaultTask implements Task {
         if (executor instanceof ExecutableTaskExecutor) {
             return TraceHolder
                 .writeContextTo(data, RuleData::setHeader)
-                .flatMap(ruleData -> ((ExecutableTaskExecutor) executor).execute(ruleData));
+                .flatMap(ruleData -> ((ExecutableTaskExecutor) executor).execute(ruleData))
+                .as(context::observeExecution);
         }
         return Mono.empty();
     }
@@ -239,6 +241,14 @@ public class DefaultTask implements Task {
     @Override
     public Mono<Long> getStartTime() {
         return Mono.just(startTime);
+    }
+
+    @Override
+    public Mono<TaskSnapshot> dump() {
+        return Task.super.dump().map(snapshot -> {
+            snapshot.setExecutionMetrics(context.getExecutionMetrics());
+            return snapshot;
+        });
     }
 
     @Override
