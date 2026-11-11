@@ -13,6 +13,12 @@ AbstractTaskExecutor 提供可选执行观测、稳定 observationSpec 和输入
 
 FunctionTaskExecutor 负责直接 execute 与订阅输入的函数执行和结果分发，applyAsync 默认直接适配 apply 返回流。平台通过 prepareContext 在观测选择前恢复输入，通过 applyAsync 写出输出信封；两者都不额外订阅业务或引入本体依赖。原结果事件、tracer 与 onError 继续由函数执行器负责。
 
+# 运行指标
+
+默认任务在 `Task.dump().executionMetrics` 中返回当前任务生命周期内的执行次数、失败次数和最近开始执行时间。统计独立于 Recorder 与执行日志开关，仅保存在任务上下文内；热重载保留，任务销毁或重建后重新计数，不用于快照持久化或恢复。通过 `RuleEngine.getTasks(instanceId).flatMap(Task::dump)` 可沿现有调度 RPC 获取各节点的最新值，不需要另建指标注册或查询服务。
+
+直接调用和 Input 的单条处理回调由引擎观察；定时、订阅等自主产生数据的执行器，应在每次有限分发上使用 `context.observeExecution(mono)`，不能包装常驻数据流。同步业务调用需通过 `Mono.defer` 延迟到订阅中，异常恢复应位于观察点之后，或通过 `context.onError` 报告。嵌套观察同一任务只计一次，不按输出数量累计，空完成也计数，取消不计失败；自定义 `ExecutionContext` 默认透传，自定义 `Task` 的指标可为空。
+
 # 规则模型
 
 ```text
