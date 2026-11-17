@@ -44,7 +44,15 @@ jobs:
                   if response.status != 204:
                       raise SystemExit("Unexpected workflow dispatch response")
           except urllib.error.HTTPError as error:
-              raise SystemExit(f"::error::Workflow dispatch returned HTTP {error.code}; check token approval, expiry and Actions write access to jetlinks/jetlinks.")
+              try:
+                  message = json.loads(error.read(4096)).get("message", "Unknown GitHub API error")
+              except (ValueError, UnicodeDecodeError):
+                  message = "GitHub returned a non-JSON error response"
+              message = str(message).replace(token, "***")[:500]
+              required = error.headers.get("X-Accepted-GitHub-Permissions", "not provided")
+              print(f"::error::Workflow dispatch returned HTTP {error.code}: {message}")
+              print(f"Endpoint permission requirement: {required}")
+              raise SystemExit(1)
           print("Requested the 1.3 reactor build. Publication result is reported by the aggregate workflow.")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
               summary.write("[Aggregate publication runs](https://github.com/jetlinks/jetlinks/actions/workflows/maven-publish.yml)" + chr(10))
