@@ -1,0 +1,51 @@
+name: Request aggregate snapshot publication
+
+on:
+  push:
+    branches: ['1.3']
+
+permissions: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Notify the JetLinks reactor
+        env:
+          DISPATCH_TOKEN: ${{ secrets.JETLINKS_DISPATCH_TOKEN }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_REF: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          token = os.environ.get("DISPATCH_TOKEN")
+          if not token:
+              raise SystemExit("::error::Configure JETLINKS_DISPATCH_TOKEN for this repository.")
+          payload = {"ref": "1.3", "inputs": {
+              "source_repository": os.environ["SOURCE_REPOSITORY"],
+              "source_sha": os.environ["SOURCE_SHA"],
+              "source_ref": os.environ["SOURCE_REF"],
+          }}
+          request = urllib.request.Request(
+              "https://api.github.com/repos/jetlinks/jetlinks/actions/workflows/maven-publish.yml/dispatches",
+              data=json.dumps(payload).encode(), method="POST",
+              headers={"Authorization": "Bearer " + token,
+                       "Accept": "application/vnd.github+json",
+                       "X-GitHub-Api-Version": "2022-11-28"},
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  if response.status != 204:
+                      raise SystemExit("Unexpected workflow dispatch response")
+          except urllib.error.HTTPError as error:
+              raise SystemExit(f"::error::Workflow dispatch returned HTTP {error.code}; check token approval, expiry and Actions write access to jetlinks/jetlinks.")
+          print("Requested the 1.3 reactor build. Publication result is reported by the aggregate workflow.")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write("[Aggregate publication runs](https://github.com/jetlinks/jetlinks/actions/workflows/maven-publish.yml)" + chr(10))
+          PY
