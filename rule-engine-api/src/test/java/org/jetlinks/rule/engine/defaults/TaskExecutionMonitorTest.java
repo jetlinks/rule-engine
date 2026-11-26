@@ -91,8 +91,22 @@ public class TaskExecutionMonitorTest {
     public void nestedErrorIsCountedEvenWhenRecoveredOutsideTheNestedObserver() {
         var monitor = new TaskExecutionMonitor();
         Mono<Void> nested = monitor.observe(Mono.error(new IllegalStateException("nested")));
-        monitor.observe(TaskExecutionMonitor.defer(nested, source -> source.onErrorResume(error -> Mono.empty()))).block();
-        assertMetrics(monitor, 1, 1);
+        Mono<Void> execution = monitor.observe(TaskExecutionMonitor.defer(nested, source -> source.onErrorResume(error -> Mono.empty())));
+        execution.block();
+        execution.block();
+        assertMetrics(monitor, 2, 2);
+    }
+
+    @Test
+    public void adjacentObserversAreIdempotentWithinTheSameMonitor() {
+        var monitor = new TaskExecutionMonitor();
+        Mono<Integer> direct = monitor.observe(Mono.just(42));
+        Mono<Integer> deferred = monitor.observe(TaskExecutionMonitor.defer(42, Mono::just));
+        assertSame(direct, monitor.observe(direct));
+        assertSame(deferred, monitor.observe(deferred));
+        assertEquals(Integer.valueOf(42), direct.block());
+        assertEquals(Integer.valueOf(42), deferred.block());
+        assertMetrics(monitor, 2, 0);
     }
 
     @Test
@@ -101,10 +115,10 @@ public class TaskExecutionMonitorTest {
         var calls = new AtomicInteger();
         Mono<Integer> execution = monitor.observe(TaskExecutionMonitor.defer(42, input -> {
             calls.incrementAndGet();
-            return Mono.deferContextual(context -> {
+            return monitor.observe(Mono.deferContextual(context -> {
                 assertEquals("tenant-a", context.get("tenant"));
                 return Mono.just(input);
-            });
+            }));
         }));
         assertEquals(0, calls.get());
         assertEquals(0, monitor.getCount());
@@ -121,7 +135,7 @@ public class TaskExecutionMonitorTest {
     public void deferredCallbacksPreserveDemandAndCancellation() {
         var monitor = new TaskExecutionMonitor();
         var source = TestPublisher.<Integer>createCold();
-        StepVerifier.create(monitor.observe(TaskExecutionMonitor.defer(source, TestPublisher::mono)), 0)
+        StepVerifier.create(monitor.observe(TaskExecutionMonitor.defer(source, publisher -> monitor.observe(publisher.mono()))), 0)
             .expectSubscription()
             .then(() -> source.assertMaxRequested(0))
             .thenRequest(1)
