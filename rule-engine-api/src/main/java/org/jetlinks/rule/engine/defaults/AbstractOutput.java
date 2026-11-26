@@ -22,31 +22,19 @@ public abstract class AbstractOutput extends RateMeter implements Output {
 
     protected final String instanceId;
 
-    private final List<ScheduleJob.Output> outputs;
-
-    private final ConditionEvaluator evaluator;
-
-    private Function<RuleData, Mono<Boolean>> writer;
+    // null 表示无下游；直接保存路由，不再用聚合函数包装一次。
+    private final Flux<Function<RuleData, Mono<Boolean>>> writers;
 
     public AbstractOutput(String instanceId,
                           List<ScheduleJob.Output> outputs,
                           ConditionEvaluator evaluator) {
         this.instanceId = instanceId;
-        this.outputs = outputs;
-        this.evaluator = evaluator;
-        prepare();
+        this.writers = prepare(outputs, evaluator);
     }
 
     //预处理规则数据输出逻辑
-    private void prepare() {
-
-        //没有输出
-        if (CollectionUtils.isEmpty(outputs)) {
-            writer = data -> {
-                mark();
-                return Reactors.ALWAYS_TRUE;
-            };
-        } else {
+    private Flux<Function<RuleData, Mono<Boolean>>> prepare(List<ScheduleJob.Output> outputs, ConditionEvaluator evaluator) {
+        if (!CollectionUtils.isEmpty(outputs)) {
             List<Function<RuleData, Mono<Boolean>>> writers = new ArrayList<>(outputs.size());
 
             for (ScheduleJob.Output output : outputs) {
@@ -70,22 +58,25 @@ public abstract class AbstractOutput extends RateMeter implements Output {
                 writers.add(writer);
             }
 
-            Flux<Function<RuleData, Mono<Boolean>>> flux = Flux.fromIterable(writers);
-
-            this.writer = data -> TraceHolder
-                    .writeContextTo(data, RuleData::setHeader)
-                    .flatMap(ruleData -> {
-                        mark();
-                        return flux.flatMap(writer -> writer.apply(ruleData)
-                            .onErrorResume(err -> Reactors.ALWAYS_FALSE))
-                            .reduce(Boolean::logicalAnd);
-                    });
+            return Flux.fromIterable(writers);
         }
+        return null;
     }
 
     @Override
     public final Mono<Boolean> write(RuleData data) {
-        return writer.apply(data);
+        if (writers == null) {
+            mark();
+            return Reactors.ALWAYS_TRUE;
+        }
+        return TraceHolder
+            .writeContextTo(data, RuleData::setHeader)
+            .flatMap(ruleData -> {
+                mark();
+                return writers.flatMap(writer -> writer.apply(ruleData)
+                    .onErrorResume(err -> Reactors.ALWAYS_FALSE))
+                    .reduce(Boolean::logicalAnd);
+            });
     }
 
     @Override

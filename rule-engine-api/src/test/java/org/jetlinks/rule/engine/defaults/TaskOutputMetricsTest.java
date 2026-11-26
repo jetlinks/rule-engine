@@ -103,12 +103,36 @@ public class TaskOutputMetricsTest {
 
     @Test
     public void terminalOutputReusesTheSharedResultAndCountsConcurrentWriteCalls() {
-        var output = context(new InternalEventBus()).getOutput();
+        var output = new EventBusOutput("rule", new InternalEventBus(), null, null);
         var data = RuleData.create("value");
         assertSame(org.jetlinks.core.utils.Reactors.ALWAYS_TRUE, output.write(data));
         Flux.range(0, 2000).parallel(4).runOn(reactor.core.scheduler.Schedulers.parallel())
             .flatMap(ignore -> output.write(data)).sequential().blockLast();
         assertEquals(2001, output.getMetrics().getCount());
+    }
+
+    @Test
+    public void conditionalOutputsDeliverOnlyMatchingDataAndCountBeforeFiltering() {
+        var bus = new InternalEventBus();
+        var received = new java.util.concurrent.CopyOnWriteArrayList<Object>();
+        var subscription = bus.subscribe(org.jetlinks.core.event.Subscription.of("target",
+                RuleConstants.Topics.input("rule", "target"), org.jetlinks.core.event.Subscription.Feature.local), RuleData.class)
+            .subscribe(data -> received.add(data.getData()));
+        var condition = new org.jetlinks.rule.engine.api.model.Condition();
+        var evaluations = new java.util.concurrent.atomic.AtomicInteger();
+        var output = new EventBusOutput("rule", bus, java.util.List.of(new ScheduleJob.Output("target", condition)),
+            (actual, data) -> {
+                assertSame(condition, actual);
+                evaluations.incrementAndGet();
+                return "accept".equals(data.getData());
+            });
+        try {
+            assertEquals(Boolean.TRUE, output.write(RuleData.create("accept")).block());
+            assertEquals(Boolean.FALSE, output.write(RuleData.create("reject")).block());
+            assertEquals(java.util.List.of("accept"), received);
+            assertEquals(2, evaluations.get());
+            assertEquals(2, output.getMetrics().getCount());
+        } finally { subscription.dispose(); }
     }
 
     @Test
