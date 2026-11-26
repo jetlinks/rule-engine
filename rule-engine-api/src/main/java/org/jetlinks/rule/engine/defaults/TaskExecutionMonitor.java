@@ -24,16 +24,11 @@ final class TaskExecutionMonitor {
         LAST_EXECUTION_TIME = AtomicLongFieldUpdater.newUpdater(TaskExecutionMonitor.class, "lastExecutionTime");
 
     private final RateMeter executions = new RateMeter();
-    private final RateMeter outputs = new RateMeter();
     private volatile long errorCount;
     private volatile long lastExecutionTime;
 
     <T> Mono<T> observe(Mono<T> source) {
         return new ExecutionMono<>(source, this);
-    }
-
-    void output() {
-        outputs.mark();
     }
 
     void error(ContextView context, Throwable error) {
@@ -45,8 +40,6 @@ final class TaskExecutionMonitor {
 
     TaskExecutionMetrics snapshot() {
         TaskExecutionMetrics metrics = new TaskExecutionMetrics();
-        metrics.setOutputCount(outputs.getCount());
-        metrics.setOneMinuteOutputRate(outputs.getOneMinuteRate());
         metrics.setExecutionCount(executions.getCount());
         metrics.setMeanExecutionRate(executions.getMeanRate());
         metrics.setOneMinuteExecutionRate(executions.getOneMinuteRate());

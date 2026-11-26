@@ -13,6 +13,15 @@ import reactor.core.publisher.Mono;
  */
 public interface Output extends Disposable {
     /**
+     * 当前 Output 实例的只读流量快照；不支持观测时返回 null，装饰器应转交原输出的指标。
+     * 统计为逻辑数据条数，广播前计量，不表示下游投递成功；随 Output 重建而重置。
+     * @since 1.3.3
+     */
+    default OutputMetrics getMetrics() {
+        return null;
+    }
+
+    /**
      * 输出规则数据
      *
      * @param data 规则数据

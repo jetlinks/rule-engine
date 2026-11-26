@@ -49,12 +49,6 @@ public class ScheduleJob implements Serializable {
     @Nonnull
     private String nodeId;
 
-    /** 编译时确定的入口角色；旧恢复数据可能没有声明。 */
-    private Boolean startNode;
-
-    /** 编译时确定的末端角色，沿 RuleNodeModel.isEndNode()。 */
-    private Boolean endNode;
-
     /**
      * 模型类型
      */

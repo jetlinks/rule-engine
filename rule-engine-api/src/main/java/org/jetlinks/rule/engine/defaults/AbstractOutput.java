@@ -2,12 +2,14 @@ package org.jetlinks.rule.engine.defaults;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.jetlinks.core.trace.TraceHolder;
+import org.jetlinks.core.monitor.metrics.RateMeter;
 import org.jetlinks.core.utils.Reactors;
 import org.jetlinks.rule.engine.api.RuleConstants;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.task.ConditionEvaluator;
 import org.jetlinks.rule.engine.api.task.Output;
+import org.jetlinks.rule.engine.api.task.OutputMetrics;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -26,6 +28,8 @@ public abstract class AbstractOutput implements Output {
 
     private Function<RuleData, Mono<Boolean>> writer;
 
+    private final RateMeter emitted = new RateMeter();
+
     public AbstractOutput(String instanceId,
                           List<ScheduleJob.Output> outputs,
                           ConditionEvaluator evaluator) {
@@ -40,7 +44,12 @@ public abstract class AbstractOutput implements Output {
 
         //没有输出
         if (CollectionUtils.isEmpty(outputs)) {
-            writer = data -> Reactors.ALWAYS_TRUE;
+            // 固定冷 Mono 保留 Callable 快路径，避免每条数据另建观测操作符。
+            Mono<Boolean> terminal = Mono.fromSupplier(() -> {
+                emitted.mark();
+                return true;
+            });
+            writer = data -> terminal;
         } else {
             List<Function<RuleData, Mono<Boolean>>> writers = new ArrayList<>(outputs.size());
 
@@ -69,11 +78,12 @@ public abstract class AbstractOutput implements Output {
 
             this.writer = data -> TraceHolder
                     .writeContextTo(data, RuleData::setHeader)
-                    .flatMap(ruleData -> flux
-                            .flatMap(writer -> writer
-                                    .apply(ruleData)
-                                    .onErrorResume(err -> Reactors.ALWAYS_FALSE))
-                            .reduce(Boolean::logicalAnd));
+                    .flatMap(ruleData -> {
+                        emitted.mark();
+                        return flux.flatMap(writer -> writer.apply(ruleData)
+                            .onErrorResume(err -> Reactors.ALWAYS_FALSE))
+                            .reduce(Boolean::logicalAnd);
+                    });
         }
     }
 
@@ -92,7 +102,7 @@ public abstract class AbstractOutput implements Output {
 
     @Override
     public final Mono<Void> write(String nodeId, Publisher<RuleData> data) {
-        return doWrite(createOutputAddress(nodeId), data)
+        return doWrite(createOutputAddress(nodeId), Flux.from(data).doOnNext(ignored -> emitted.mark()))
                 .then();
     }
 
@@ -102,8 +112,15 @@ public abstract class AbstractOutput implements Output {
 
     @Override
     public final Mono<Void> write(String nodeId, RuleData data) {
-        return doWrite(createOutputAddress(nodeId), data)
-                .then();
+        return Mono.defer(() -> {
+            emitted.mark();
+            return doWrite(createOutputAddress(nodeId), data).then();
+        });
+    }
+
+    @Override
+    public final OutputMetrics getMetrics() {
+        return new OutputMetrics(emitted.getCount(), emitted.getOneMinuteRate());
     }
 
     protected CharSequence createOutputAddress(String nodeId) {

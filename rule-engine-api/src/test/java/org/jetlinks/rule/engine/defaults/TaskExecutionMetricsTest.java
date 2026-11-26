@@ -102,7 +102,7 @@ public class TaskExecutionMetricsTest {
         };
         executor.execute(RuleData.create("value")).block();
         assertMetrics(context, 1, 1);
-        assertNull(context.getExecutionMetrics().getOneMinuteOutputRate());
+        assertNull(context.getOutput().getMetrics());
     }
 
     @Test

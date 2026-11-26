@@ -26,7 +26,7 @@ public class TaskOutputMetricsTest {
         var context = context(bus);
         var data = RuleData.create("value");
         var write = context.getOutput().write(data);
-        assertEquals(0, context.getExecutionMetrics().getOutputCount());
+        assertEquals(0, context.getOutput().getMetrics().getCount());
         write.block(); write.block();
         context.getOutput().write(Flux.empty()).block();
         context.getOutput().write(Flux.just(data, data, data)).block();
@@ -34,10 +34,12 @@ public class TaskOutputMetricsTest {
         // 没有目标订阅者时 EventBus 不消费这个 Publisher，未产生的数据不能计数。
         context.getOutput().write("other", Flux.just(data, data)).block();
         context.fireEvent(RuleConstants.Event.complete, data).block();
-        assertEquals(6, context.getExecutionMetrics().getOutputCount());
+        assertEquals(6, context.getOutput().getMetrics().getCount());
         assertEquals(0, context.getExecutionMetrics().getExecutionCount());
+        var previous = context.getOutput();
         context.reload();
-        assertEquals(6, context.getExecutionMetrics().getOutputCount());
+        assertEquals(0, context.getOutput().getMetrics().getCount());
+        assertEquals(6, previous.getMetrics().getCount());
     }
 
     @Test
@@ -51,7 +53,7 @@ public class TaskOutputMetricsTest {
         executor.execute(RuleData.create("value")).block();
         executor.execute(RuleData.create("empty")).block();
         assertEquals(2, context.getExecutionMetrics().getExecutionCount());
-        assertEquals(2, context.getExecutionMetrics().getOutputCount());
+        assertEquals(2, context.getOutput().getMetrics().getCount());
     }
 
     @Test
@@ -69,9 +71,43 @@ public class TaskOutputMetricsTest {
             job -> org.jetlinks.core.monitor.Monitor.noop(), job -> base.getInput(), job -> delegate,
             job -> Map.of(), job -> new InMemoryGlobalScope()) {};
         assertEquals(Boolean.FALSE, context.getOutput().write(Flux.just(RuleData.create(1), RuleData.create(2))).block());
-        assertEquals(1, context.getExecutionMetrics().getOutputCount());
+        assertSame(delegate, context.getOutput());
+        assertNull(context.getOutput().getMetrics());
         context.getOutput().dispose();
         assertTrue(context.getOutput().isDisposed()); assertTrue(disposed.get());
+    }
+
+    @Test
+    public void outputOwnsMetricsWithoutExecutionContextAndCountsBroadcastOnce() {
+        var bus = new InternalEventBus();
+        var received = new java.util.concurrent.atomic.AtomicInteger();
+        var left = bus.subscribe(org.jetlinks.core.event.Subscription.of("left", RuleConstants.Topics.input("rule", "left"), org.jetlinks.core.event.Subscription.Feature.local), RuleData.class)
+            .subscribe(data -> received.incrementAndGet());
+        var right = bus.subscribe(org.jetlinks.core.event.Subscription.of("right", RuleConstants.Topics.input("rule", "right"), org.jetlinks.core.event.Subscription.Feature.local), RuleData.class)
+            .subscribe(data -> received.incrementAndGet());
+        var output = new EventBusOutput("rule", bus, java.util.List.of(
+            new ScheduleJob.Output("left", null), new ScheduleJob.Output("right", null)), (condition, data) -> true);
+        try {
+            var before = output.getMetrics();
+            var write = output.write(RuleData.create("value"));
+            assertEquals(0, output.getMetrics().getCount());
+            write.block();
+            assertEquals(2, received.get());
+            assertEquals(1, output.getMetrics().getCount());
+            assertEquals(0, before.getCount());
+            var metadata = org.jetlinks.core.monitor.metrics.MetricSet.of(org.jetlinks.rule.engine.api.task.OutputMetrics.class);
+            assertEquals(2, metadata.getMetrics().size());
+        } finally { left.dispose(); right.dispose(); }
+    }
+
+    @Test
+    public void reusableTerminalOutputCountsConcurrentSubscriptionsWithoutPerWriteWrappers() {
+        var output = context(new InternalEventBus()).getOutput();
+        var write = output.write(RuleData.create("value"));
+        assertSame(write, output.write(RuleData.create("another")));
+        Flux.range(0, 2000).parallel(4).runOn(reactor.core.scheduler.Schedulers.parallel())
+            .flatMap(ignore -> write).sequential().blockLast();
+        assertEquals(2000, output.getMetrics().getCount());
     }
 
     @Test

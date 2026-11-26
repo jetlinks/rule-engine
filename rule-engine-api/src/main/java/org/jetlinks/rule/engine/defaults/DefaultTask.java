@@ -258,6 +258,7 @@ public class DefaultTask implements Task {
         return getState().map(state -> {
             TaskRuntimeSnapshot snapshot = TaskRuntimeSnapshot.of(this, state, context.getExecutionMetrics());
             snapshot.setBuffered(buffered(executor));
+            snapshot.setOutputMetrics(context.getOutput().getMetrics());
             return snapshot;
         });
     }

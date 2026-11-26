@@ -24,7 +24,6 @@ public class TaskRuntimeProjectionTest {
         job.setInstanceId("rule");
         job.setNodeId("entry");
         job.setExecutor("test");
-        job.setStartNode(true);
         job.setInputs(List.of("other"));
         job.setConfiguration(Map.of("secret", "must-not-ship-runtime-configuration"));
         var context = new DefaultExecutionContext("worker", job, new InternalEventBus(),
@@ -37,15 +36,22 @@ public class TaskRuntimeProjectionTest {
         TaskRuntimeSnapshot snapshot = task.runtime().block();
         assertNotNull(snapshot);
         assertEquals("rule", snapshot.getInstanceId());
-        assertEquals(Boolean.TRUE, snapshot.getEntry());
+        assertEquals(Boolean.FALSE, snapshot.getEntry());
+        assertEquals(Boolean.TRUE, snapshot.getTerminal());
+        assertEquals(1, snapshot.getOutputMetrics().getCount());
         assertEquals(1, snapshot.getMetrics().getExecutionCount());
         var bytes = new ByteArrayOutputStream();
         try (var output = new ObjectOutputStream(bytes)) { output.writeObject(snapshot); }
         assertFalse(bytes.toString(StandardCharsets.ISO_8859_1).contains("must-not-ship-runtime-configuration"));
-        job.setStartNode(null);
-        assertNull(task.runtime().block().getEntry());
         job.setInputs(List.of());
         assertEquals(Boolean.TRUE, task.runtime().block().getEntry());
+        job.setEvents(List.of(new ScheduleJob.Event("complete", "upstream")));
+        assertEquals(Boolean.FALSE, task.runtime().block().getEntry());
+        job.setEventOutputs(List.of(new ScheduleJob.Event("complete", "downstream")));
+        assertEquals(Boolean.FALSE, task.runtime().block().getTerminal());
+        job.setEventOutputs(List.of());
+        job.setOutputs(List.of(new ScheduleJob.Output("downstream", null)));
+        assertEquals(Boolean.FALSE, task.runtime().block().getTerminal());
         task.shutdown().block();
     }
 

@@ -83,6 +83,7 @@ public class TaskDumpMetricsRpcTest {
                     assertEquals("scheduler", snapshot.getSchedulerId());
                     assertEquals(1, snapshot.getTasks().size());
                     assertEquals("scene", snapshot.getTasks().get(0).getInstanceId());
+                    assertEquals(1, snapshot.getTasks().get(0).getOutputMetrics().getCount());
                     assertTrue(snapshot.getTasks().get(0).getMetrics().getMeanExecutionRate() > 0);
                 }).verifyComplete();
             StepVerifier.create(remote.getSchedulingTask("scene").flatMap(Task::dump))

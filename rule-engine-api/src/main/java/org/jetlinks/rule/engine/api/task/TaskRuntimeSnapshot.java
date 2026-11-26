@@ -1,6 +1,7 @@
 package org.jetlinks.rule.engine.api.task;
 
 import lombok.Getter;
+import org.apache.commons.collections.CollectionUtils;
 import lombok.Setter;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 
@@ -17,11 +18,12 @@ public class TaskRuntimeSnapshot implements Serializable {
     private String nodeId;
     private String workerId;
     private Task.State state;
-    // null 表示旧任务未声明入口角色，不能猜测入口吞吐。
+    // 从任务的实际上下游边界读取，不依赖显式 start/end 标记。
     private Boolean entry;
     private Boolean terminal;
     private Long buffered;
     private TaskExecutionMetrics metrics;
+    private OutputMetrics outputMetrics;
 
     public static TaskRuntimeSnapshot of(Task task, Task.State state, TaskExecutionMetrics metrics) {
         ScheduleJob job = task.getJob();
@@ -31,10 +33,8 @@ public class TaskRuntimeSnapshot implements Serializable {
         snapshot.nodeId = job.getNodeId();
         snapshot.workerId = task.getWorkerId();
         snapshot.state = state;
-        snapshot.entry = job.getStartNode() != null ? job.getStartNode()
-            : job.getInputs() == null || job.getInputs().isEmpty() ? Boolean.TRUE : null;
-        snapshot.terminal = job.getEndNode() != null ? job.getEndNode()
-            : job.getOutputs() == null || job.getOutputs().isEmpty() ? Boolean.TRUE : null;
+        snapshot.entry = CollectionUtils.isEmpty(job.getInputs()) && CollectionUtils.isEmpty(job.getEvents());
+        snapshot.terminal = CollectionUtils.isEmpty(job.getOutputs()) && CollectionUtils.isEmpty(job.getEventOutputs());
         snapshot.metrics = metrics;
         return snapshot;
     }

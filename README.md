@@ -55,6 +55,8 @@ Condition{
 
 `RuleEngine.getRuntime(List<String>)` 沿原调度 RPC 按最多64个规则读取快照，每节点最多4096个任务，返回状态、角色、计数及速率，不携带配置/模型/输入。节点超时、超预算和旧节点不支持时保留 unavailable/unsupported，不能解释成空任务。
 
-编译时复用 `RuleNodeModel.isStartNode/isEndNode` 固化入口/末端角色。正常 `Output` 每条发出数据由同一固定 meter 计量，生命周期事件不参与；空流和没有输出数据的副作用不计数，广播前计数不等于实际下游投递数。`TaskExecutionMetrics.outputCount/oneMinuteOutputRate` 与原执行次数分别表达数据发出和执行开始，后者不能替代消息吞吐。速率为60秒 EWMA、5秒惰性推进。
+入口为没有普通或事件上游的节点，末端为没有普通或事件下游的节点，直接从任务连接关系读取，不保存额外角色标记。`Output.getMetrics()` 返回该输出实例的累计发出数量和60秒 EWMA速率，5秒惰性推进；默认 `AbstractOutput` 直接持有一个固定 meter，不增加观测包装。生命周期事件不参与，空流和没有输出数据的副作用不计数，广播前计数不等于实际下游投递数。计数随 Output 重建归零；自定义 Output 不支持时返回 null，装饰器应转交原输出的指标。
+
+`TaskRuntimeSnapshot.outputMetrics` 独立于执行指标；规则输入/输出分别汇总入口/末端 Output 速率，总流转量为全部普通 Output 累计数之和，包含内部流转，同一数据经过多个节点会重复计数。原执行次数不能替代消息吞吐。
 
 `TaskRuntimeSnapshot.buffered` 只在查询时沿既有主订阅的 Scannable 父链扫描，最多64层；不可扫描或超过预算时缺失。它是可扫描队列的缓冲数，不包含已取出执行的数据、其他独立订阅和外部 Broker 积压。统计不保存逐次输入、执行记录或活动样本，不新增线程或定时器；任务销毁后随上下文释放。
