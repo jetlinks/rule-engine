@@ -101,7 +101,10 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
      * @since 1.3.3
      */
     public TaskExecutionMetrics getExecutionMetrics() {
-        return executionMonitor.snapshot();
+        TaskExecutionMetrics metrics = executionMonitor.snapshot();
+        // 自定义上下文绕过通用 Output 时，不能将未观测的流量解释成零。
+        if (getOutput() != output) metrics.setOneMinuteOutputRate(null);
+        return metrics;
     }
 
     public AbstractExecutionContext(ScheduleJob job,
