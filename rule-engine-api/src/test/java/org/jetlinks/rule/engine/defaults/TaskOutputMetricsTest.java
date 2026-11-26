@@ -21,25 +21,26 @@ import static org.junit.Assert.*;
 
 public class TaskOutputMetricsTest {
     @Test
-    public void outputCountsSubscribedDataBeforeFanoutAndExcludesEmptyStreamsAndLifecycleEvents() {
+    public void terminalOutputCountsCallsAndConsumedStreamsAndExcludesLifecycleEvents() {
         var bus = new InternalEventBus();
         var context = context(bus);
         var data = RuleData.create("value");
         var write = context.getOutput().write(data);
-        assertEquals(0, context.getOutput().getMetrics().getCount());
+        assertEquals(1, context.getOutput().getMetrics().getCount());
         write.block(); write.block();
+        assertEquals(1, context.getOutput().getMetrics().getCount());
         context.getOutput().write(Flux.empty()).block();
         context.getOutput().write(Flux.just(data, data, data)).block();
         context.getOutput().write("other", data).block();
         // 没有目标订阅者时 EventBus 不消费这个 Publisher，未产生的数据不能计数。
         context.getOutput().write("other", Flux.just(data, data)).block();
         context.fireEvent(RuleConstants.Event.complete, data).block();
-        assertEquals(6, context.getOutput().getMetrics().getCount());
+        assertEquals(5, context.getOutput().getMetrics().getCount());
         assertEquals(0, context.getExecutionMetrics().getExecutionCount());
         var previous = context.getOutput();
         context.reload();
         assertEquals(0, context.getOutput().getMetrics().getCount());
-        assertEquals(6, previous.getMetrics().getCount());
+        assertEquals(5, previous.getMetrics().getCount());
     }
 
     @Test
@@ -101,13 +102,13 @@ public class TaskOutputMetricsTest {
     }
 
     @Test
-    public void reusableTerminalOutputCountsConcurrentSubscriptionsWithoutPerWriteWrappers() {
+    public void terminalOutputReusesTheSharedResultAndCountsConcurrentWriteCalls() {
         var output = context(new InternalEventBus()).getOutput();
-        var write = output.write(RuleData.create("value"));
-        assertSame(write, output.write(RuleData.create("another")));
+        var data = RuleData.create("value");
+        assertSame(org.jetlinks.core.utils.Reactors.ALWAYS_TRUE, output.write(data));
         Flux.range(0, 2000).parallel(4).runOn(reactor.core.scheduler.Schedulers.parallel())
-            .flatMap(ignore -> write).sequential().blockLast();
-        assertEquals(2000, output.getMetrics().getCount());
+            .flatMap(ignore -> output.write(data)).sequential().blockLast();
+        assertEquals(2001, output.getMetrics().getCount());
     }
 
     @Test

@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
-public abstract class AbstractOutput implements Output {
+public abstract class AbstractOutput extends RateMeter implements Output {
 
     protected final String instanceId;
 
@@ -27,8 +27,6 @@ public abstract class AbstractOutput implements Output {
     private final ConditionEvaluator evaluator;
 
     private Function<RuleData, Mono<Boolean>> writer;
-
-    private final RateMeter emitted = new RateMeter();
 
     public AbstractOutput(String instanceId,
                           List<ScheduleJob.Output> outputs,
@@ -44,12 +42,10 @@ public abstract class AbstractOutput implements Output {
 
         //没有输出
         if (CollectionUtils.isEmpty(outputs)) {
-            // 固定冷 Mono 保留 Callable 快路径，避免每条数据另建观测操作符。
-            Mono<Boolean> terminal = Mono.fromSupplier(() -> {
-                emitted.mark();
-                return true;
-            });
-            writer = data -> terminal;
+            writer = data -> {
+                mark();
+                return Reactors.ALWAYS_TRUE;
+            };
         } else {
             List<Function<RuleData, Mono<Boolean>>> writers = new ArrayList<>(outputs.size());
 
@@ -79,7 +75,7 @@ public abstract class AbstractOutput implements Output {
             this.writer = data -> TraceHolder
                     .writeContextTo(data, RuleData::setHeader)
                     .flatMap(ruleData -> {
-                        emitted.mark();
+                        mark();
                         return flux.flatMap(writer -> writer.apply(ruleData)
                             .onErrorResume(err -> Reactors.ALWAYS_FALSE))
                             .reduce(Boolean::logicalAnd);
@@ -102,7 +98,7 @@ public abstract class AbstractOutput implements Output {
 
     @Override
     public final Mono<Void> write(String nodeId, Publisher<RuleData> data) {
-        return doWrite(createOutputAddress(nodeId), Flux.from(data).doOnNext(ignored -> emitted.mark()))
+        return doWrite(createOutputAddress(nodeId), Flux.from(data).doOnNext(ignored -> mark()))
                 .then();
     }
 
@@ -113,14 +109,14 @@ public abstract class AbstractOutput implements Output {
     @Override
     public final Mono<Void> write(String nodeId, RuleData data) {
         return Mono.defer(() -> {
-            emitted.mark();
+            mark();
             return doWrite(createOutputAddress(nodeId), data).then();
         });
     }
 
     @Override
     public final OutputMetrics getMetrics() {
-        return new OutputMetrics(emitted.getCount(), emitted.getOneMinuteRate());
+        return new OutputMetrics(getCount(), getOneMinuteRate());
     }
 
     protected CharSequence createOutputAddress(String nodeId) {
