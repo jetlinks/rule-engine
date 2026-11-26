@@ -72,6 +72,14 @@ final class TaskExecutionMonitor extends RateMeter {
             : new NestedExecutionSubscriber<>(actual, execution, context);
     }
 
+    private static <T> void subscribeSource(Mono<? extends T> source, CoreSubscriber<? super T> subscriber) {
+        try {
+            source.subscribe(subscriber);
+        } catch (Throwable error) {
+            Operators.reportThrowInSubscribe(subscriber, error);
+        }
+    }
+
     /** 组装时只创建一个操作符，有限执行状态在每次订阅内创建。 */
     private static final class ExecutionMono<T> extends MonoOperator<T, T> {
         private final TaskExecutionMonitor monitor;
@@ -83,7 +91,7 @@ final class TaskExecutionMonitor extends RateMeter {
 
         @Override
         public void subscribe(@Nonnull CoreSubscriber<? super T> actual) {
-            source.subscribe(monitor.subscriber(actual));
+            subscribeSource(source, monitor.subscriber(actual));
         }
     }
 
@@ -116,7 +124,7 @@ final class TaskExecutionMonitor extends RateMeter {
                 Operators.error(subscriber, Operators.onOperatorError(error, subscriber.currentContext()));
                 return;
             }
-            Mono.fromDirect(source).subscribe(subscriber);
+            subscribeSource(Mono.fromDirect(source), subscriber);
         }
     }
 

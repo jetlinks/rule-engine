@@ -12,6 +12,7 @@ import reactor.test.StepVerifier;
 import reactor.test.publisher.TestPublisher;
 import reactor.util.context.Context;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -154,6 +155,22 @@ public class TaskExecutionMonitorTest {
         StepVerifier.create(monitor.observe(TaskExecutionMonitor.defer(42, input -> null)))
             .expectError(NullPointerException.class).verify();
         assertMetrics(monitor, 2, 2);
+    }
+
+    @Test
+    public void synchronousSubscriptionErrorsAreObservedBeforeRecoveryOnEverySubscription() {
+        var monitor = new TaskExecutionMonitor();
+        var failure = new IllegalStateException("subscription");
+        Mono<Void> source = Mono.error(() -> { throw failure; });
+        for (Mono<Void> execution : List.of(monitor.observe(source),
+                monitor.observe(TaskExecutionMonitor.defer(42, input -> source)))) {
+            StepVerifier.create(execution, 0)
+                .expectSubscription()
+                .expectErrorMatches(error -> error == failure).verify();
+            StepVerifier.create(execution.onErrorComplete(), 0).verifyComplete();
+            StepVerifier.create(monitor.observe(execution.onErrorComplete()), 0).verifyComplete();
+        }
+        assertMetrics(monitor, 6, 6);
     }
 
     @Test
