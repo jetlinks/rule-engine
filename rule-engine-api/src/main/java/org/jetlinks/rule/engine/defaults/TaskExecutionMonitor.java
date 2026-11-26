@@ -1,5 +1,6 @@
 package org.jetlinks.rule.engine.defaults;
 
+import org.jetlinks.core.monitor.metrics.RateMeter;
 import org.jetlinks.rule.engine.api.task.TaskExecutionMetrics;
 import org.reactivestreams.Subscription;
 import reactor.core.CoreSubscriber;
@@ -19,11 +20,10 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  */
 final class TaskExecutionMonitor {
     private static final AtomicLongFieldUpdater<TaskExecutionMonitor>
-        EXECUTION_COUNT = AtomicLongFieldUpdater.newUpdater(TaskExecutionMonitor.class, "executionCount"),
         ERROR_COUNT = AtomicLongFieldUpdater.newUpdater(TaskExecutionMonitor.class, "errorCount"),
         LAST_EXECUTION_TIME = AtomicLongFieldUpdater.newUpdater(TaskExecutionMonitor.class, "lastExecutionTime");
 
-    private volatile long executionCount;
+    private final RateMeter executions = new RateMeter();
     private volatile long errorCount;
     private volatile long lastExecutionTime;
 
@@ -40,7 +40,9 @@ final class TaskExecutionMonitor {
 
     TaskExecutionMetrics snapshot() {
         TaskExecutionMetrics metrics = new TaskExecutionMetrics();
-        metrics.setExecutionCount(executionCount);
+        metrics.setExecutionCount(executions.getCount());
+        metrics.setMeanExecutionRate(executions.getMeanRate());
+        metrics.setOneMinuteExecutionRate(executions.getOneMinuteRate());
         metrics.setErrorCount(errorCount);
         metrics.setLastExecutionTime(lastExecutionTime);
         return metrics;
@@ -84,7 +86,7 @@ final class TaskExecutionMonitor {
             if (inherited == null) {
                 execution = this;
                 context = inheritedContext.put(monitor, this);
-                EXECUTION_COUNT.incrementAndGet(monitor);
+                monitor.executions.mark();
                 // 并发执行开始时间可能乱序到达，不能让较早时间覆盖较晚时间。
                 LAST_EXECUTION_TIME.accumulateAndGet(monitor, System.currentTimeMillis(), Math::max);
             } else {

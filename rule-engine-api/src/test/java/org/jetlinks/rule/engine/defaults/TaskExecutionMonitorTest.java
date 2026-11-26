@@ -1,5 +1,9 @@
 package org.jetlinks.rule.engine.defaults;
 
+import org.jetlinks.core.metadata.UnitSupported;
+import org.jetlinks.core.monitor.metrics.MetricKind;
+import org.jetlinks.core.monitor.metrics.MetricSet;
+import org.jetlinks.rule.engine.api.task.TaskExecutionMetrics;
 import org.junit.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -8,9 +12,51 @@ import reactor.test.StepVerifier;
 import reactor.test.publisher.TestPublisher;
 import reactor.util.context.Context;
 
+import java.util.Map;
+
 import static org.junit.Assert.*;
 
 public class TaskExecutionMonitorTest {
+    @Test
+    public void unusedMonitorHasZeroRatesAndReadingDoesNotResetCounts() {
+        var monitor = new TaskExecutionMonitor();
+        var unused = monitor.snapshot();
+        assertEquals(0, unused.getExecutionCount());
+        assertEquals(0, unused.getMeanExecutionRate(), 0);
+        assertEquals(0, unused.getOneMinuteExecutionRate(), 0);
+        Mono<Void> execution = monitor.observe(monitor.observe(Mono.empty()));
+        execution.block();
+        execution.block();
+        assertMetrics(monitor, 2, 0);
+        assertMetrics(monitor, 2, 0);
+    }
+
+    @Test
+    public void publicSnapshotExposesRateSemanticsAndValues() throws Throwable {
+        var definition = MetricSet.of(TaskExecutionMetrics.class);
+        assertSame(definition, MetricSet.of(TaskExecutionMetrics.class));
+        assertEquals(5, definition.getMetrics().size());
+        var snapshot = new TaskExecutionMetrics();
+        snapshot.setMeanExecutionRate(2.5);
+        snapshot.setOneMinuteExecutionRate(3.5);
+        var mean = definition.getMetrics().stream()
+            .filter(metric -> metric.getId().equals("meanExecutionRate")).findFirst().orElseThrow();
+        var smoothed = definition.getMetrics().stream()
+            .filter(metric -> metric.getId().equals("oneMinuteExecutionRate")).findFirst().orElseThrow();
+        assertEquals(MetricKind.gauge, mean.getKind());
+        assertEquals(2.5, (Double) mean.read(snapshot), 0);
+        assertEquals(3.5, (Double) smoothed.read(snapshot), 0);
+        var meanSemantics = (Map<?, ?>) mean.getMetadata().getExpand("metric").orElseThrow();
+        var smoothedSemantics = (Map<?, ?>) smoothed.getMetadata().getExpand("metric").orElseThrow();
+        assertEquals("mean", meanSemantics.get("aggregation"));
+        assertEquals("lifetime", meanSemantics.get("scope"));
+        assertEquals("ewma", smoothedSemantics.get("aggregation"));
+        assertEquals("exponential", smoothedSemantics.get("scope"));
+        assertEquals(60L, smoothedSemantics.get("timeConstantSeconds"));
+        assertEquals(5L, smoothedSemantics.get("tickSeconds"));
+        assertEquals("count/s", ((UnitSupported) mean.getMetadata().getValueType()).getUnit().getId());
+    }
+
     @Test
     public void preservesContextAndDownstreamDemand() {
         var monitor = new TaskExecutionMonitor();
@@ -87,5 +133,9 @@ public class TaskExecutionMonitorTest {
         assertEquals(count, snapshot.getExecutionCount());
         assertEquals(errors, snapshot.getErrorCount());
         assertTrue(snapshot.getLastExecutionTime() > 0);
+        assertTrue(Double.isFinite(snapshot.getMeanExecutionRate()));
+        assertTrue(snapshot.getMeanExecutionRate() > 0);
+        assertTrue(Double.isFinite(snapshot.getOneMinuteExecutionRate()));
+        assertTrue(snapshot.getOneMinuteExecutionRate() >= 0);
     }
 }

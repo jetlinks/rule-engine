@@ -83,6 +83,8 @@ public class TaskDumpMetricsRpcTest {
                     assertEquals(2, snapshot.getExecutionMetrics().getExecutionCount());
                     assertEquals(1, snapshot.getExecutionMetrics().getErrorCount());
                     assertTrue(snapshot.getExecutionMetrics().getLastExecutionTime() > 0);
+                    assertTrue(snapshot.getExecutionMetrics().getMeanExecutionRate() > 0);
+                    assertTrue(Double.isFinite(snapshot.getExecutionMetrics().getOneMinuteExecutionRate()));
                 }).verifyComplete();
             remote.shutdown("scene").block();
             StepVerifier.create(remote.getSchedulingTask("scene")).verifyComplete();
@@ -90,6 +92,8 @@ public class TaskDumpMetricsRpcTest {
             StepVerifier.create(remote.getSchedulingTask("scene").flatMap(Task::dump))
                 .assertNext(snapshot -> {
                     assertEquals(0, snapshot.getExecutionMetrics().getExecutionCount());
+                    assertEquals(0, snapshot.getExecutionMetrics().getMeanExecutionRate(), 0);
+                    assertEquals(0, snapshot.getExecutionMetrics().getOneMinuteExecutionRate(), 0);
                     assertEquals(0, snapshot.getExecutionMetrics().getLastExecutionTime());
                 }).verifyComplete();
         } finally {
