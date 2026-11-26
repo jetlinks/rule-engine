@@ -9,6 +9,7 @@ import org.jetlinks.rule.engine.api.RuleEngine;
 import org.jetlinks.rule.engine.api.model.RuleModel;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
+import org.jetlinks.rule.engine.api.scheduler.SchedulerRuntimeSnapshot;
 import org.jetlinks.rule.engine.api.scheduler.SchedulerSelector;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.task.TaskSnapshot;
@@ -18,6 +19,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.*;
+import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -171,6 +173,23 @@ public class ClusterRuleEngine implements RuleEngine {
         return schedulerRegistry
             .getSchedulers()
             .flatMap(scheduler -> scheduler.getSchedulingTask(instance));
+    }
+
+    @Override
+    public Flux<SchedulerRuntimeSnapshot> getRuntime(List<String> instanceIds) {
+        return Flux.defer(() -> {
+            if (instanceIds == null || instanceIds.size() > SchedulerRuntimeSnapshot.MAX_INSTANCES
+                || instanceIds.stream().anyMatch(id -> id == null || id.isBlank() || id.length() > 64)) {
+                return Flux.error(new IllegalArgumentException("invalid runtime instance scope"));
+            }
+            if (instanceIds.isEmpty()) return Flux.empty();
+            return schedulerRegistry.getSchedulers()
+                .flatMap(scheduler -> scheduler.getRuntime(instanceIds)
+                    .timeout(Duration.ofSeconds(5))
+                    .onErrorResume(error -> Mono.just(SchedulerRuntimeSnapshot.status(scheduler.getId(),
+                        error instanceof UnsupportedOperationException ? "unsupported" : "unavailable"))), 4)
+                .switchIfEmpty(Flux.just(SchedulerRuntimeSnapshot.status(null, "unavailable")));
+        });
     }
 
     @Override

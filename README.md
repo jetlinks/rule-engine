@@ -50,3 +50,11 @@ Condition{
     configuration: { Map }  # 条件配置
 }
 ```
+
+## 轻量运行投影与规则边界流量
+
+`RuleEngine.getRuntime(List<String>)` 沿原调度 RPC 按最多64个规则读取快照，每节点最多4096个任务，返回状态、角色、计数及速率，不携带配置/模型/输入。节点超时、超预算和旧节点不支持时保留 unavailable/unsupported，不能解释成空任务。
+
+编译时复用 `RuleNodeModel.isStartNode/isEndNode` 固化入口/末端角色。正常 `Output` 每条发出数据由同一固定 meter 计量，生命周期事件不参与；空流和没有输出数据的副作用不计数，广播前计数不等于实际下游投递数。`TaskExecutionMetrics.outputCount/oneMinuteOutputRate` 与原执行次数分别表达数据发出和执行开始，后者不能替代消息吞吐。速率为60秒 EWMA、5秒惰性推进。
+
+`TaskRuntimeSnapshot.buffered` 只在查询时沿既有主订阅的 Scannable 父链扫描，最多64层；不可扫描或超过预算时缺失。它是可扫描队列的缓冲数，不包含已取出执行的数据、其他独立订阅和外部 Broker 积压。统计不保存逐次输入、执行记录或活动样本，不新增线程或定时器；任务销毁后随上下文释放。

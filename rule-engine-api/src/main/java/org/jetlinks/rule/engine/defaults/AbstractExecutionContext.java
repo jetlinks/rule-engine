@@ -14,6 +14,9 @@ import org.jetlinks.rule.engine.api.*;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scope.GlobalScope;
 import org.jetlinks.rule.engine.api.task.ExecutionContext;
+import org.reactivestreams.Publisher;
+import java.util.concurrent.Callable;
+import java.util.function.Consumer;
 import org.jetlinks.rule.engine.api.task.Input;
 import org.jetlinks.rule.engine.api.task.Output;
 import org.jetlinks.rule.engine.api.task.TaskExecutionMetrics;
@@ -338,7 +341,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
         this.monitor = monitorFactory.apply(job);
         this.logger = Logger.of(monitor.logger());
         this.input = new ObservedInput(RuleEngineHooks.wrapInput(inputFactory.apply(job)));
-        this.output = RuleEngineHooks.wrapOutput(outputFactory.apply(job));
+        this.output = new ObservedOutput(RuleEngineHooks.wrapOutput(outputFactory.apply(job)));
         this.eventOutputs = eventOutputsFactory
             .apply(job)
             .entrySet()
@@ -363,6 +366,57 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
             recordDataToHeaderKey = null;
         }
 
+    }
+
+    /** 只装饰正常数据输出；生命周期事件不属于规则的输入/输出流量。 */
+    private final class ObservedOutput implements Output {
+        private final Output delegate;
+        private final Consumer<RuleData> emitted = ignored -> executionMonitor.output();
+
+        private ObservedOutput(Output delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public Mono<Boolean> write(RuleData data) {
+            return observe(delegate.write(data));
+        }
+
+        @Override
+        public Mono<Boolean> write(Publisher<RuleData> data) {
+            return delegate.write(Flux.from(data).doOnNext(emitted));
+        }
+
+        @Override
+        public Mono<Void> write(String nodeId, RuleData data) {
+            return observe(delegate.write(nodeId, data));
+        }
+
+        @Override
+        public Mono<Void> write(String nodeId, Publisher<RuleData> data) {
+            return delegate.write(nodeId, Flux.from(data).doOnNext(emitted));
+        }
+
+        @SuppressWarnings("unchecked")
+        private <T> Mono<T> observe(Mono<T> source) {
+            // 保留 Reactor 的 Callable 快路径，避免同步输出额外创建内部订阅器。
+            if (source instanceof Callable<?> callable) {
+                return Mono.fromCallable(() -> {
+                    executionMonitor.output();
+                    return (T) callable.call();
+                });
+            }
+            return Mono.defer(() -> {
+                executionMonitor.output();
+                return source;
+            });
+        }
+
+        @Override
+        public void dispose() { delegate.dispose(); }
+
+        @Override
+        public boolean isDisposed() { return delegate.isDisposed(); }
     }
 
     private final class ObservedInput implements Input {

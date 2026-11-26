@@ -27,6 +27,19 @@ public class TaskExecutionMetrics implements Serializable {
     private long lastExecutionTime;
     private double meanExecutionRate;
     private double oneMinuteExecutionRate;
+    private Double oneMinuteOutputRate;
+    private long outputCount;
+
+    @Counter
+    @Schema(title = "数据发出数量", description = "正常 Output 订阅时发出的数据条数，广播前计数，不表示下游成功或副作用成功")
+    public long getOutputCount() { return outputCount; }
+
+    /** null 表示任务不支持数据发出计量；不是执行开始次数或实际下游投递数。 */
+    @EwmaRate(value = 60, tickSeconds = 5, unit = "count/s")
+    @Schema(title = "数据发出速率", description = "正常 Output 每条数据发出尝试的60秒平滑速率，条件过滤和广播前计数，不包含生命周期事件")
+    public Double getOneMinuteOutputRate() {
+        return oneMinuteOutputRate;
+    }
 
     @Counter
     @Schema(title = "执行次数", description = "当前任务实例的有限执行开始次数，空结果和取消也计数")

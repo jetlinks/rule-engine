@@ -12,6 +12,7 @@ import org.jetlinks.core.metadata.FunctionMetadata;
 import org.jetlinks.core.utils.SerializeUtils;
 import org.jetlinks.rule.engine.api.RuleData;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
+import org.jetlinks.rule.engine.api.scheduler.SchedulerRuntimeSnapshot;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.task.TaskSnapshot;
 import org.jetlinks.rule.engine.api.worker.Worker;
@@ -24,6 +25,17 @@ import java.util.List;
 
 @Service
 public interface SchedulerRpcService {
+
+    @ServiceMethod
+    Mono<SchedulerRuntimeSnapshot> getRuntime(RuntimeRequest request);
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    class RuntimeRequest {
+        private List<String> instanceIds;
+    }
 
     @ServiceMethod
     Mono<String> getId();

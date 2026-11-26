@@ -35,6 +35,8 @@ public class ScheduleJobCompiler {
             job.setInstanceId(instanceId);
             job.setRuleId(model.getId());
             job.setNodeId(node.getId());
+            job.setStartNode(node.isStartNode());
+            job.setEndNode(node.isEndNode());
             job.setConfiguration(node.getConfiguration());
             job.setRuleConfiguration(model.getConfiguration());
             job.setModelType(model.getType());

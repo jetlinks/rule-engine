@@ -35,7 +35,7 @@ public class TaskExecutionMonitorTest {
     public void publicSnapshotExposesRateSemanticsAndValues() throws Throwable {
         var definition = MetricSet.of(TaskExecutionMetrics.class);
         assertSame(definition, MetricSet.of(TaskExecutionMetrics.class));
-        assertEquals(5, definition.getMetrics().size());
+        assertEquals(7, definition.getMetrics().size());
         var snapshot = new TaskExecutionMetrics();
         snapshot.setMeanExecutionRate(2.5);
         snapshot.setOneMinuteExecutionRate(3.5);

@@ -13,6 +13,8 @@ import org.jetlinks.rule.engine.api.task.ExecutableTaskExecutor;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.task.TaskExecutor;
 import org.jetlinks.rule.engine.api.task.TaskSnapshot;
+import org.jetlinks.rule.engine.api.task.TaskRuntimeSnapshot;
+import reactor.core.Scannable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -249,6 +251,32 @@ public class DefaultTask implements Task {
             snapshot.setExecutionMetrics(context.getExecutionMetrics());
             return snapshot;
         });
+    }
+
+    @Override
+    public Mono<TaskRuntimeSnapshot> runtime() {
+        return getState().map(state -> {
+            TaskRuntimeSnapshot snapshot = TaskRuntimeSnapshot.of(this, state, context.getExecutionMetrics());
+            snapshot.setBuffered(buffered(executor));
+            return snapshot;
+        });
+    }
+
+    /** 只扫描主订阅的父链；未知或超过预算时不返回伪零，也不递归枚举活动执行。 */
+    static Long buffered(Object source) {
+        Scannable current = Scannable.from(source);
+        long total = 0;
+        boolean supported = false;
+        for (int depth = 0; depth < 64 && current.isScanAvailable(); depth++) {
+            Object value = current.scanUnsafe(Scannable.Attr.BUFFERED);
+            if (value instanceof Number number) {
+                total += Math.max(0, number.longValue());
+                supported = true;
+            }
+            current = Scannable.from(current.scanUnsafe(Scannable.Attr.PARENT));
+            if (!current.isScanAvailable()) return supported ? total : null;
+        }
+        return null;
     }
 
     @Override
