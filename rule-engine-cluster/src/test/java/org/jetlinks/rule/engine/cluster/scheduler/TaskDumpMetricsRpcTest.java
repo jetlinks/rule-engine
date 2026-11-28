@@ -77,12 +77,23 @@ public class TaskDumpMetricsRpcTest {
             assertTrue(task instanceof RemoteTask);
             task.execute(RuleData.create("ok")).block();
             task.execute(RuleData.create("fail")).block();
+            StepVerifier.create(remote.getRuntime(java.util.List.of("scene", "missing")))
+                .assertNext(snapshot -> {
+                    assertEquals("ready", snapshot.getStatus());
+                    assertEquals("scheduler", snapshot.getSchedulerId());
+                    assertEquals(1, snapshot.getTasks().size());
+                    assertEquals("scene", snapshot.getTasks().get(0).getInstanceId());
+                    assertEquals(1, snapshot.getTasks().get(0).getOutputMetrics().getCount());
+                    assertTrue(snapshot.getTasks().get(0).getMetrics().getMeanExecutionRate() > 0);
+                }).verifyComplete();
             StepVerifier.create(remote.getSchedulingTask("scene").flatMap(Task::dump))
                 .assertNext(snapshot -> {
                     assertEquals("scene", snapshot.getJob().getNodeId());
                     assertEquals(2, snapshot.getExecutionMetrics().getExecutionCount());
                     assertEquals(1, snapshot.getExecutionMetrics().getErrorCount());
                     assertTrue(snapshot.getExecutionMetrics().getLastExecutionTime() > 0);
+                    assertTrue(snapshot.getExecutionMetrics().getMeanExecutionRate() > 0);
+                    assertTrue(Double.isFinite(snapshot.getExecutionMetrics().getOneMinuteExecutionRate()));
                 }).verifyComplete();
             remote.shutdown("scene").block();
             StepVerifier.create(remote.getSchedulingTask("scene")).verifyComplete();
@@ -90,6 +101,8 @@ public class TaskDumpMetricsRpcTest {
             StepVerifier.create(remote.getSchedulingTask("scene").flatMap(Task::dump))
                 .assertNext(snapshot -> {
                     assertEquals(0, snapshot.getExecutionMetrics().getExecutionCount());
+                    assertEquals(0, snapshot.getExecutionMetrics().getMeanExecutionRate(), 0);
+                    assertEquals(0, snapshot.getExecutionMetrics().getOneMinuteExecutionRate(), 0);
                     assertEquals(0, snapshot.getExecutionMetrics().getLastExecutionTime());
                 }).verifyComplete();
         } finally {

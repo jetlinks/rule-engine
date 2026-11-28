@@ -18,6 +18,7 @@ import org.jetlinks.rule.engine.api.task.ExecutionContext;
 import org.jetlinks.rule.engine.api.task.Task;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
+import reactor.core.Scannable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.context.Context;
@@ -33,7 +34,7 @@ import java.util.function.Function;
  * @see FunctionTaskExecutor
  */
 @Slf4j
-public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
+public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor, Scannable {
     private static final ObservationSpec<RuleData, RuleData> EXECUTION = ObservationSpec.of("execute");
     protected final static AttributeKey<String> executor_name = AttributeKey.stringKey("name");
 
@@ -108,6 +109,12 @@ public abstract class AbstractTaskExecutor implements ExecutableTaskExecutor {
             .monitor()
             .tracer()
             .traceFlux("execute");
+    }
+
+    /** 暴露已有运行订阅供按需扫描，不为观测保存额外订阅或消息状态。 */
+    @Override
+    public Object scanUnsafe(Scannable.Attr key) {
+        return key == Scannable.Attr.PARENT ? taskContainer.get() : null;
     }
 
     @Override

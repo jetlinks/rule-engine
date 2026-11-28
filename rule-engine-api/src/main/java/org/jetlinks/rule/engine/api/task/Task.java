@@ -14,6 +14,15 @@ import reactor.core.publisher.Mono;
 public interface Task {
 
     /**
+     * 按需读取轻量运行信息，不传输任务配置。自定义任务默认不声明执行指标。
+     * @return 本次状态；取消传递到读取，不触发任务执行
+     * @since 1.3.3
+     */
+    default Mono<TaskRuntimeSnapshot> runtime() {
+        return getState().map(state -> TaskRuntimeSnapshot.of(this, state, null));
+    }
+
+    /**
      * 唯一ID
      *
      * @return ID

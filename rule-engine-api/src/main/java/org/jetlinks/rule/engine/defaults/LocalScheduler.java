@@ -145,7 +145,9 @@ public class LocalScheduler implements Scheduler, Disposable {
 
     @Override
     public Flux<Task> getSchedulingTask(String instanceId) {
-        return Flux.fromIterable(getExecutor(instanceId).values())
+        Map<String, List<Task>> nodes = executors.get(instanceId);
+        if (nodes == null) return Flux.empty();
+        return Flux.fromIterable(nodes.values())
                    .flatMapIterable(Function.identity());
     }
 
