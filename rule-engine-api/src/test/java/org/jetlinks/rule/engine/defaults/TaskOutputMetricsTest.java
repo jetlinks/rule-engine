@@ -13,6 +13,7 @@ import reactor.core.Scannable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import reactor.test.StepVerifier;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -157,6 +158,38 @@ public class TaskOutputMetricsTest {
             public Object scanUnsafe(Attr key) { return key == Attr.PARENT ? this : null; }
         };
         assertNull(DefaultTask.buffered(cycle));
+    }
+
+    @Test
+    public void ordinaryCallbackTaskReportsKnownZeroAndExcludesInFlightWork() {
+        var bus = new InternalEventBus();
+        var context = context(bus);
+        var gate = Sinks.<Void>empty();
+        var processed = new java.util.concurrent.atomic.AtomicInteger();
+        var executor = new FunctionTaskExecutor("blocked-callback", context) {
+            protected Publisher<RuleData> apply(RuleData input) {
+                processed.incrementAndGet();
+                return gate.asMono().thenReturn(input);
+            }
+        };
+        var task = new DefaultTask("scheduler", "worker", context, executor);
+        task.start().block();
+        try {
+            assertEquals(Long.valueOf(0), task.runtime().block().getBuffered());
+            StepVerifier.create(bus.publish(RuleConstants.Topics.input("rule", "node"), RuleData.create("value")))
+                .then(() -> {
+                    assertEquals(1, processed.get());
+                    assertEquals(Long.valueOf(0), task.runtime().block().getBuffered());
+                    assertEquals(0, context.getOutput().getMetrics().getCount());
+                    gate.tryEmitEmpty();
+                })
+                .expectNext(1L)
+                .verifyComplete();
+            assertEquals(Long.valueOf(0), task.runtime().block().getBuffered());
+            assertEquals(1, context.getOutput().getMetrics().getCount());
+        } finally { task.shutdown().block(); }
+        assertEquals(0L, bus.publish(RuleConstants.Topics.input("rule", "node"), RuleData.create("after-stop")).block().longValue());
+        assertEquals(1, processed.get());
     }
 
     private static DefaultExecutionContext context(InternalEventBus bus) {
