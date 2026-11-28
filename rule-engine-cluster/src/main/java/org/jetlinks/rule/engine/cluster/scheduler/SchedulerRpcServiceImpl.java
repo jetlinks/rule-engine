@@ -2,6 +2,7 @@ package org.jetlinks.rule.engine.cluster.scheduler;
 
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
+import org.jetlinks.rule.engine.api.scheduler.SchedulerRuntimeSnapshot;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.task.TaskSnapshot;
 import org.jetlinks.rule.engine.api.worker.Worker;
@@ -34,6 +35,11 @@ public class SchedulerRpcServiceImpl implements SchedulerRpcService {
 
     public Scheduler getLocalScheduler() {
         return localScheduler;
+    }
+
+    @Override
+    public Mono<SchedulerRuntimeSnapshot> getRuntime(RuntimeRequest request) {
+        return localScheduler.getRuntime(request.getInstanceIds());
     }
 
     @Override

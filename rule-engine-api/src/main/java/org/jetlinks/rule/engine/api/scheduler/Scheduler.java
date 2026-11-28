@@ -6,6 +6,9 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.LinkedHashSet;
+import java.util.List;
+
 /**
  * 任务调度器
  *
@@ -13,6 +16,28 @@ import reactor.core.publisher.Mono;
  * @since 1.0.4
  */
 public interface Scheduler extends Disposable {
+
+    /**
+     * 有界批量运行读取，沿现有实例索引定位，不读取完整任务快照或执行任务。
+     * @param instanceIds 最多64个规则身份，调用期间不可修改
+     * @return 本节点的完整读取结果；超预算和读取错误明确失败
+     * @since 1.3.3
+     */
+    default Mono<SchedulerRuntimeSnapshot> getRuntime(List<String> instanceIds) {
+        return Mono.defer(() -> {
+            if (instanceIds == null || instanceIds.size() > SchedulerRuntimeSnapshot.MAX_INSTANCES
+                || instanceIds.stream().anyMatch(id -> id == null || id.isBlank() || id.length() > 64)) {
+                return Mono.error(new IllegalArgumentException("invalid runtime instance scope"));
+            }
+            return Flux.fromIterable(new LinkedHashSet<>(instanceIds))
+                .concatMap(id -> getSchedulingTask(id).concatMap(Task::runtime, 1), 1)
+                .take(SchedulerRuntimeSnapshot.MAX_TASKS + 1L)
+                .collectList()
+                .flatMap(tasks -> tasks.size() > SchedulerRuntimeSnapshot.MAX_TASKS
+                    ? Mono.error(new IllegalStateException("runtime task budget exceeded"))
+                    : Mono.just(SchedulerRuntimeSnapshot.ready(getId(), tasks)));
+        });
+    }
 
     /**
      * @return 调度器ID

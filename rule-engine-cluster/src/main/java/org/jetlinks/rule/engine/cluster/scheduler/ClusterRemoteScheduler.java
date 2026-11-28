@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.jetlinks.rule.engine.api.scheduler.ScheduleJob;
 import org.jetlinks.rule.engine.api.scheduler.Scheduler;
+import org.jetlinks.rule.engine.api.scheduler.SchedulerRuntimeSnapshot;
 import org.jetlinks.rule.engine.api.task.Task;
 import org.jetlinks.rule.engine.api.worker.Worker;
 import org.jetlinks.rule.engine.cluster.task.RemoteTask;
@@ -15,6 +16,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 @AllArgsConstructor
@@ -38,6 +40,11 @@ public class ClusterRemoteScheduler implements Scheduler, Disposable {
                 .onErrorResume(IOException.class, r -> Mono.just(false))
                 .onErrorResume(ServiceException.class, r -> Mono.just(false))
                 .onErrorResume(TimeoutException.class, r -> Mono.just(false));
+    }
+
+    @Override
+    public Mono<SchedulerRuntimeSnapshot> getRuntime(List<String> instanceIds) {
+        return rpcService.getRuntime(new SchedulerRpcService.RuntimeRequest(instanceIds));
     }
 
     public Mono<Boolean> isNoAlive() {

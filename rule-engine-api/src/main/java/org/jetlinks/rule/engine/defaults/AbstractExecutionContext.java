@@ -380,7 +380,7 @@ public abstract class AbstractExecutionContext implements ExecutionContext, Moni
         @Override
         public Disposable accept(Function<RuleData, Mono<Boolean>> listener) {
             // 保留具体 Input 的确认语义，仅装饰单条输入回调，而非整个订阅。
-            return delegate.accept(data -> observeExecution(Mono.defer(() -> listener.apply(data))));
+            return delegate.accept(data -> observeExecution(TaskExecutionMonitor.defer(data, listener)));
         }
 
         @Override

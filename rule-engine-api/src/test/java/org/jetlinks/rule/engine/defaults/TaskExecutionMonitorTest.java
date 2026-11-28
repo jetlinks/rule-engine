@@ -12,7 +12,9 @@ import reactor.test.StepVerifier;
 import reactor.test.publisher.TestPublisher;
 import reactor.util.context.Context;
 
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
 
@@ -90,8 +92,96 @@ public class TaskExecutionMonitorTest {
     public void nestedErrorIsCountedEvenWhenRecoveredOutsideTheNestedObserver() {
         var monitor = new TaskExecutionMonitor();
         Mono<Void> nested = monitor.observe(Mono.error(new IllegalStateException("nested")));
-        monitor.observe(nested.onErrorResume(error -> Mono.empty())).block();
-        assertMetrics(monitor, 1, 1);
+        Mono<Void> execution = monitor.observe(TaskExecutionMonitor.defer(nested, source -> source.onErrorResume(error -> Mono.empty())));
+        execution.block();
+        execution.block();
+        assertMetrics(monitor, 2, 2);
+    }
+
+    @Test
+    public void adjacentObserversAreIdempotentWithinTheSameMonitor() {
+        var monitor = new TaskExecutionMonitor();
+        Mono<Integer> direct = monitor.observe(Mono.just(42));
+        Mono<Integer> deferred = monitor.observe(TaskExecutionMonitor.defer(42, Mono::just));
+        assertSame(direct, monitor.observe(direct));
+        assertSame(deferred, monitor.observe(deferred));
+        assertEquals(Integer.valueOf(42), direct.block());
+        assertEquals(Integer.valueOf(42), deferred.block());
+        assertMetrics(monitor, 2, 0);
+    }
+
+    @Test
+    public void deferredCallbacksRunPerSubscriptionAndKeepContextAndValues() {
+        var monitor = new TaskExecutionMonitor();
+        var calls = new AtomicInteger();
+        Mono<Integer> execution = monitor.observe(TaskExecutionMonitor.defer(42, input -> {
+            calls.incrementAndGet();
+            return monitor.observe(Mono.deferContextual(context -> {
+                assertEquals("tenant-a", context.get("tenant"));
+                return Mono.just(input);
+            }));
+        }));
+        assertEquals(0, calls.get());
+        assertEquals(0, monitor.getCount());
+        StepVerifier.create(execution.contextWrite(Context.of("tenant", "tenant-a")), 0)
+            .expectSubscription()
+            .then(() -> assertEquals(1, calls.get()))
+            .thenRequest(1).expectNext(42).verifyComplete();
+        assertEquals(Integer.valueOf(42), execution.contextWrite(Context.of("tenant", "tenant-a")).block());
+        assertEquals(2, calls.get());
+        assertMetrics(monitor, 2, 0);
+    }
+
+    @Test
+    public void deferredCallbacksPreserveDemandAndCancellation() {
+        var monitor = new TaskExecutionMonitor();
+        var source = TestPublisher.<Integer>createCold();
+        StepVerifier.create(monitor.observe(TaskExecutionMonitor.defer(source, publisher -> monitor.observe(publisher.mono()))), 0)
+            .expectSubscription()
+            .then(() -> source.assertMaxRequested(0))
+            .thenRequest(1)
+            .then(() -> source.assertMinRequested(1))
+            .thenCancel().verify();
+        source.assertCancelled();
+        assertMetrics(monitor, 1, 0);
+    }
+
+    @Test
+    public void synchronousCallbackErrorsAndNullResultsAreObservedBeforeRecovery() {
+        var monitor = new TaskExecutionMonitor();
+        var failure = new IllegalStateException("callback");
+        StepVerifier.create(monitor.observe(TaskExecutionMonitor.defer(42, input -> { throw failure; })))
+            .expectErrorMatches(error -> error == failure).verify();
+        StepVerifier.create(monitor.observe(TaskExecutionMonitor.defer(42, input -> null)))
+            .expectError(NullPointerException.class).verify();
+        assertMetrics(monitor, 2, 2);
+    }
+
+    @Test
+    public void synchronousSubscriptionErrorsAreObservedBeforeRecoveryOnEverySubscription() {
+        var monitor = new TaskExecutionMonitor();
+        var failure = new IllegalStateException("subscription");
+        Mono<Void> source = Mono.error(() -> { throw failure; });
+        for (Mono<Void> execution : List.of(monitor.observe(source),
+                monitor.observe(TaskExecutionMonitor.defer(42, input -> source)))) {
+            StepVerifier.create(execution, 0)
+                .expectSubscription()
+                .expectErrorMatches(error -> error == failure).verify();
+            StepVerifier.create(execution.onErrorComplete(), 0).verifyComplete();
+            StepVerifier.create(monitor.observe(execution.onErrorComplete()), 0).verifyComplete();
+        }
+        assertMetrics(monitor, 6, 6);
+    }
+
+    @Test
+    public void deferredExecutionsKeepDifferentMonitorBoundaries() {
+        var first = new TaskExecutionMonitor();
+        var second = new TaskExecutionMonitor();
+        Mono<Void> inner = second.observe(TaskExecutionMonitor.defer(42,
+            input -> Mono.<Void>error(new IllegalStateException("inner"))));
+        first.observe(inner).onErrorComplete().block();
+        assertMetrics(first, 1, 1);
+        assertMetrics(second, 1, 1);
     }
 
     @Test

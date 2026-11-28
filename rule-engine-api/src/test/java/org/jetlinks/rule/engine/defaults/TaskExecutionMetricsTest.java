@@ -102,6 +102,7 @@ public class TaskExecutionMetricsTest {
         };
         executor.execute(RuleData.create("value")).block();
         assertMetrics(context, 1, 1);
+        assertNull(context.getOutput().getMetrics());
     }
 
     @Test
@@ -144,6 +145,43 @@ public class TaskExecutionMetricsTest {
         Flux.range(0, 1000).flatMap(i -> context.observeExecution(Mono.empty())
             .subscribeOn(Schedulers.parallel()), 32).blockLast();
         assertMetrics(context, 1000, 0);
+    }
+
+    @Test
+    public void inputCallbacksStillUseTheExistingContextObservationOverride() {
+        var bus = new InternalEventBus();
+        var observations = new java.util.concurrent.atomic.AtomicInteger();
+        var original = context("decorated", bus);
+        var context = new DefaultExecutionContext("worker", original.getJob(), bus,
+            (condition, data) -> true, new InMemoryGlobalScope()) {
+            @Override
+            public <T> Mono<T> observeExecution(Mono<T> execution) {
+                observations.incrementAndGet();
+                return super.observeExecution(execution.doOnSubscribe(subscription -> observations.incrementAndGet()));
+            }
+        };
+        var subscription = context.getInput().accept(data -> Mono.just(false));
+        try {
+            bus.publish(RuleConstants.Topics.input("rule", "decorated"), RuleData.create("value")).block();
+            assertEquals(2, observations.get());
+            assertMetrics(context, 1, 0);
+        } finally { subscription.dispose(); }
+
+        var passthrough = new DefaultExecutionContext("worker", context("passthrough", bus).getJob(), bus,
+            (condition, data) -> true, new InMemoryGlobalScope()) {
+            @Override
+            public <T> Mono<T> observeExecution(Mono<T> execution) { return execution; }
+        };
+        var calls = new java.util.concurrent.atomic.AtomicInteger();
+        subscription = passthrough.getInput().accept(data -> {
+            calls.incrementAndGet();
+            return Mono.just(true);
+        });
+        try {
+            bus.publish(RuleConstants.Topics.input("rule", "passthrough"), RuleData.create("value")).block();
+            assertEquals(1, calls.get());
+            assertMetrics(passthrough, 0, 0);
+        } finally { subscription.dispose(); }
     }
 
     private static DefaultExecutionContext context(String node, InternalEventBus bus) {
